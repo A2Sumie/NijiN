@@ -47,6 +47,17 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 | 17 | The prepared toolkit package | Built, reconciled, **not published** — waiting for the word | [release-packaging.md](release-packaging.md), [releasing.md](releasing.md) |
 | 18 | Upstream Issue #3 | Still open, no root cause there either; tracked | [upstream-issue-3.md](upstream-issue-3.md) |
 
+## Next batch (November): three triggers
+
+| Item | Trigger to start | Gate before it counts | Who decides |
+|---|---|---|---|
+| **C4 smoke** | The camera is back from service and known-good on official firmware | The run follows [c4-smoke-plan.md](c4-smoke-plan.md) step by step; a smoke record or an explicit waiver lands in the ledger | Owner |
+| **Unfreeze (`bricking-edge`)** | C4 satisfied (smoke record or written waiver) | C1–C5 all met and recorded; the decision itself is an explicit instruction in the ledger | **Owner only (C6)** |
+| **Release (toolkit)** | An explicit "publish" instruction | [releasing.md](releasing.md) runbook: four checks green, rebuilt kit, double reconciliation, annotated tag, then `gh release create --verify-tag` | **Owner only** |
+
+Everything else on this page waits on those three or on the residual work
+listed above. Nothing here starts itself.
+
 ## 简体中文
 
 本页是本项目**未完成事项的正式清单**：只做索引、不发明新事实，每行链接到拥有该
@@ -55,3 +66,4 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 外全部只离线、同号受理未实测、无损 strip 长度、镜头块/占位块/位深接线/菜单组徽标
 未验）；**判不可交付的四件**（ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120），连理由
 一起留着看。另加发布侧两件：toolkit 已备好**未发布**、上游 Issue #3 仍在监护。
+**11 月批次三件的触发条件**见上文 "Next batch (November)"：C4 冒烟（机器回来+官方固件正常→按 c4-smoke-plan 走）｜解冻（C4 成立后，**C6=仅你下令**）｜发布（**仅你给"发"字**→按 releasing.md runbook）。三件都由触发条件启动，没有一件会自己开始。
