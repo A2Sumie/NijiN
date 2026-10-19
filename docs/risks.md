@@ -25,12 +25,12 @@ evidence records carry it — no hardware result is claimed below.
 
 ### The known defect family: silent pre-capture non-retention (预拍三态静默失效)
 
-**V11.2 candidate (`bcf5c47f…`, `03.11.p1`) fixes this family** — STP
+**V12 (原 V11.2 构建, `bcf5c47f…`, `03.11.p1`) fixes this family** — STP
 sticky-file self-heal (session latch + evidence preservation, foreign files
 still stop) and gate-loss observability (a readable status block where
 failures used to be silent), with **V11.1 no regression** and a full green
 gauntlet (44/44 mutations, three-state behaviour gate 19 vectors). **Not on
-hardware, not released: a candidate awaiting verification.** V11.1 stays
+hardware, not released: a candidate awaiting verification (release name **V12**).** V11.1 stays
 ⛔ UNSAFE below; the marker is not lifted by the candidate's existence.
 
 The pre-capture retention path (`precapture_tdec_release`, called on every
@@ -84,7 +84,7 @@ safe":
 
 ### 中文要点（简体中文，与上文对等）
 
-- **V11.2 候选（`bcf5c47f…`，`03.11.p1`）已修本缺陷家族**（STP 粘性文件自愈＋失守可观测），gauntlet 全绿、V11.1 无回归；**未上机、未发布，候选待验**。
+- **V12（原 V11.2 构建，`bcf5c47f…`，`03.11.p1`）已修本缺陷家族**（STP 粘性文件自愈＋失守可观测），gauntlet 全绿、V11.1 无回归；**未上机、未发布，候选待验**。
 - **V11.1 = 不安全**（2026-10-19 标记，**保留**；候选的存在不解除该标记）。已知缺陷家族＝**预拍三态静默失效**：预拍
   保留路径（`precapture_tdec_release`，每次 HSFC Tdec 释放调用）只有卡侧门族全过
   才保留；任一门不满足即 **keep=0 静默不保留**（无报错、无提示）：① **a!=b 双配置

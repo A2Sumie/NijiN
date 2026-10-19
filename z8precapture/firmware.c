@@ -11,6 +11,11 @@ typedef unsigned int u32;
 typedef unsigned long u64;
 typedef long s64;
 
+#ifdef PREC_CAPTURE_HOST_TEST
+/* tests/ host behaviour harness (143 §5): the camera services are mocked; the decision code
+ * under test is this file compiled unchanged for the host. Never defined by the firmware build. */
+#include "host_mock.h"
+#else
 #define LOAD8(a) (*(volatile const u8 *)(u64)(a))
 #define LOAD16(a) (*(volatile const u16 *)(u64)(a))
 #define LOAD32(a) (*(volatile const u32 *)(u64)(a))
@@ -59,6 +64,24 @@ typedef long s64;
 #define CH_UNLOCK ((void (*)(u32,u32,u32,u32))0x40eb88a4ul)
 #define ENGINE ((void (*)(u32,u64))0x40e82090ul)                     /* (engine 0/1, parameter block) */
 #define IS_JPEG_FORMAT ((u32 (*)(u64))0x4105903cul)                 /* (M+0x26c): format 0/3 and not HEIF; QEMU probe only */
+/* v6/117 §3 ①: the stock 7B wall-clock capture; 1094: the stock RTC splitter. */
+#define RTC7 ((void (*)(void *))0x402dd334ul)
+#define RTC_SPLIT ((void (*)(const void *,void *,void *,void *))0x408be2e8ul)
+#endif /* PREC_CAPTURE_HOST_TEST */
+/* Build-target selection (143 §4.1 seam; byte-identical firmware build, host-testable source):
+ * CFG_RO keeps d3max_table in a read-only PROGBITS section for the checked linker (which refuses
+ * mutable sections) while allowing the host harness to exercise grade_dispatch's runtime writes;
+ * ENTRY_SECTION pins the loader entry section on the firmware target only. */
+#ifdef PREC_CAPTURE_HOST_TEST
+#define CFG_RO
+#else
+#define CFG_RO const
+#endif
+#if defined(__ELF__)
+#define ENTRY_SECTION __attribute__((used,section(".text.entry")))
+#else
+#define ENTRY_SECTION __attribute__((used))   /* host syntax/harness build: Mach-O has no such section */
+#endif
 /* Original globals, only read. */
 #define G_MODE 0xa03bc6bc8ul       /* HSFC release mode: 6 = C15, 3 = C30 */
 #define G_LIMIT 0xa03bc6bacul      /* pre-capture count of the menu setting */
@@ -196,7 +219,7 @@ static const u16 skipx[] = {0x9000,0x9101,0x9102,0xa000,0xa001,0xa002,0xa003,0xa
 static const u16 skipm[] = {0x0004,0x0011,0x0016,0x0035,0x003d,0x0045,0x0046,0x0051,0x0058,0x008c,0x00a2,0x00a4};
 /* v7/117 D3-MAX: 4x4 capacity table in the injected constants (rows = G_MODE-3 case,
  * cols = 0.3s/0.5s/1s/MAX; case bases are patched to these rows). */
-__attribute__((used)) const u32 d3max_table[16] = {9,15,20,20, 36,60,120,20, 18,30,60,20, 5,8,15,20};
+__attribute__((used)) CFG_RO u32 d3max_table[16] = {9,15,20,20, 36,60,120,20, 18,30,60,20, 5,8,15,20};
 static const u32 crc_table[256] = {
 #include "crc32_table.inc"
 };
@@ -295,7 +318,7 @@ __attribute__((noinline)) static void mark(void *rec,u32 kind) {
     set32(q+A_M290,LOAD32(m+0x290)); set32(q+A_M2A0,LOAD32(m+0x2a0));
     seal(q); aux_seal(q);
 }
-__attribute__((used,section(".text.entry"))) u64 precapture_history_entry(void *rec,u32 keep) {
+ENTRY_SECTION u64 precapture_history_entry(void *rec,u32 keep) {
     mark(rec,K_HISTORY);             /* inside the original drain lock */
     return SUBMIT(rec,keep);
 }
@@ -315,36 +338,115 @@ static void grade_dispatch(u32 grade) {
     ((u32 *)d3max_table)[3]=c; ((u32 *)d3max_table)[7]=c;
     ((u32 *)d3max_table)[11]=c; ((u32 *)d3max_table)[15]=c;
 }
+/* 143 §2.2: gate observability block + decision codes. The block lives in loader-covered cave
+ * RAM (eg 0x7F8040 -> VA 0x40958040; the 111 §6.2 counter-scale cave byte 0x4095803C is its
+ * neighbour), zero in the image and zero again after every loader run: no image bytes, no card
+ * I/O, per-session lifetime. Tools read it at this fixed VA. */
+#define GATE_BLOCK 0x40958040ul
+#define GO_MAGIC   0x00u  /* u32 GATE_MAGIC, written at the first decision */
+#define GO_LAST    0x04u  /* u8  last decision code (GC_*) */
+#define GO_DRIVE   0x05u  /* u8  0 / 'A' / 'B' */
+#define GO_LATCH   0x06u  /* u8  143 §2.1 session stop latch: 0 = clear, else the stop status that set it */
+#define GO_LASTQ   0x07u  /* u8  last record state: Q_RETAINED or Q_DROP_BASE|code */
+#define GO_LASTT   0x08u  /* u64 CLOCK at the last decision */
+#define GO_RETAIN  0x10u  /* u32 counters: retained / not-a-candidate / ③ / ① / ② / other / stop_file / decisions */
+#define GO_NA      0x14u
+#define GO_CFGREJ  0x18u
+#define GO_DUAL    0x1Cu
+#define GO_STP     0x20u
+#define GO_OTHER   0x24u
+#define GO_STOPW   0x28u
+#define GO_DECIDE  0x2Cu
+#define GO_RINGI   0x30u  /* u32 ring cursor */
+#define GO_RING    0x40u  /* 8 x 8B decision log {code, drive, sub, pad, t_lo} */
+#define GATE_MAGIC 0x31385447u              /* "GT81" */
+#define Q_DROP_BASE 0x10u                   /* q+0x14 state on a drop: Q_DROP_BASE|code */
+#define GC_RETAIN 0u                        /* kept (Q_RETAINED) */
+#define GC_NA     1u                        /* not a retention candidate (normal path, not a gate failure) */
+#define GC_BOUND  2u                        /* no valid marked record */
+#define GC_CFG    3u                        /* ③ config present but rejected by the fail-closed checks */
+#define GC_DUAL   4u                        /* ① a==b: both cards with / without a valid config */
+#define GC_FRESH  5u                        /* record older than FRESH_US */
+#define GC_SHAPE  6u                        /* shape/menu gate */
+#define GC_STP    7u                        /* ② session latch or stop file */
+
+static void gate_note(u32 code,u32 drive,u32 sub) {
+    u64 t=now(); u32 i=LOAD32(GATE_BLOCK+GO_RINGI)&7u,o=(u32)GATE_BLOCK+GO_RING+i*8;
+    STORE32(GATE_BLOCK+GO_MAGIC,GATE_MAGIC);
+    STORE8(GATE_BLOCK+GO_LAST,(u8)code); STORE8(GATE_BLOCK+GO_DRIVE,(u8)drive);
+    STORE8(GATE_BLOCK+GO_LASTQ,(u8)(code==GC_RETAIN?Q_RETAINED:(Q_DROP_BASE|code)));
+    STORE64(GATE_BLOCK+GO_LASTT,t);
+    if(code==GC_RETAIN) STORE32(GATE_BLOCK+GO_RETAIN,LOAD32(GATE_BLOCK+GO_RETAIN)+1);
+    else if(code==GC_NA) STORE32(GATE_BLOCK+GO_NA,LOAD32(GATE_BLOCK+GO_NA)+1);
+    else if(code==GC_DUAL) STORE32(GATE_BLOCK+GO_DUAL,LOAD32(GATE_BLOCK+GO_DUAL)+1);
+    else if(code==GC_STP) STORE32(GATE_BLOCK+GO_STP,LOAD32(GATE_BLOCK+GO_STP)+1);
+    else STORE32(GATE_BLOCK+GO_OTHER,LOAD32(GATE_BLOCK+GO_OTHER)+1);
+    STORE32(GATE_BLOCK+GO_DECIDE,LOAD32(GATE_BLOCK+GO_DECIDE)+1);
+    STORE8(o,(u8)code); STORE8(o+1,(u8)drive); STORE8(o+2,(u8)sub); STORE8(o+3,0);
+    STORE32(o+4,(u32)t);
+    STORE32(GATE_BLOCK+GO_RINGI,i+1);
+}
+
+/* 143 §2.2 ③: read_cfg returns a tri-state now (was 0/1) so a config that is present but
+ * refused is observable instead of looking like "no config on that card". */
+#define CFG_ABSENT 0    /* no config file on that card */
+#define CFG_VALID  1
+#define CFG_REJECT 2    /* present but refused (fail-closed): gate ③ evidence */
 static int read_cfg(char drive,u8 *out) {
     char path[16]="A:\\Z8PRE.CFG"; u32 count=0; int fd,rc,cl;
     path[0]=drive;
-    fd=OPEN(path,0,0x20); if(fd<0) return 0;
+    fd=OPEN(path,0,0x20); if(fd<0) return CFG_ABSENT;
     rc=READ(fd,out,65,&count); cl=CLOSE(fd);
-    if(rc!=0 || cl!=0 || count!=64 || !equal(out,cfg_magic,16)) return 0;
+    if(rc!=0 || cl!=0 || count!=64 || !equal(out,cfg_magic,16)) return CFG_REJECT;
     u32 flags=get32(out+0x10),pre=get32(out+0x14),budget=get32(out+0x18);
     u32 grade=(get32(out+0x1c)>>8)&0xffu;                 /* v9: 0=auto(HE*) / 3 Lossless / 13 HE / 14 HE* */
     if(!grade) grade=G_HES;
-    if(grade!=G_LL && grade!=G_HE && grade!=G_HES) return 0;
-    if((flags&~F_KNOWN) || !(flags&F_ENABLE) || pre<1) return 0;
-    if(flags&F_PREV) return 0;   /* merged: internal flag must never come from a file */
-    if((flags&F_RAWONLY) && !(flags&F_DCF)) return 0;         /* RAW-only needs the stock writer */
-    if((flags&F_PVQ) && (flags&(F_RAWONLY|F_FULL))!=(F_RAWONLY|F_FULL)) return 0;   /* the JPEG file must not be kept */
-    if((flags&F_MENU) && ((flags&(F_ENABLE|F_C30|F_DCF))!=(F_ENABLE|F_C30|F_DCF) || (flags&(F_FULL|F_RAWONLY|F_PVQ)))) return 0;
-    if(budget && (budget<200000 || budget>5000000)) return 0;
-    for(u32 i=0x20;i<0x3c;i++) if(out[i]) return 0;
-    if(get32(out+0x3c)!=crc32(out,60)) return 0;
+    if(grade!=G_LL && grade!=G_HE && grade!=G_HES) return CFG_REJECT;
+    if((flags&~F_KNOWN) || !(flags&F_ENABLE) || pre<1) return CFG_REJECT;
+    if(flags&F_PREV) return CFG_REJECT;   /* merged: internal flag must never come from a file */
+    if((flags&F_RAWONLY) && !(flags&F_DCF)) return CFG_REJECT;         /* RAW-only needs the stock writer */
+    if((flags&F_PVQ) && (flags&(F_RAWONLY|F_FULL))!=(F_RAWONLY|F_FULL)) return CFG_REJECT;   /* the JPEG file must not be kept */
+    if((flags&F_MENU) && ((flags&(F_ENABLE|F_C30|F_DCF))!=(F_ENABLE|F_C30|F_DCF) || (flags&(F_FULL|F_RAWONLY|F_PVQ)))) return CFG_REJECT;
+    if(budget && (budget<200000 || budget>5000000)) return CFG_REJECT;
+    for(u32 i=0x20;i<0x3c;i++) if(out[i]) return CFG_REJECT;
+    if(get32(out+0x3c)!=crc32(out,60)) return CFG_REJECT;
     if(pre>g_cap(grade)) { pre=g_cap(grade); set32(out+0x14,pre); }   /* v9: clamp inside the grade cap */
     grade_dispatch(grade);
+    return CFG_VALID;
+}
+/* 143 §2.1: the stop gate is a session latch with a preserved evidence file, not a permanent scar.
+ *   A1 session latch (this block's GO_LATCH byte, set by every stop_file, cleared by the loader at
+ *      boot) -> stop for the rest of the session;
+ *   A2 no Z8PRESTP.BIN -> not stopped;
+ *   A3 our own 32B "Z8PRESTOP" record without a latch -> written by an earlier session -> self-healed;
+ *   A4 anything else on that name (foreign file, truncation, read failure) -> stop (fail-safe: the
+ *      unknown case still refuses to write, and a manually placed stop file keeps working).
+ * why (optional): 1 = latch, 2 = stop file held. The file is still never deleted, renamed or
+ * updated: the evidence discipline of docs/raw-precapture.md is unchanged. */
+static int stop_record_ours(char drive) {
+    char p[20]="A:\\Z8PRESTP.BIN"; u8 raw[64] __attribute__((aligned(64))); u32 count=0; int fd,rc,cl;
+    p[0]=drive;
+    fd=OPEN(p,0,0x20); if(fd<0) return 0;
+    rc=READ(fd,raw,33,&count); cl=CLOSE(fd);      /* 33: a longer file is not our 32B record */
+    return rc==0 && cl==0 && count==32 && equal(raw,(const u8 *)"Z8PRESTOP",9);
+}
+static int stopped(char drive,u32 *why) {
+    char p[20]="A:\\Z8PRESTP.BIN"; p[0]=drive;
+    if(LOAD8(GATE_BLOCK+GO_LATCH)) { if(why) *why=1; return 1; }
+    if(EXISTS(p)<0) { if(why) *why=0; return 0; }
+    if(stop_record_ours(drive)) { if(why) *why=0; return 0; }
+    if(why) *why=2;               /* 2 = a foreign/unknown stop file holds (counted by gate_note) */
     return 1;
 }
-static int stopped(char drive) { char p[20]="A:\\Z8PRESTP.BIN"; p[0]=drive; return EXISTS(p)>=0; }
 __attribute__((noinline)) static void stop_file(char drive,u32 status,u32 shot) {
     char p[20]="A:\\Z8PRESTP.BIN"; u8 raw[64] __attribute__((aligned(64))); u32 n; int fd;
+    STORE8(GATE_BLOCK+GO_LATCH,(u8)status);      /* A1: every error re-arms the session latch */
+    STORE32(GATE_BLOCK+GO_STOPW,LOAD32(GATE_BLOCK+GO_STOPW)+1);
     p[0]=drive; if(EXISTS(p)>=0) return;
     zero(raw,64); copy(raw,(const u8 *)"Z8PRESTOP",9); set32(raw+16,status); set32(raw+20,shot);
     set64(raw+24,now()); CLEAN(raw,64);
     fd=CREATE(p,0x20); if(fd<0) return;
-    WRITE(fd,(u64)raw,32,&n); CLOSE(fd);        /* never retried or deleted */
+    WRITE(fd,(u64)raw,32,&n); CLOSE(fd);        /* evidence: written once, never retried or deleted */
 }
 
 /* Image quality value -> file type, quality index (M+0x290: 0 fine, 1 normal, 2 basic) and table half
@@ -367,9 +469,12 @@ __attribute__((used)) void precapture_tdec_release(u64 r) {
     if(q) {
         u8 ca[65] __attribute__((aligned(8))),cb[65] __attribute__((aligned(8)));
         u64 t=now(),m=LOAD64(r+0x790);
-        int a=read_cfg('A',ca),b=read_cfg('B',cb);
+        int ra=read_cfg('A',ca),rb=read_cfg('B',cb),a=ra==CFG_VALID,b=rb==CFG_VALID;
+        u32 drive=0,why=0,code=GC_NA;
+        if(ra==CFG_REJECT || rb==CFG_REJECT)                        /* ③: a refused config is now visible */
+            STORE32(GATE_BLOCK+GO_CFGREJ,LOAD32(GATE_BLOCK+GO_CFGREJ)+1);
         if(a!=b && t-get64(q+0x50)<FRESH_US) {
-            char drive=a?'A':'B'; const u8 *c=a?ca:cb;
+            drive=a?'A':'B'; const u8 *c=a?ca:cb;
             u32 flags=get32(c+0x10),pre=get32(c+0x14),budget=get32(c+0x18);
             u32 seq=get32(q+0x18),total=get32(q+0x1c),mode=get32(q+0x20),keep=0;
             if(!budget) budget=DEFAULT_BUDGET;
@@ -381,31 +486,46 @@ __attribute__((used)) void precapture_tdec_release(u64 r) {
                 if(type && (mode==6 || mode==3) && stock_hsfc_m(m) && get32(q+A_M290)==LOAD32(m+0x290) && get32(q+A_M2A0)==LOAD32(m+0x2a0)) {
                     STORE32(m+0x290,qi); STORE32(m+0x2a0,half);
                     set32(q+A_QUAL,qi); set32(q+A_HALF,half); set32(q+A_TYPE,type); aux_seal(q);
-                    if(type!=T_JPEG && !stopped(drive)) {
-                        flags|=F_FULL;
-                        if(type==T_RAW) flags|=F_RAWONLY|F_PVQ;
-                        else if(qi!=2 || half!=0) flags|=F_PREV;          /* basic (no *): the main JPEG is the preview */
-                        keep=1;
+                    if(type!=T_JPEG) {
+                        if(!stopped(drive,&why)) {
+                            flags|=F_FULL;
+                            if(type==T_RAW) flags|=F_RAWONLY|F_PVQ;
+                            else if(qi!=2 || half!=0) flags|=F_PREV;      /* basic (no *): the main JPEG is the preview */
+                            keep=1;
+                        } else code=GC_STP;
                     }
-                }
+                } else code=type?GC_SHAPE:GC_NA;
             } else {                                                      /* fixed-output configurations: history frames only */
                 u32 hist=get32(q+A_KIND)==K_HISTORY;
 #ifdef NEG_CURRENT_ANY_CONFIG         /* negative-control builds only */
                 hist=1;
 #endif
-                keep=hist && (mode==6 || (mode==3 && (flags&F_C30))) && seq+pre>total && !stopped(drive);
+                if(hist && (mode==6 || (mode==3 && (flags&F_C30))) && seq+pre>total) {
+                    if(!stopped(drive,&why)) keep=1; else code=GC_STP;
+                } else if(!(mode==6 || (mode==3 && (flags&F_C30)))) code=GC_SHAPE;
             }
             if(keep) {
                 set32(q+0x14,Q_RETAINED); set64(q+0x58,t); set32(q+0x60,flags); set32(q+0x64,pre);
-                ((void(*)(void*))0x402DD334ul)(q+A_RTC);   /* v6: capture wall clock (117 §3 ①) */
+                RTC7(q+A_RTC);   /* v6: capture wall clock (117 §3 ①) */
                 STORE8(0x4095803Cul,(u8)(!(flags&F_ENABLE)?0:((flags&F_DCF)?2:1))); /* v7/111: counter scale */
                 set32(q+0x68,budget); set32(q+0x6c,(u32)drive); set32(q+0x70,LOAD32(m+0x2508));
                 set32(q+0x74,get32(c+0x1c));
                 seal(q);
+                gate_note(GC_RETAIN,drive,0);       /* 143 §2.2: every decision is recorded */
                 return;                      /* R+0x748 kept for P3' or the R cleanup */
             }
+        } else {
+            /* ③/① or the freshness gate held: classify the drop (143 §2.2). */
+            if(a==b) {
+                code=(ra==CFG_REJECT || rb==CFG_REJECT)?GC_CFG:GC_DUAL;
+                drive=a?'A':(b?'B':0);
+            } else { code=GC_FRESH; drive=a?'A':'B'; }
         }
+        gate_note(code,drive,why);
+        STORE32((u64)(q+0x14),Q_DROP_BASE|code);   /* Q-state breadcrumb (volatile): unbind() clears it next */
         unbind(q);
+    } else {
+        gate_note(GC_BOUND,0,0);
     }
     FREE_E(e);
     STORE64(r+0x748,0);
@@ -483,6 +603,7 @@ __attribute__((used)) u64 precapture_y_alloc(u32 kind,u64 m,u64 r) {
 /* v9 (90 §2 路线 B): the kind->+0x2ac mapping site (eg 0xD52564; stock mov w8,#2 = HE, v8 patched
  * it to mov w8,#4 = HE*). Per-grade: w8 follows the E allocation request (2 = HE slot, else 4).
  * The Lossless (kind 1) path never reaches this site (mapping writes +0x2ac only for grades 3/4). */
+#ifndef PREC_CAPTURE_HOST_TEST
 __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".global precapture_grade_entry\n.type precapture_grade_entry,%function\n"
         "precapture_grade_entry:\n\t"
@@ -492,6 +613,7 @@ __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         "cmp w16, w17\n\tmov w8, #2\n\tmov w17, #4\n\tcsel w8, w8, w17, eq\n\t"
         "movz x16, #0x2570\n\tmovk x16, #0x40eb, lsl #16\n\tbr x16\n"  /* x16/x17: IP scratch, dead at 0x40EB257C's call */
         ".popsection\n");
+#endif
 /* v10 (122 §4 硬前置 1): NCSET012 load guard. The walk's item count comes from firmware-side
  * structures while old files carry fewer slots (position-encoded format, no per-item id) — an
  * unguarded walk reads past the segment. v11.1 (c2-fix-plan Fix 1 + Fix 4): the bound now shares
@@ -521,6 +643,7 @@ __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
     "1:\n\tmov w0, wzr\n\tret\n"
 /* L2 (eg 0xF7F9D4) + LC (eg 0xF7FBF8): blob walks, same convention (x3 = item buffer,
  * w2 = size, x25 = header copy, x30 = return). Item end offset = x3 - base + w2. */
+#ifndef PREC_CAPTURE_HOST_TEST
 __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".global precapture_ncset_guard\n.type precapture_ncset_guard,%function\n"
         "precapture_ncset_guard:\n\t"
@@ -529,7 +652,9 @@ __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         "add x9, x9, x2\n\t"
         NCSET_GUARD_TAIL(0x1aa8)
         ".popsection\n");
+#endif
 /* L1 (0xF7F8D4) + LB (0xF7FB2C): scalar walks, 4B/step, index in x28, cursor in x23. */
+#ifndef PREC_CAPTURE_HOST_TEST
 __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".global precapture_ncset_guard_s28\n.type precapture_ncset_guard_s28,%function\n"
         "precapture_ncset_guard_s28:\n\t"
@@ -539,7 +664,9 @@ __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         "add x9, x9, #4\n\t"
         NCSET_GUARD_TAIL(0x1790)
         ".popsection\n");
+#endif
 /* LS (0xF7FD14) + L3 (0xF7FE28): scalar walks, 4B/step, index in x24, cursor in x23. */
+#ifndef PREC_CAPTURE_HOST_TEST
 __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".global precapture_ncset_guard_s24\n.type precapture_ncset_guard_s24,%function\n"
         "precapture_ncset_guard_s24:\n\t"
@@ -549,12 +676,15 @@ __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         "add x9, x9, #4\n\t"
         NCSET_GUARD_TAIL(0x1790)
         ".popsection\n");
+#endif
+#ifndef PREC_CAPTURE_HOST_TEST
 __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".global precapture_y_size_entry\n.type precapture_y_size_entry,%function\n"
         "precapture_y_size_entry:\n\tmov x3, x23\n\tb precapture_y_size\n"
         ".global precapture_y_alloc_entry\n.type precapture_y_alloc_entry,%function\n"
         "precapture_y_alloc_entry:\n\tmov x2, x23\n\tb precapture_y_alloc\n"
         ".popsection\n");
+#endif
 
 /* The encode job of the stock NEF-preview step 0x40eaf398 (0x40eaf46c..0x40eaf570), on the same step
  * context, R, Y and source: engine, parameter block {job word, source+0x30, Y+0x100, capacity, rc
@@ -1091,7 +1221,7 @@ static void build_footer(plan_t *p,u32 route) {
 /* v6 (117 §3 ②③): FAT/exFAT timestamps from the RTC 7B at q+A_RTC. */
 static void set_file_time(const char *path,const u8 *rtc7) {
     u16 d=0,tm=0; u8 st[3][4]; u32 id; u32 i;
-    ((void(*)(const void*,void*,void*,void*))0x408be2e8ul)(rtc7,&d,&tm,0);
+    RTC_SPLIT(rtc7,&d,&tm,0);
     for(i=0;i<3;i++) { st[i][0]=(u8)d; st[i][1]=(u8)(d>>8); st[i][2]=0; st[i][3]=0; }
     st[0][2]=(u8)tm; st[0][3]=(u8)(tm>>8); st[2][2]=(u8)tm; st[2][3]=(u8)(tm>>8);
     id=(u32)OPEN(path,0,0x20); if((int)id<0) return;
@@ -1275,7 +1405,7 @@ __attribute__((noinline)) static u32 flow(plan_t *p,u64 J) {
 
 __attribute__((noinline,unused)) static u32 take(const job_t *jb,u64 J) {
     plan_t *p; u32 st;
-    if(stopped(jb->drive)) { st=ORIG_WRITE(0,0,J); release_e(jb); return st; }   /* an earlier failure: JPEG only */
+    if(stopped(jb->drive,0)) { st=ORIG_WRITE(0,0,J); release_e(jb); return st; }   /* an earlier failure: JPEG only */
     p=prepare(jb);
     if(!p) { st=ORIG_WRITE(0,0,J); release_e(jb); return st; }          /* JPEG only, E released below */
     st=flow(p,J);

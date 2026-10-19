@@ -1,25 +1,25 @@
 {
-  "id": "z8-c311-precapture-v4",
+  "id": "z8-c311-precapture-v5",
   "payload_bytes": 81807711,
-  "code_bytes": 35229,
-  "code_sha256": "8fb68da617ffb522782dc3a4fc072b42cc8a6a78fc9e4f0659c42fafdbc2bdb4",
+  "code_bytes": 36189,
+  "code_sha256": "fa21fb785a3b3ba068c8c95f79ae6d38cae55a5086a3a304cd20f7cd02b1ddd3",
   "entries": {
-    "precapture_bank_get": "0x40962018",
-    "precapture_bank_set": "0x40962054",
+    "precapture_bank_get": "0x40962468",
+    "precapture_bank_set": "0x409624a4",
     "precapture_current_entry": "0x409604cc",
-    "precapture_grade_entry": "0x40967b50",
+    "precapture_grade_entry": "0x40967f10",
     "precapture_history_entry": "0x40960000",
-    "precapture_main_rc": "0x40961ed0",
-    "precapture_main_step": "0x40961830",
-    "precapture_ncset_guard": "0x40967b84",
-    "precapture_ncset_guard_s24": "0x40967c18",
-    "precapture_ncset_guard_s28": "0x40967bcc",
+    "precapture_main_rc": "0x40962320",
+    "precapture_main_step": "0x40961c80",
+    "precapture_ncset_guard": "0x40967f44",
+    "precapture_ncset_guard_s24": "0x40967fd8",
+    "precapture_ncset_guard_s28": "0x40967f8c",
     "precapture_tdec_release": "0x40960504",
-    "precapture_write_file": "0x4096208c",
-    "precapture_y_alloc": "0x4096156c",
-    "precapture_y_alloc_entry": "0x40967c6c",
-    "precapture_y_size": "0x409613a4",
-    "precapture_y_size_entry": "0x40967c64"
+    "precapture_write_file": "0x409624dc",
+    "precapture_y_alloc": "0x409619bc",
+    "precapture_y_alloc_entry": "0x4096802c",
+    "precapture_y_size": "0x409617f4",
+    "precapture_y_size_entry": "0x40968024"
   },
   "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
   "compiler_flags": [
@@ -285,10 +285,10 @@
     },
     {
       "offset": "0x800000",
-      "bytes": 35229,
+      "bytes": 36189,
       "purpose": "compiled capture code and constants",
-      "old_sha256": "348a04142ee9531094d5a570e69c762012cc0f0f96af67ce60085b3348e99037",
-      "new_sha256": "8fb68da617ffb522782dc3a4fc072b42cc8a6a78fc9e4f0659c42fafdbc2bdb4",
+      "old_sha256": "e5b47aab289d431e1ec19719b9868c074f917322c543ac84d9870751bbacd022",
+      "new_sha256": "fa21fb785a3b3ba068c8c95f79ae6d38cae55a5086a3a304cd20f7cd02b1ddd3",
       "owner": "compiled capture code blob (owned by the z8precapture recipe; entries pinned below)"
     },
     {
@@ -296,7 +296,7 @@
       "bytes": 4,
       "purpose": "register and write NEF with stock writer",
       "old_sha256": "ac25b5a993ee70328996e6c4981cce939b6bfec6a2e4e6e8504fd8c9920b2f95",
-      "new_sha256": "087b1f1d8efd84fd16fd0f7e9bffc196f7ff7edd520fa7b66225520d558fc714",
+      "new_sha256": "ac2831c61fec21e78f0a64e2c7749f9693bd2d2c94f611faf98b211f1f469d6f",
       "owner": "stock NEF registration/write call site (owner = stock NEF writer path)"
     },
     {
@@ -312,7 +312,7 @@
       "bytes": 4,
       "purpose": "allocate and lay out separate NEF preview",
       "old_sha256": "97dba574f77f0b493a416a9a11d49878808d1143cae14bc48b0936ecc55141b0",
-      "new_sha256": "1fe5fda712099a15f860047457afebe34146d2ac12b25571e32425d5534c1945",
+      "new_sha256": "ec83481f1bade8a84c1679209f47297188d75eba67966d2ebd73503b8a828276",
       "owner": "stock Y allocation call site (owner = NEF layout allocation path)"
     },
     {
@@ -320,7 +320,7 @@
       "bytes": 4,
       "purpose": "RAW-only preview quality",
       "old_sha256": "33fed37b30517aeec754863a31016ac367fb2934fe6489976294ccc3da654bbc",
-      "new_sha256": "7937e3692df801de8dad057bc743c5d1f133a66972b7dd87ac17d96d6b8f485d",
+      "new_sha256": "5067783afddc7938f2d454c6947974e29462dec3b18380e4bb1e7c1984184f45",
       "owner": "stock preview-quality decision site (owner = preview quality path)"
     },
     {
@@ -328,7 +328,7 @@
       "bytes": 4,
       "purpose": "encode separate NEF preview, pipeline 0",
       "old_sha256": "ea90a6be6c2e651e73138ffbb5ccc1ae971c373669ab2a772eb9dafe89d625d5",
-      "new_sha256": "e1bcd57677120173310e0509b41811a21750f504ae39433ef1fc9197a8fa41d8",
+      "new_sha256": "071c722d487d3e3b109e784212dce40cb451d174ac530d3e3cf31df7e6a2e7ea",
       "owner": "stock preview encode call site, pipeline 0 (owner = preview encode path)"
     },
     {
@@ -336,14 +336,14 @@
       "bytes": 4,
       "purpose": "encode separate NEF preview, pipeline 1",
       "old_sha256": "cc0029408ed88a750ff669546d54fb80155c4552695a925098cfb925e0987b45",
-      "new_sha256": "1ef3623af22c779b229b949a0da1fcd823f649ddb5c01639dbd72e4df99615b3",
+      "new_sha256": "ef347e6d03bc93bf6c98c2fb4e75c17ff2323a9a9d231436bf013c82a537a5c4",
       "owner": "stock preview encode call site, pipeline 1 (owner = preview encode path)"
     },
     {
       "offset": "0xd52564",
       "bytes": 4,
       "purpose": "HE* encode budget: +0x2ac=4 (marker 14)",
-      "new_sha256": "d30590c5276bc7bfa09fee75ac68980d8de6c910c69a2226bf9f1d9848fcea72",
+      "new_sha256": "7bd17159a47310b3e698e94d437dc5e75e19edf39ee7f8dd89e7f74b284ecdc7",
       "old_sha256": "1ca70e097d55c387af35487e6b20566e82322e8b29252a72f347c306ee9d36fd",
       "owner": "stock kind->+0x2ac mapping site (owner = grade dispatch, 90 §2)"
     },
@@ -432,7 +432,7 @@
       "bytes": 4,
       "purpose": "v6: card settings 0x120B packing hook",
       "old_sha256": "0ca758c5dfdf24442c1150301c7132309fa4ff0cfa1bb29a1b5a862a62b228cc",
-      "new_sha256": "68534263a4d6c70f6d15c2a726feeb2e1719f54c9c132f48927f58c2652fd402",
+      "new_sha256": "db0be16bade6fe6f78806cdee75490a73ba030c38bd6667c1c2874b3cd6b3fbb",
       "owner": "stock DS get/set call site (owner = bank copy path, 112 P1)"
     },
     {
@@ -440,7 +440,7 @@
       "bytes": 4,
       "purpose": "v6: card settings 0x120B packing hook",
       "old_sha256": "709d2f87409d56582a8bd1d8ebd68d9d22206156ec39e6d513092ed4a0084b88",
-      "new_sha256": "d7935ff717ca90da808d25e662ae62ea011b98279617f30242e2ceb155355ac8",
+      "new_sha256": "6864cfac240875136c28c73be3699fd88d6a9d3ea2d1450f869e990ef5eee9fa",
       "owner": "stock DS get/set call site (owner = bank copy path, 112 P1)"
     },
     {
@@ -448,13 +448,13 @@
       "bytes": 4,
       "purpose": "capacity for separate NEF preview",
       "old_sha256": "0c75d9ea2e49d4ca6a42410494a353bbab87cc2baa4d0d73f7ebe79ed1edf1f0",
-      "new_sha256": "5aa95185434586689516d5feaa7e43e33849f8ff9afdb2a2c2a25e4740e8211e",
+      "new_sha256": "650f5bf0b45b0c70e8a2f298cf82c0bdf22821206c43933f52e835ea42b5fda2",
       "owner": "stock NEF preview capacity site (owner = preview capacity path)"
     },
     {
       "offset": "0xf7f8d4",
       "bytes": 4,
-      "new_sha256": "de9fcc9f10ea981f663048294b1e7eeef3581065f9aa0f5511550c77ce52967d",
+      "new_sha256": "b3e8720637508964aae75805d014ae016a2c9d79525d8b7dcbab989e69167a58",
       "old_sha256": "e550dd5ddbccec46a06d07c0d23e96eb3d6185f4a19757b8357b54fb4180cf37",
       "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
       "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
@@ -463,14 +463,14 @@
       "offset": "0xf7f9d4",
       "bytes": 4,
       "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
-      "new_sha256": "c01f75503f3298ea28438cd6dd0a2cc558cccc089836da30b5b351ad190d757d",
+      "new_sha256": "1dca669f1a319e5425990eb9809336b3f523d11bb5c7d635b9eeaa8525d2a90a",
       "old_sha256": "e06e656908c88f9bf209314ea07719fcabade642c597a23f64fd9ed4ca916632",
       "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
     },
     {
       "offset": "0xf7fb2c",
       "bytes": 4,
-      "new_sha256": "dc9b0f1ff1a01689248799bbd41058e2da0f31099fa93aec2f5971067396081c",
+      "new_sha256": "92767059400fadf56692cf147f3de03a6453bcb862476306d37e37063870e863",
       "old_sha256": "442277500b4202d621f216f9dd8998b6c652fba1124133bc915d7a52ffd6d15d",
       "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
       "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
@@ -478,7 +478,7 @@
     {
       "offset": "0xf7fbf8",
       "bytes": 4,
-      "new_sha256": "a29756f9f82fb1da4138e3eb177ae87bde3d4f97e961f436e770a9c0269458cf",
+      "new_sha256": "1a07d06f1ff2aad6e7007aea5fd72f28836d665fff460c00cc1c640004a4e5ee",
       "old_sha256": "b1785985933ac562284e9fc5aa770bbef23b8073c27eb0eaba9c2bfbd4335bef",
       "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
       "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
@@ -486,7 +486,7 @@
     {
       "offset": "0xf7fd14",
       "bytes": 4,
-      "new_sha256": "a1b11a2d212c9fd5f329c5f2244e17553534e122208369df9908af899d7489ed",
+      "new_sha256": "5e1a14fb3c26d60ec5a30051c6fcf1eafadde487ede5a568e3ccdc7ed46ac759",
       "old_sha256": "3fd2713e7bc6b41f69f4c12cd0618408b453bbdb71306fc530d2cd0446890a84",
       "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
       "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
@@ -494,7 +494,7 @@
     {
       "offset": "0xf7fe28",
       "bytes": 4,
-      "new_sha256": "688d542bc84e2aa2918a8d1f770d2047f765611e2d570d01d798c417a1d51b0e",
+      "new_sha256": "c01f75503f3298ea28438cd6dd0a2cc558cccc089836da30b5b351ad190d757d",
       "old_sha256": "6b980bcae000da65e24dbba16e6f49da4034fbdc408008d774060234c169ab04",
       "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
       "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
@@ -529,7 +529,7 @@
     "b1a236384039ff913578cca24bf8cf646780acfa87170ec379cc7ba001c8ecd2"
   ],
   "source_sha256": {
-    "firmware.c": "c47ffa4831ca8253fe8ebe0b0665f49e9d437a76d0ab42fcd0c3dc6f3eaad1dd",
+    "firmware.c": "6c9281307b21e906f6deda29eb042fc3fa7c4bce4096a7ae7a51684a7353f110",
     "crc32_table.inc": "fe021e684d78717732adddb6c9dde91f6fc6918f18cb0aeccfb349db5511a515",
     "patcher.py": "32c8dcf9596a5fa1008d177a140caf2d90148313eb880b8d54a53e32ae995a2f"
   },
@@ -539,7 +539,9 @@
     "alloc_request": "0x1b68000",
     "ring_cap": "0x14",
     "marker": 14,
-    "cfg_magic": "Z8PRECFGv4"
+    "cfg_magic": "Z8PRECFGv4",
+    "gate_status": "0x40958040",
+    "gate_status_len": "0xc0"
   },
   "v6": {
     "items": [

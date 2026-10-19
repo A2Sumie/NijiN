@@ -16,14 +16,14 @@ defects, under investigation)** — a known pre-capture defect family
 (silent non-retention, STP sticky file) is documented in
 [risks.md](risks.md#known-unsafe-v111-2026-10-19). The four fixed rows
 below do **not** make V11.1 safe to flash. **Update:** the defect family is
-**fixed in the V11.2 candidate** (`bcf5c47f…`, `03.11.p1`) — see row 19;
+**fixed in V12 (原 V11.2 构建)** (`bcf5c47f…`, `03.11.p1`) — see row 19;
 the candidate is awaiting verification and does not lift V11.1's marker.
 
 ## Known defect family
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
-| 19 | Three-state gate scar: silent pre-capture non-retention (dual-config gate, **STP sticky file never retried or deleted**, fail-closed config gate) | **Fixed in the V11.2 candidate (`bcf5c47f…`, `03.11.p1`)** — STP self-heal (session latch + evidence preservation; foreign files still stop) + gate-loss observability (readable status block with landing codes and per-gate counters). V11.1 no regression; gauntlet ALL GREEN (mutations 44/44, three-state behaviour gate 19 vectors/33 checks). **Awaiting hardware; not released** | [risks.md](risks.md#known-unsafe-v111-2026-10-19), [bricking-edge.md](bricking-edge.md) |
+| 19 | Three-state gate scar: silent pre-capture non-retention (dual-config gate, **STP sticky file never retried or deleted**, fail-closed config gate) | **Fixed in V12 (原 V11.2 构建, `bcf5c47f…`, `03.11.p1`)** — STP self-heal (session latch + evidence preservation; foreign files still stop) + gate-loss observability (readable status block with landing codes and per-gate counters). V11.1 no regression; gauntlet ALL GREEN (mutations 44/44, three-state behaviour gate 19 vectors/33 checks). **Awaiting hardware; not released** | [risks.md](risks.md#known-unsafe-v111-2026-10-19), [bricking-edge.md](bricking-edge.md) |
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
@@ -81,6 +81,6 @@ listed above. Nothing here starts itself.
 未验）；**判不可交付的四件**（ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120），连理由
 一起留着看。另加发布侧两件：toolkit 已按发布令**以试验品身份发布**（tag `toolkit-20261019`，V11.1 候选、从未上机）、上游 Issue #3 仍在监护。
 **⚠️ 2026-10-19：V11.1 本身已标记 ⛔ UNSAFE（已知缺陷，调查中）**——已知预拍缺陷家族
-（三态静默失效、含 STP 粘性文件）见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)，**该家族已修于 V11.2 候选（`bcf5c47f…`，第 19 项）——候选待验、未上机、未发布，V11.1 的 ⛔ 标记不因此解除**；
+（三态静默失效、含 STP 粘性文件）见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)，**该家族已修于 V12（原 V11.2 构建，`bcf5c47f…`，第 19 项）——候选待验、未上机、未发布，V11.1 的 ⛔ 标记不因此解除**；
 上面四条"已修复"**不等于 V11.1 可刷**，toolkit 发布物的说明已加同日补记。
 **11 月批次三件的触发条件**见上文 "Next batch (November)"：C4 冒烟（机器回来+官方固件正常→按 c4-smoke-plan 走）｜解冻（C4 成立后，**C6=仅你下令**）｜发布（**仅你给"发"字**→按 releasing.md runbook）。三件都由触发条件启动，没有一件会自己开始。

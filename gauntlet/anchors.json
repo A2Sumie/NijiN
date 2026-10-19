@@ -98,6 +98,7 @@
  "candidate_records": {
   "bricking-edge_v11.1 Z_8_0311.bin (local build, not released)": "f25c505d0daf9b1f16e345d10d5e82e85b8e8a77d0e4a89153620d5f77e7251a",
   "pre-V11.1 precapture code object (2026-10-19 packaging drill)": "fb53a54994b10f5db35ce53e1389b42292cbdb1829e0410b547bed7de2a4036e",
-  "bricking-edge_v11.2_p1 Z_8_0311.bin (local build, candidate, not released)": "bcf5c47f5aedd873d7292381ea747d7f794c634dbf628ba5272a8ae2c5d9fb03"
+  "bricking-edge_v11.2_p1 Z_8_0311.bin (local build, candidate, not released)": "bcf5c47f5aedd873d7292381ea747d7f794c634dbf628ba5272a8ae2c5d9fb03",
+  "V11.1-era pre-capture code object (historical, superseded by V12)": "8fb68da617ffb522782dc3a4fc072b42cc8a6a78fc9e4f0659c42fafdbc2bdb4"
  }
 }
