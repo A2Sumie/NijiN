@@ -1,125 +1,69 @@
-这份文档用工程师的“大白话”整理如下，结构、数据和原意完全保留：
+# Open Items
 
----
+## V11 / V12 Blockers & Known Defects
 
-# 待办与遗留问题清单 (Open items)
+See [unfreeze-criteria.md](unfreeze-criteria.md) for acceptance criteria and [c2-fix-plan.md](c2-fix-plan.md) for the fix plans covering items 2–5.
 
-这里列出了**目前已知的所有未完成事项**，全都在明面上，绝无隐瞒。每一项都附带了原文档出处，不捏造任何未经证实的信息。排版严格按照**依赖和卡点关系（谁卡着谁）**排序。
+> **⚠️ V11.1 Status (2026-10-19):** V11.1 is marked **UNSAFE** due to a pre-capture defect family (silent non-retention, sticky STP file; see [risks.md](risks.md#known-unsafe-v111-2026-10-19)). Although items 2–5 are fixed in V11.1, **do not flash V11.1**. This defect family is fixed in **V12** (formerly V11.2, `bcf5c47f`, `03.11.p1`), which is awaiting hardware verification.
 
----
-
-## 卡着 V11 分支解冻的事项（解不解冻负责人说了算）
-
-想要解冻，必须达到 [unfreeze-criteria.md](unfreeze-criteria.md) 中白纸黑字写死的硬性标准；下表每一行都对应那份文档里的一条标准。其中第 2 到第 5 行的具体修复步骤，已在 [c2-fix-plan.md](c2-fix-plan.md) 中写明。
-
-> **⚠️ 2026-10-19 紧急状态说明：**
-> **V11.1 版本本身被判定为 ⛔ 极不安全（存在已知缺陷，正在调查）** —— crash fix is an offline verdict, never on hardware. 在拍摄前存在一套严重缺陷（静默丢数据/不保存、STP 残留文件不清除），详见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)。即使下面第 2~5 项已经修复，**V11.1 目前也绝对不能刷入真机！** — experimental — never on hardware。
-> 
-> **最新进展：** 该缺陷已在 **V12（即原 V11.2 构建，版本号 `03.11.p1`，commit `bcf5c47f…`）** 中修复（见下表第 19 项）。新版本正在等待真机验证，但这**不会**撤销 V11.1 的“危险”警告。
-
----
-
-### 已知严重缺陷
-
-| # | 遗留问题 | 当前状态 | 详细文档 |
+| # | Item | Status | Docs |
 |---|---|---|---|
-| **19** | **三态门遗留隐患：**<br>拍摄前静默丢数据/不保存（双配置门控失效、**STP 残留文件既不重试也不删除**、配置门挂死直接熔断）。 | **已在 V12 中修复**（原 V11.2 构建，`bcf5c47f…`，`03.11.p1`）：<br>• 加入 STP 自愈机制（会话锁定 + 现场证据保留；外来文件仍会拦截）；<br>• 门控丢失可视化（可读取状态块，包含落位代码与独立计数器）；<br>• V11.1 无回归问题；严苛测试全绿（44/44 变异测试通过，三态行为门 19 个向量/33 项检查全过）。<br>• **正等待真机实测。已于 2026-10-20 发布为 NijiN V12 实验版（tag: `toolkit-20261020`）。** | [risks.md](risks.md#known-unsafe-v111-2026-10-19)<br>[bricking-edge.md](bricking-edge.md) |
+| 19 | Three-state gate defect: silent pre-capture non-retention (dual-config gate, sticky STP file never retried/deleted, fail-closed config gate) | **Fixed in V12** (formerly V11.2, `bcf5c47f`, `03.11.p1`). Added STP self-heal (session latch + evidence preservation; foreign files still stop) and gate-loss observability (status block with landing codes and per-gate counters). Passed all tests (mutations 44/44, behaviour gate 19 vectors/33 checks). **Released 2026-10-20 as NijiN V12 (EXPERIMENTAL), tag `toolkit-20261020`. Awaiting hardware verification.** | [risks.md](risks.md#known-unsafe-v111-2026-10-19), [bricking-edge.md](bricking-edge.md) |
+| 1 | Exact faulting instruction of the V10 boot loop | **Root cause identified 2026-10-19** (136 §0): S3 slot count 618/617 overrun in the settings-load walk; first overrun load at `0x410DFDF8` (layout-related UB). Recorded in [risks.md](risks.md#c1-evidence-slot); dynamic reproduction (poisoned layout) in progress. | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
+| 2 | Load-time guard bound computed across two regions | **Fixed in V11.1** (`f25c505d`), awaiting hardware. Uses same-base compare plus a header-length clamp; unit tests 9/9 (including v10 negative control). | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 3 | Settings count has three sources of truth; only two were updated | **Fixed in V11.1** (`f25c505d`), awaiting hardware. Reverted all three sources to 617 (shrink option); verified by gate G3.8 + mutation M35. | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 4 | Ownership of the table-boundary write (`0x4CBC9B8`) | **Fixed in V11.1** (`f25c505d`), awaiting hardware. Write deleted after confirming no consumers; verified by gate G3.7 + mutation M36. | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 5 | Second code path reaching the same apply function | **Fixed in V11.1** (`f25c505d`), awaiting hardware. 6/6 walk sites hooked (L2/LC, L1/LB, LS/L3); verified by gate G3.6 + mutations M38/M39. | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+
+## Unverified on Hardware
+
+| # | Item | Status | Docs |
+|---|---|---|---|
+| 6 | All features except early-build HE★ / C15 | Verified offline only; never installed on hardware | [features.md](features.md), [verification.md](verification.md), [c4-smoke-plan.md](c4-smoke-plan.md) |
+| 7 | Same-version update acceptance (`03.11.p0`) | Untested; bumping version number is the fallback | [versions.md](versions.md) |
+| 8 | Lossless strip-length field | Static estimate, low confidence | [features.md](features.md) |
+| 9 | Lens-correction block in Adobe/NX Studio | Untested (templates cover 7 lenses) | [features.md](features.md) |
+| 10 | D5 placeholder block parser acceptance | Untested | [features.md](features.md) |
+| 11 | Bit-depth menu wiring | Backend implemented; UI menu item not yet identified | [features.md](features.md) |
+| 12 | Menu-group logo and entry behaviour | Untested on hardware | [features.md](features.md) |
+
+## Won't Fix / Dropped Features
+
+| # | Item | Reason | Docs |
+|---|---|---|---|
+| 13 | ISO 0.5 EV steps | Value consumer is unreachable in the package; degraded workaround rejected | [features.md](features.md) |
+| 14 | OSD text hints | No text slot available in the display descriptor | [features.md](features.md) |
+| 15 | Selectable D3 "Max." duration | Value-range record semantics undecided | [features.md](features.md) |
+| 16 | C60/C120 pre-cut capture | Dropped from scope | [features.md](features.md) |
+
+## Release & Upstream
+
+| # | Item | Status | Docs |
+|---|---|---|---|
+| 17 | Toolkit package (V11.1) | **Published 2026-10-19 as experimental** (tag `toolkit-20261019`), never on hardware (untested on hardware). **Marked ⛔ UNSAFE on 2026-10-19** due to the pre-capture defect family (see [risks.md](risks.md#known-unsafe-v111-2026-10-19)); warning added to release notes. | [release-packaging.md](release-packaging.md), [releasing.md](releasing.md) |
+| 18 | Upstream Issue #3 | Open; root cause still unknown upstream | [upstream-issue-3.md](upstream-issue-3.md) |
+
+## Next Steps (November)
+
+| Task | Prerequisite | Completion Criteria |
+|---|---|---|
+| **C4 Smoke Test** | Camera returned from service and verified working on official firmware | Complete [c4-smoke-plan.md](c4-smoke-plan.md) and log the test record (or explicit waiver). |
+| **Unfreeze (`bricking-edge`)** | C4 completed | Criteria C1–C5 met and recorded. |
+| **Release (Toolkit)** | Ready for release | Follow [releasing.md](releasing.md): pass 4 checks, rebuild kit, double reconciliation, create annotated tag, and publish via `gh release create --verify-tag`. |
 
 ---
-
-### 阻碍解冻的核心 Bug（针对 V10 变砖/死循环）
-
-| # | 遗留问题 | 当前状态 | 详细文档 |
-|---|---|---|---|
-| **1** | V10 开机无限重启（Boot loop）的确切崩溃指令 | **2026-10-19 已得出定论**：读配置遍历时，S3 槽位数越界（把 617 算成了 618），第一次越界读取发生在 `0x410DFDF8`，因内存布局问题触发了未定义行为（UB）。理论证据已补充至 [risks.md](risks.md#c1-evidence-slot)；内存污染的动态复现还在做（预计耗时 0.5~1 个人天）。 | [risks.md](risks.md)<br>[upstream-issue-3.md](upstream-issue-3.md) |
-| **2** | 加载时的越界保护边界算错了（跨了两个内存区） | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>修复方式：同基准比对 + 限制头长度（比原计划防守更严）；单元测试 9/9 全过（包括 V10 的反面用例）。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
-| **3** | 设置项数量原本有 3 处来源（Single Source of Truth），但之前只改了 2 处 | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>修复方式：3 处来源全部统一定回 617；门禁测试（G3.8）与变异测试（M35）全过。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
-| **4** | 表边界写入（`0x4CBC9B8`）归属权不清 | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>经过三重验证确认没有代码读取这一处，**直接删除了该写入操作**；相关门禁（G3.7）和变异测试（M36）全过。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
-| **5** | 存在漏网的第二条代码路径，同样会调用配置应用函数 | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>全部 6 处调用位置均已挂上钩子（Hook）；交叉覆盖门禁（G3.6）与变异测试（M38/M39）全过。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
-
----
-
-## 未在真机上验证过的事项
-
-| # | 遗留问题 | 当前状态 | 详细文档 |
-|---|---|---|---|
-| **6** | 除了早期版本验证过的 HE★ / C15 功能，其余所有功能 | **纯离线跑过，从未刷进真机测过**。 | [features.md](features.md)<br>[verification.md](verification.md)<br>[c4-smoke-plan.md](c4-smoke-plan.md) |
-| **7** | 相机是否接受刷入相同版本号覆盖升级（`03.11.p0`） | 没测过；如果相机拒绝，保底方案是把版本号改大。 | [versions.md](versions.md) |
-| **8** | 无损压缩条带长度（Strip-length）字段 | 纯静态估算出来的，把握不大。 | [features.md](features.md) |
-| **9** | 生成的镜头校正数据，Adobe / NX Studio 软件能否识别 | 没测过；目前模板仅覆盖了 7 颗镜头。 | [features.md](features.md) |
-| **10** | 相机固件能否识别 D5 占位数据块 | 没测过。 | [features.md](features.md) |
-| **11** | 色深切换菜单的界面挂接 | 底层消费逻辑写好了，但还没在菜单里找到对应的选项位置。 | [features.md](features.md) |
-| **12** | 菜单组图标和入口点击行为 | 从未在真机屏幕上见过实际效果。 | [features.md](features.md) |
-
----
-
-## 确认做不了 / 砍掉的功能（故意保留在此，防止重复讨论）
-
-| # | 功能项 | 砍掉/放弃的原因 | 详细文档 |
-|---|---|---|---|
-| **13** | ISO 0.5 步进调节 | 固件内该数值的调用端无法访问；退而求其次的降级方案被否决了。 | [features.md](features.md) |
-| **14** | 屏幕 OSD 文本提示 | 屏幕显示描述符（Descriptor）里压根没有留文本槽位。 | [features.md](features.md) |
-| **15** | D3“最大时长（Max.）”可选项 | 数值范围的业务逻辑含义一直定不下来。 | [features.md](features.md) |
-| **16** | C60/C120 预拍摄剪裁 | 主动砍掉，不做。 | [features.md](features.md) |
-
----
-
-## 发版与对外事务
-
-| # | 遗留问题 | 当前状态 | 详细文档 |
-|---|---|---|---|
-| **17** | 刷机工具包（Toolkit package） | **2026-10-19 发布了实验尝鲜版**（tag: `toolkit-20261019`）：打包的是 V11.1 候选目标文件，**从未上真机**，崩溃修复也只是理论结论。<br>**当天已被打上 ⛔ 不安全 标记**（因为有上述已知缺陷）；发版说明里已追加附注警告。 | [release-packaging.md](release-packaging.md)<br>[releasing.md](releasing.md) |
-| **18** | 上游 Issue #3 | 依然挂着（Open 状态），上游也没查出根本原因；持续关注跟踪。 | [upstream-issue-3.md](upstream-issue-3.md) |
-
----
-
-## 11 月下一批动作：三大启动开关
-
-| 任务项 | 启动触发条件 | 算作完成的硬性门槛 | 谁说了算 |
-|---|---|---|---|
-| **C4 冒烟测试** | 相机售后维修返回，且刷回官方固件确认完好无损。 | 严格按照 [c4-smoke-plan.md](c4-smoke-plan.md) 逐项执行；测试日志必须白纸黑字入账（或者负责人签署明确豁免书）。 | 负责人（Owner） |
-| **解冻分支 (`bricking-edge`)** | C4 冒烟测试完成（拿到合格日志或书面豁免）。 | C1 到 C5 所有条件全达标并留档；**解冻决策必须是账本里的明确指令**。 | **仅限负责人 (C6)** |
-| **正式发布工具包 (Toolkit)** | 收到明确的“发版”指令。 | 严格执行 [releasing.md](releasing.md) 标准流程：四项检查全绿、重新构建打包、双向账目核对无误、打好附注标签，最后执行命令行发版。 | **仅限负责人** |
-
-> **最后说明：** 本文档里的其余所有事情，都在干等上面这三个开关（或等待前面的遗留修复完成）。**没有人去触发，这里的任务绝不会自动开始。**
-
-Recorded hash: `f25c505d…` (V11.1 build)
-
-Verdict scopes as written: crash fix is an **offline verdict**; builds are experimental, never on hardware.
 
 ## 简体中文
 
-这份清单汇总了本项目**所有未完成的事项**。这里只做索引，不添加任何未经证实的内容，具体细节以各文档为准。
+本页汇总项目当前的未完成事项、待上机验证项及已放弃的功能。
 
-清单主要包含三大类，以及发布侧的两件事：
+> **⚠️ V11.1 安全警告（2026-10-19）：** V11.1 存在已知预拍缺陷（三态门静默失效、STP 粘性文件残留，详见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)），已标记为 **⛔ UNSAFE（不可刷机）**。虽然下表第 2–5 项已在 V11.1 中修复，但**请勿刷入 V11.1**。上述预拍缺陷已在 **V12**（原 V11.2 构建，`bcf5c47f`，第 19 项）中修复，目前待真机验证。
 
-*   **V11 分支相关的 5 件事：**
-    *   1 号崩溃问题已于 2026-10-19 确认并修复，C1 槽位已补齐。
-    *   另外 4 项（guard bound 边界、3 个计数源、表边界归属、第二循环补丁）已在 V11.1 中修复，**但尚未上真机测试**。
-    *   代码解冻仍需等待用户指令。
-*   **未上机验证的 7 件事：**
-    *   除早期的 HE★ 和 C15 测过之外，其余均只做过离线验证。
-    *   同号受理（未实测）、无损 strip 长度、镜头块、占位块、位深接线、菜单组图标均**未经验证**。
-*   **已判定不可交付的 4 件事（保留原因备查）：**
-    *   ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120。
-*   **发布侧的 2 件事：**
-    *   工具包（Toolkit）已按发布令**作为“试验品”发布**（标签 `toolkit-20261019`，基于 V11.1 候选，从未上机测试过）。
-    *   上游 Issue #3 仍在持续跟进监控中。
-
----
-
-### ⚠️ 重要安全警告（2026-10-19）
-**V11.1 已被标记为 ⛔ UNSAFE（存在已知严重缺陷，调查中），绝对不可刷入！**
-
-*   **缺陷说明：** 存在预拍功能的一系列 Bug（三态静默失效、STP 粘性文件残留等），详见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)。
-*   **修复进展：** 该问题已在 **V12**（即原 V11.2，commit `bcf5c47f…`，第 19 项）中修复。
-*   **特别注意：** V12 目前仅是候选版本，**未上机、未发布**。因此 **V11.1 的 ⛔ 不安全标记仍未解除**。前面提到的“已修复”**绝不代表 V11.1 可以刷入**（Toolkit 的发布说明中已补充此声明）。
-
----
-
-### 11 月批次（Next batch）3 件事的触发条件
-**这 3 件事全靠条件触发，没有一件会自动开始：**
-
-1.  **C4 冒烟测试：** 收到机器并确认官方固件正常后，按照 `c4-smoke-plan` 开始测试。
-2.  **代码解冻：** C4 跑通后，**必须由你亲自下令**才会解冻（C6）。
-3.  **正式发布：** **只有当你明确给出“发”字指令时**，才会按照 `releasing.md runbook` 执行发布。
+* **阻塞项与已知缺陷（第 1–5、19 项）：**
+  * **V10 启动死循环（#1）：** 已于 2026-10-19 定位根因（设置加载遍历时 S3 槽位计数 618/617 越界，首处越界位于 `0x410DFDF8`），动态复现进行中。
+  * **V11.1 修复项（#2–#5）：** 跨区边界检查、设置计数三处数据源同步、表边界写入清理、第二代码路径 Hook 均已在 V11.1 中修复，待真机验证。
+  * **V12 修复项（#19）：** 修复了 V11.1 的预拍缺陷（加入 STP 自愈与状态可观测性），已于 2026-10-20 作为试验品发布（tag `toolkit-20261020`），待真机验证。
+* **待真机验证（第 6–12 项）：** 除早期构建的 HE★ / C15 外，其余功能（平级版本号刷机、无损条带长度、Adobe/NX Studio 镜头校正块、D5 占位块解析、位深菜单绑定、菜单组图标）均仅完成离线开发，尚未上机测试。
+* **已放弃功能（第 13–16 项）：** ISO 0.5 EV 步进、OSD 文本提示、D3 "Max." 时长选项、C60/C120 预录制因底层限制或范围裁剪不再开发。
+* **发布与上游追踪（第 17–18 项）：** V11.1 工具包（`toolkit-20261019`，从未上机）已在发布说明中追加不安全警告；正式发布走 `gh release create --verify-tag`；上游 Issue #3 持续跟进中。
+* **11 月后续计划：** 待相机返修归还并确认官方固件运行正常后，依次执行 **C4 真机冒烟测试**（按 [c4-smoke-plan.md](c4-smoke-plan.md)）、**分支解冻**（满足 C1–C5 条件后）及**正式发布**（按 [releasing.md](releasing.md) 流程）。

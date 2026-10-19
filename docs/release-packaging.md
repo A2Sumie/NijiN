@@ -1,132 +1,67 @@
-这是一份更接地气、清晰易懂的“人话”重写版本，保留了所有技术细节与原则要求：
+# Release Packaging (Precompiled Code Objects)
 
----
+Building this project from source compiles the injected C code and verifies the output byte-for-byte against pinned hashes. This requires Clang with an AArch64 target (specifically `Apple clang 21.0.0 (clang-2100.3.34.2)`). 
 
-# Release 发版打包方案（预编译二进制代码）
+Release archives provide precompiled code objects from this repository so users without Clang can still build the project. When using a release archive, the build system verifies the shipped objects against the same hash locks in `resources/*.json` instead of compiling locally.
 
-先说在前面：**这只是一份规划草案，不是发版承诺。** 本仓库目前**从未**发布过任何 Release。未来就算发布，也必须严格遵守 [risks.md](risks.md) 中的所有风险警告。
+## Release contents
 
----
+A release asset contains only the following items:
 
-## 为什么需要发 Release？
-
-平时本地构建时，工具链会把本仓库的 C 源码编译成注入代码，并且有极严格的“**字节级锁定**”——只要你本地编译器输出的结果跟审查锁定的哈希哪怕差了 1 个字节，构建就会直接报错终止。
-
-这套机制是安全的核心防线，但它有一个硬门槛：**你的电脑上必须装有支持 AArch64 架构的 Clang 编译器。**
-
-我们做 Release 的**唯一目的**，就是提供**由本项目源码生成的预编译二进制文件（Code Objects）**。这样一来，电脑上没有 Clang 编译环境的用户也能直接完成打包。校验机制依然有效，只是从“比对自己本地编译的二进制”变成“比对官方 Release 附带的二进制”。
-
-**原则底线**：Release 附件**只允许**额外包含这些预编译代码，绝不夹带任何其他私货。
-
----
-
-## 发版包里“能放什么”
-
-| 包含内容 | 规定与要求 |
+| Item | Description |
 |---|---|
-| **注入代码的二进制文件**（由 `z8precapture/firmware.c`、`z8opengate/firmware.c` 及生成器输出的 AArch64 纯机器码片段） | **允许**。它们完全是由本项目源码编译出来的，开源协议与源码相同。 |
-| **清单文件（Manifest）**：记录每个二进制的文件名、文件大小、SHA-256，对应 `resources/` 中的 `code_sha256`，以及生成它的源码哈希 | **必须包含**。没有清单的 Release 直接废弃。 |
-| **`SHA256SUMS.txt`**（覆盖包内所有文件的校验和） | **必须包含**。 |
-| **构建这些二进制所对应的 Git Commit 哈希值** | **必须包含**。 |
+| Precompiled code objects | Flat AArch64 code blobs compiled from `z8precapture/firmware.c`, `z8opengate/firmware.c`, and the emitters. |
+| Manifest | A metadata file listing every object's filename, size, SHA-256, matching `code_sha256` in `resources/`, and source file hashes. |
+| `SHA256SUMS.txt` | SHA-256 checksums covering the entire release asset. |
+| Commit hash | The exact Git commit the objects were built from. |
 
----
+## Packaging and verification workflow
 
-## 发版包里“绝对严禁包含什么”
+1. **Build**: Compile the objects from a clean checkout of the tagged commit.
+2. **Verify hashes**: Check every object's SHA-256 against `code_sha256` and `source_sha256` in `resources/*.json`. Abort if the compiler output differs from the pinned hashes.
+3. **Reproduce**: Rebuild the objects on a second clean machine and verify that the outputs are identical.
+4. **Scan**: Run the release scanner on the staging directory:
+   ```sh
+   python3 tools/redline_scan.py --release build/release-staging
+   ```
+   The scanner verifies that every file is listed in the manifest, all hashes match both the manifest and `resources/`, and no extraneous binaries, firmware data, local paths, or credentials are present. An exit code of `0` indicates the directory is ready to publish.
+5. **Publish**: Upload the archive with the manifest and checksums, and link [NOTICE.md](../NOTICE.md) in the release notes.
 
-Release 不是避风港，Git 仓库里严禁提交的东西，Release 同样绝对不能碰：
+## Drill record (2026-10-19)
 
-- ❌ 严禁包含**任何用户提供的原始固件包**（无论完整还是部分）；
-- ❌ 严禁包含**任何生成的最终输出固件包**（哪怕是测试用的也不行）；
-- ❌ 严禁包含从相机设备里导出的 Dump、提取的段或解密数据；
-- ❌ 严禁包含个人数据（相机设置文件、SD 卡内容、抓包记录、截图、实拍照片等）；
-- ❌ 严禁打包第三方软件（如编译器、模拟器、格式转换工具等）；
-- ❌ 严禁包含任何会被 `tools/` 检查脚本拦截违规的文件。
+The flow above was rehearsed end to end without publishing anything. With the reviewed compiler (`Apple clang 21.0.0 (clang-2100.3.34.2)`) both code objects compiled from the sources in this repository matched the recipe pins byte for byte (then-current objects: `precapture` 35,053 bytes `fb53a549…`, `opengate` 4,040 bytes `36e56939…`; object history: V11.1 brought 35,229 bytes `8fb68da6…`, **V12 brings 36,189 bytes `fa21fb78…`** — the current pin in `resources/`). `tools/redline_scan.py --release` passed the staging directory and refused, as it must, a one-byte tampering of an object, a smuggled `.bin`, and a manifest with the source hashes stripped. No release has been published.
 
----
-
-## 打包与验证标准流程
-
-1. 从打好 Tag 的 Commit 干净检出代码（Clean checkout）。
-2. 本地编译出二进制文件，严格核对每个文件的 SHA-256 是否完全吻合 `resources/*.json` 里的记录（`code_sha256`、`source_sha256`）。**如果哈希对不上，必须立刻排查停机，绝对不允许私自篡改清单去“迁就”错误的结果！**
-3. 换一台干净的机器重新编译一次，对比两次结果是否 100% 相同（验证可复现性）。
-4. 对待发布的临时目录执行“发布红线检查”（见下文）。
-5. 验证通过后，将二进制、清单及校验文件一起发布，并在 Release 说明中附上 [NOTICE.md](../NOTICE.md) 链接。
-
----
-
-## 发布红线检查（Release Scan）
-
-在发版前，必须运行以下脚本，对发版临时目录执行极其严苛的扫描：
-
-```sh
-python3 tools/redline_scan.py --release build/release-staging
-```
-
-**脚本会无条件拦截以下行为：**
-- 临时目录中包含了清单里没写的陌生文件；
-- 文件的实际 SHA-256 与清单记录不一致；
-- 文件的哈希不符合 `resources/` 预设的 `code_sha256`；
-- 任何触碰红线的内容（长得像官方固件的文件、个人隐私、开发机绝对路径、密钥凭证、非法的二进制等）。
-
-**只有脚本退出码为 0，才证明该目录安全合规，允许发版。**
-
----
-
-## 发版全流程演练记录（2026-10-19）
-
-我们曾对上述全套流程进行过端到端闭环演练（**仅演练，未实际发布**）：
-
-1. 使用审查合格的编译器（`Apple clang 21.0.0`），基于源码编译出的两个二进制文件与目标锁定的字节码**逐字节完全一致**：
-   - 演练时的版本：`precapture` 35,053 字节（`fb53a549…`）、`opengate` 4,040 字节（`36e56939…`）；
-   - *（版本演进参考：V11.1 为 35,229 字节，**最新的 V12 为 36,189 字节 `fa21fb78…`**，即当前 `resources/` 锁定的目标）*。
-2. 自动化工具顺利生成了清单及 SHA256 校验和。
-3. `tools/redline_scan.py --release` 检查顺利通过。
-4. **防御测试**：演练中故意测试了异常情况，脚本成功识别并拦截了：
-   - 篡改了 1 个字节的损坏文件；
-   - 偷塞进去的私带 `.bin` 文件；
-   - 抹去了源码哈希的伪造清单。
-
-演练结束。本项目目前依然未公开发布过任何 Release。
-
-Recorded object history: `fb53a549…` → `8fb68da6…` (V11.1-era) → `fa21fb78…` (V12).
-
-## 简体中文
-
-这是一份更通俗、逻辑更清晰的重写版本，保留了所有技术细节、安全红线和版本记录：
+Flashing anything built from these objects is at your own risk: read [risks.md](risks.md) first.
 
 ---
 
 ## 简体中文
 
-- **这只是预案，不保证一定会发 Release**  
-  目前本仓库从未发布过任何 Release 版本。即使未来真发了，[risks.md](risks.md) 里的所有免责与风险警告依然全部有效。
+本项目默认从 C 源码编译注入代码，并强制校验编译产物的字节哈希。这要求本地安装支持 AArch64 目标的 Clang（基准版本为 `Apple clang 21.0.0 (clang-2100.3.34.2)`）。
 
-- **为什么考虑发 Release？唯一原因是方便没装 Clang 的人**  
-  为了让电脑里没有 Clang 编译环境的人也能构建项目，Release 里最多只会附带**本项目自己编写、自己编译的注入代码目标文件（.o 产物）**。原本的“字节锁校验”改为核对自带的文件，但校验的严格程度丝毫不减。
+Release 发布包用于提供预编译好的代码目标文件，方便没有 Clang 环境的用户直接构建。使用预编译包时，构建脚本会直接对照 `resources/*.json` 中的哈希锁校验随附的目标文件。
 
-- **Release 允许包含的内容（仅限以下白名单）：**
-  1. 我们自己编译出的代码目标文件；
-  2. 文件清单（记录文件名、大小、SHA-256、对应的 `resources/` 哈希、生成该文件的源码哈希）；
-  3. `SHA256SUMS.txt` 校验和文件；
-  4. 构建时对应的 Git commit 哈希。
+### 发布包内容
 
-- **严正禁止放进 Release 的内容（绝对红线）：**
-  - **绝不能有**：任何用户上传的原厂固件/安装包（哪怕是一小段都不行）、工具生成的最终输出包、解密或提取出来的代码段。
-  - **绝不能有**：配置文件、存储卡内容、设备截屏、照片。
-  - **绝不能有**：任何第三方的二进制文件，以及仓库扫描脚本会拦截的一切内容。  
-  *一句话：发 Release 绝不是钻空子夹带违规文件的后门。*
+- **预编译代码对象**：由 `z8precapture/firmware.c`、`z8opengate/firmware.c` 及生成器编译出的 AArch64 纯二进制代码片段。
+- **清单文件（Manifest）**：记录每个目标文件的文件名、大小、SHA-256、`resources/` 中对应的 `code_sha256` 以及源码哈希。
+- **`SHA256SUMS.txt`**：覆盖整个发布包的校验和文件。
+- **Commit 哈希**：构建该批目标文件所用的 Git 提交哈希。
 
-- **发布前的标准化流程：**
-  1. **干净拉取**：从打好 tag 的干净源码节点切出代码进行构建。
-  2. **核对哈希**：编译产物必须与 `resources/` 记录的哈希完全一致。只要对不上立刻停下，**严禁为了迁就编译产物去偷偷改清单**。
-  3. **异地复验**：换另一台干净的机器重新编译一次，确保两台机器构建出的二进制逐字节一致（可复现构建）。
-  4. **红线扫描**：运行 `tools/redline_scan.py --release <目录>` 执行合规检查。
-  5. **正式发布**：将产物连同清单、校验和一起发布，并在 Release 说明中附上 [NOTICE.md](../NOTICE.md) 链接。
+### 打包与校验流程
 
-- **演练记录（2026-10-19）：**  
-  我们已经完整彩排了一遍发版流程（**仅做演练，未对外发布任何文件**）：
-  - **编译一致性**：使用指定的审计编译器（`Apple clang 21.0.0 (clang-2100.3.34.2)`）从本仓源码编译出的两个文件，与配置中写死的哈希值逐字节吻合：
-    - `opengate`：4,040 字节（哈希 `36e56939…`）。
-    - `precapture` 的版本沿革：彩排时为 35,053 字节（`fb53a549…`）；V11.1 更新为 35,229 字节（`8fb68da6…`）；**最新 V12 版本为 36,189 字节（`fa21fb78…`，当前已固定在 `resources/` 中）**。
-  - **清单与校验**：顺利从 `resources/` 生成了文件清单与 SHA256 校验和。
-  - **防作弊拦截测试**：`--release` 扫描脚本运行正常，成功通过了合规文件，并准确拦截了 3 类违规测试案例（哪怕篡改 1 个字节、故意夹带 `.bin` 文件、清单中抹掉源码哈希）。
+1. **构建**：从打好标签的 commit 检出干净的工作区，编译目标文件。
+2. **核对哈希**：对照 `resources/*.json` 中的 `code_sha256` 和 `source_sha256` 校验每个产物的 SHA-256。若编译产物不一致则直接中止，不得修改清单去迁就编译产物。
+3. **复现构建**：在另一台干净环境中重新构建，确认产物逐字节一致。
+4. **安全扫描**：对暂存目录运行发布扫描脚本：
+   ```sh
+   python3 tools/redline_scan.py --release build/release-staging
+   ```
+   脚本会拒绝任何未列入清单的文件、哈希与清单或 `resources/` 不符的文件，以及固件数据、个人路径或第三方二进制文件等违规内容。返回码为 `0` 表示校验通过。
+5. **发布**：上传发布包、清单与校验和文件，并在 Release 说明中附上 [NOTICE.md](../NOTICE.md) 的链接。
+
+### 演练记录（2026-10-19）
+
+整套流程已完整演练过（未发布任何 release）。用审定过的编译器（`Apple clang 21.0.0 (clang-2100.3.34.2)`）从本仓源码编译出的两个代码对象与配方钉死值逐字节一致（当时对象：`precapture` 35,053 字节 `fb53a549…`、`opengate` 4,040 字节 `36e56939…`；对象沿革：V11.1 换 35,229 字节 `8fb68da6…`，**V12 换 36,189 字节 `fa21fb78…`**（现钉死在 `resources/`））。`tools/redline_scan.py --release` 通过了暂存目录，并如预期拒绝了单字节篡改、夹带 `.bin`、以及抹掉源码哈希的清单。
+
+刷写这些对象构建出的固件风险自担：先读 [risks.md](risks.md)。

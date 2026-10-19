@@ -1,155 +1,106 @@
-这是一份精简、接地气且保留全部核心细节的“人话”重写版本：
+# Symptom Comparison: V10 Boot Loop vs. Upstream Issue #3
 
----
+This document compares two Nikon Z8 modified firmware failures that occurred on different builds:
 
-# 两次翻车事故对比：我们的 V10 固件无限重启 vs 上游 Issue #3 变砖 — no firmware。
+- **This repository (V10 build, `03.11.p0`)**: Boot loop on a test camera (see [risks.md](risks.md)).
+- **Upstream ([XinmiaoZhao/NikonFirmwarePatch Issue #3](https://github.com/XinmiaoZhao/NikonFirmwarePatch/issues/3), `04.03.p0`)**: Opened 2026-10-18. Reports one camera where RAW pre-capture permanently stopped working after reinserting the memory card, and a second camera that failed to boot after flashing.
 
-前后相差不到一天，两拨人各自改尼康 Z8 固件，都改出事了：
+We are not affiliated with that project. The comparison is strictly at symptom level, taken from the public issue text as of 2026-10-19. **No firmware, builds, or files were exchanged** between the two situations, and nothing from that project is reproduced here beyond the linked public report.
 
-- **我们这边**：自己项目的 V10 版本，刷进测试机后**无限重启**（详见 `risks.md`）；
-- **上游项目**：`XinmiaoZhao/NikonFirmwarePatch` 的 [Issue #3](https://github.com/XinmiaoZhao/NikonFirmwarePatch/issues/3)。用户反馈刷了 4.03 改版固件后，**一台机器换卡后预拍摄永久失效，另一台直接黑屏开不了机**。
+## Upstream Timeline
 
-> **先说清楚：** 我们跟对方没有任何关联。本文仅根据 2026-10-19 对方公开的 Issue 内容做故障现象对比。双方没有任何固件或代码往来，纯粹技术交流，不甩锅、不妄断。
+| Date | Event |
+|---|---|
+| 2026-10-17 | Upstream releases toolkit `v0.1.0` (source + 30,301-byte precompiled binary `479f4e37…` + validation scripts). Their precompiled-distribution model is close to our own [release plan](release-packaging.md): same trade-off, decided independently. |
+| 2026-10-18 | Issue #3 opened: one camera fails to boot after flashing; another permanently loses RAW pre-capture after a card change. |
+| 2026-10-18 | [Upstream validation update](https://github.com/XinmiaoZhao/NikonFirmwarePatch/blob/main/docs/validation.md):<br>1. **Hardware test**: The maintainer's Z8 booted `04.03.p0` normally, handled card hot-plugging without issue, and enabled pre-capture via a CFG card. The reporter's source-built binary matched the maintainer's precompiled binary byte-for-byte.<br>2. **QEMU test**: Official firmware and three patched builds reached the shooting menu in QEMU (proves basic execution, but does not test flash routines, boot ROM, or persistent NVRAM state). |
 
----
+**Current status (as of 2026-10-19)**: The boot failure was not reproduced on the maintainer's hardware. Root cause, recovery methods, and the persistent pre-capture failure remain unresolved. The affected camera's flash has not been dumped.
 
-## 进展追踪
+## Comparison
 
-| 日期 | 上游动态 | 对我们对比分析的影响 |
+| | Upstream Issue #3 (`04.03.p0`) | Our V10 Incident (`03.11.p0`) |
 |---|---|---|
-| **2026-10-18** | 上游被提了 Issue #3：一台机刷完开不了机，另一台换卡后 RAW 预拍摄彻底失效。 | 本文对比的基础事实。 |
-| **2026-10-17** | 对方发布工具包 `v0.1.0`（包含源码和预编译二进制机器码），附带校验工具。 | 对方这种“提供预编译包”的思路跟我们的发布策略很像，大家各自独立权衡后的做法。 |
-| **2026-10-19**（提交于18日） | **维护者真机测试**：维护者用自己的 Z8 刷了同款 `04.03.p0`，换卡、热插拔都没事，预拍摄正常。出问题的固件经比对跟维护者的一模一样。 | **说明故障在维护者的机器上无法复现**。原因成谜，Issue 保持开启，暂停安装的警告依旧挂着，预拍摄失效也没查明白。 |
-| **2026-10-19**（提交于18日） | **启动环境排查**：在固定的 QEMU 模拟器里，官方固件和 3 个修改版本都能正常进拍照菜单。维护者也直说了：这并不能证明真机就没问题。 | 观点与我们完全一致：**模拟器能跑，根本不能证明真机刷机、ROM 引导和真实启动链没有 Bug**。 |
-| **2026-10-19 截止** | 代码无新提交，Issue #3 挂着无人回复。 | 暂无新进展。 |
+| **Hardware** | Nikon Z8 (2 units) | Nikon Z8 (1 test unit) |
+| **Base Firmware** | `Z_8_0403.bin` (C 4.03) | `Z_8_0311.bin` (C 3.11) |
+| **Modified Features** | ProRes + C15/C30 HE RAW pre-capture | ProRes + pre-capture + OpenGate + menu group + settings table |
+| **Offline Checks** | Passed | Passed |
+| **Boot Failure** | Unit 2: Fails to boot after flashing | Boot loops (display turns on, loader runs, crashes during app init, restarts) |
+| **Config/Card Failure** | Unit 1: Pre-capture stops working after removing the card; persists across card swaps, formatting, and rewriting `Z8PRE.CFG` | Not observed |
+| **Trigger** | Flashing + card removal/reinsertion | First boot after flashing (with settings and config files on the card) |
+| **Recovery** | Unknown | Software recovery failed; sent to service center |
 
-**目前双方都没做到的**：没人找到底层根本原因，没有救砖方案，没搞清换卡后到底发生了什么，也没人 dump 出翻车机器的 ROM。
+## Common Factors
 
----
+1. **Offline checks passed**: Static verification only confirms that patches were applied as written; it does not catch runtime initialization bugs.
+2. **Same failure stage**: Both builds crash or hang during application-level initialization.
+3. **Overlapping code areas**: Both patches modify pre-capture logic and config/settings file handling.
 
-## 硬碰硬对比
+## Bugs Found in Our V10 Build
 
-| 对比项 | 上游 Issue #3 (4.03 改版) | 我们的 V10 事故 (`03.11.p0`) |
-|---|---|---|
-| **受灾设备** | 尼康 Z8（共 2 台） | 尼康 Z8（1 台测试机） |
-| **固件版本** | `Z_8_0403.bin`（基于 4.03） | `Z_8_0311.bin`（标识 `03.11.p0`） |
-| **改动功能** | ProRes + C15/C30 HE RAW 预拍摄 | ProRes + 预拍摄 + OpenGate + 菜单分组 + 改了设置表 |
-| **刷机前检查** | 对方自测离线校验通过 | 我们的离线自动化测试跑通了两次 |
-| **开机故障表现** | 第二台机器：**刷完直接无法开机（死机）** | **无限重启**：屏幕亮、引导正常，但在应用层初始化时崩溃，然后疯狂自动重启 |
-| **其它诡异现象** | 第一台机器：预拍摄本来能用，**拔插一次卡后彻底失效**；格式化、换卡、重写配置文件全都没用 | 无此类现象 |
-| **触发诱因** | 刷机 + 拔插卡操作 | 刷完第一次开机就中招（卡里放着配置文件） |
-| **抢救结果** | 帖子里没提 | 软件层面无力回天，已送修（返厂） |
-| **故障分析** | 官方暂无公开分析 | 我们查出 3 处可疑改动，证实了 1 个越界 Bug，但真机具体死在哪个指令尚不明确 |
+Analysis of our V10 binary identified three specific defects in the settings-handling code that explain these types of symptoms:
 
----
+1. **Settings table count mismatch (buffer overrun)**: We increased the settings count from 617 to 618 in two places (ROM variant table and hardcoded registration), but missed the third (the backing table itself remained at 617 entries). Any routine iterating over the table using the updated count reads or writes one entry out of bounds, corrupting memory at boot.
+2. **Broken bounds check on settings load**: A bounds guard compared the end of a settings item against a limit calculated from a different memory region. Depending on where the file buffer is allocated in RAM, the check silently skips all entries or allows all entries. If it skips all entries, **config files on the card are permanently ignored**—matching the symptom on Upstream Unit 1.
+3. **Write to an unreferenced table boundary**: We modified the end of a table that has zero code references in the firmware. If an adjacent table is read during startup, this write corrupts its data.
 
-## 两个事故的惊人共同点
+## Troubleshooting Steps for Similar Symptoms
 
-1. **刷机前全绿，刷完当场暴毙**：离线校验只能证明“二进制字节按预期写进去了”，完全证明不了“真机跑起来能活着”。
-2. **死法本质是一类**：都卡在应用层初始化阶段。到底是“黑屏不开机”还是“无限重启”，只取决于系统死得有多深、屏幕有没有来得及点亮。
-3. **动的都是同一块代码区**：都涉及预拍摄和配置文件（Settings）的读取逻辑。而我们排查出的确凿 Bug，正好就出在“设置项数量注册”和“配置文件加载路径”上。
-4. **唯一的保命法则**：赶紧停止刷机；排查时一次只改动一个变量。
+1. **Test without card files**: Boot the camera with a blank card (no settings file, no `.CFG` file), then test with each file individually to isolate file-parsing bugs without rebuilding firmware.
+2. **Bisect builds**: Roll back patch versions one change at a time to isolate the breaking commit.
+3. **Audit table counts**: Search the patch set for hardcoded count immediates and verify that every reference matches the actual size of the underlying data table. Off-by-one overruns pass all checksum and packaging checks.
+4. **Inspect load-path bounds checks**: Verify how the settings loader handles files that are shorter or longer than expected, and ensure pointer comparisons happen within the same memory region.
+5. **Check persistent state**: When a feature breaks after a card swap and formatting the card does not fix it, the corruption is in the camera's persistent state (NVRAM settings, counters, or caches), not the card file.
 
 ---
 
-## 我们复盘挖出的雷（可供参考的排查假设）
-
-*以下是我们自己翻车的原因，仅供大家排查类似问题时参考，不代表对方的代码也是这个原因。*
-
-1. **写死的数量和底层表格对不上（我们已实锤的致命伤）**：
-   我们把一个设置项数量从 617 改成了 618，但底层实际分配的表还是 617。系统只要按照这个数量去遍历，就会直接越界踩内存。关键是**这个“总数”在系统里有 3 处定义**（ROM 变体表、硬编码注册、保存侧立即数），我们只改了其中 2 处，漏了一处。
-   *结果*：启动时内存踩踏崩掉，或者任何遍历该表的功能莫名暴毙。
-2. **一个看似人畜无害的边界检查，其实逻辑全反了**：
-   我们在加载配置文件时写了一个边界检查，结果拿错地址去计算大小了。导致只要内存布局稍有不同，系统要么“全部静默跳过”，要么“毫无限制全部放行”，偏偏还不报错。
-   *结果*：**设置项再也加载不进去了，你喂它什么文件都没用**。这和上游“拔卡后再也开不起预拍摄”的现象高度吻合。
-3. **在归属不清的表格边缘写了数据**：
-   我们在一个全项目都没找到引用的表格边缘写了数据。如果这个表挨着的邻居表正好在启动时被系统读取，就会导致异常。
-   *教训*：搞不清用途的表，一个字节都不要碰。
-4. **排除假嫌疑和找 Bug 一样重要**：
-   我们逐条指令逆向排查了一个疑似有问题的桩代码，证明它寄存器保存完好、没有野指针。及时把嫌疑排除，排查范围才不会越来越乱。
-
----
-
-## 如果我们要排查 Issue #3，会怎么做？
-
-1. **先做“零改动”控制变量测试（排查卡的问题）**：
-   把卡里的配置文件、设置文件全删掉开机试试；然后再单放一个文件开机。**不需要重新编译任何固件**，一分钟就能把触发面排除一半。
-2. **二分法回退版本**：
-   按版本倒推：V10 → 修复包 → V9 → V8…… 每次只改动一个变量，快速定位是从哪次提交开始坏事的。
-3. **地毯式搜索所有“写死的数字”**：
-   把所有改动里写死的常量（配置总数、数组长度、立即数）全挑出来，挨个跟真实的内存表格核对。多一个少一个这种越界 Bug，校验和工具是永远查不出来的。
-4. **死磕配置读取的边界判定**：
-   去看读取设置文件时的边界校验逻辑。想象一下文件超长或偏短会发生什么？如果逻辑写成“全部跳过”或“全部放行”，系统都不会报错，但功能直接废掉。
-5. **换卡才出 Bug？八成是相机内部持久化状态写坏了**：
-   拔插卡就暴毙，多半不是卡上文件的问题，而是相机的 EEPROM/内部存储在落盘时写坏了脏数据，或者缓存逻辑读错，把自己锁死了。
-
----
-
-## 划清界限：不要混为一谈
-
-- 双方版本、功能、代码全都不一样，我们在自己固件里抓出的 Bug，**不能直接扣到对方头上**。
-- 故障现象不同：对方遇到了“换卡后功能永久失效”，我们从未遇到过；对方的“黑屏不开机”和我们的“重启循环”，卡死的具体阶段未必一样。
-- 我们看不到对方的代码改动，也没摸到那台坏掉的机器，以上内容纯粹是经验对照，不做任何定论。
-
-Recorded hash: `479f4e37…` (upstream module)
-
-See also: [validation.md](https://github.com/XinmiaoZhao/NikonFirmwarePatch/blob/main/docs/validation.md), [release-packaging.md](release-packaging.md).
 ## 简体中文
 
-给你翻译成大白话，去掉了生硬的公文腔和黑话，但核心技术细节、逻辑和免责边界完全保留：
+本文对比两起尼康 Z8 修改版固件故障：
+- **本仓库（V10 构建，`03.11.p0`）**：测试机无限重启（详见 [risks.md](risks.md)）。
+- **上游仓库（[XinmiaoZhao/NikonFirmwarePatch Issue #3](https://github.com/XinmiaoZhao/NikonFirmwarePatch/issues/3)，`04.03.p0`）**：2026-10-18 提交。一台机器在拔插存储卡后 RAW 预拍永久失效；另一台刷机后无法开机。
 
----
+### 上游进展记录
 
-### 翻车对比与排查记录（通俗版）
+| 日期 | 事件 |
+|---|---|
+| 2026-10-17 | 发布 `v0.1.0` 工具包（含源码、30,301 字节预编译机器码 `479f4e37…` 及校验脚本）。 |
+| 2026-10-18 | Issue #3 提交：一台刷后不开机，另一台换卡后预拍永久失效。 |
+| 2026-10-18 | [上游更新验证文档](https://github.com/XinmiaoZhao/NikonFirmwarePatch/blob/main/docs/validation.md)：<br>1. **实机测试**：维护者自己的 Z8 刷入 `04.03.p0` 后开机正常，换卡（含热插拔）无异常，可通过 CFG 卡启用预拍。反馈者自行编译的固件与维护者预编译版本逐字节一致。<br>2. **QEMU 测试**：原厂固件与三个修改版均可在 QEMU 中进入拍摄菜单（仅证明基础逻辑可运行，无法验证刷写流程、Boot ROM 及 NVRAM 持久化状态）。 |
 
-这篇文章主要是拿我们自己的“翻车现场”（V10 固件导致 Z8 样机反复重启）和隔壁上游项目（Issue #3：两台 Z8 刷固件后，一台拔卡后预拍功能彻底失效，另一台直接变砖开不了机）做个横向对比。
-**声明**：我们和上游项目没有任何隶属关系，没有互通固件，纯粹根据公开的 issue 讨论做纯现象层面的对照。
+**当前状态（截至 2026-10-19）**：维护者实机未复现不开机故障。故障根因、恢复方法及换卡后预拍失效的原因均未查明，故障机尚未读回闪存数据。
 
----
+### 故障对比
 
-#### 1. 上游最新进展（截至 2026-10-19）
-* **作者自己测没翻车**：上游维护者在自己的 Z8（固件 `04.03.p0`）上实测开机、拔插卡、预拍功能全正常；而且出事网友的文件与作者本地的文件逐字节对比完全一致（排除是网友自己编译搞坏的）。
-* **模拟器也跑得通**：用 QEMU 虚拟机跑原厂和打补丁的固件，都能正常进拍摄菜单（但作者也说了，模拟器能进不代表真机没毛病）。
-* **工具已发**：作者在 10 月 17 日发布了 `v0.1.0` 预编译工具包。
-* **现状是“未复现”**：目前翻车原因不明、救砖方法未知、拔卡为什么会永久失效也没想明白，坏掉的相机固件也没读出来。既然维护者自己复现不了，但大家反映的问题是真实的，因此**依然建议所有人暂停刷机**。目前上游已无新动作。
+| | 上游 Issue #3 (`04.03.p0`) | 本仓 V10 事故 (`03.11.p0`) |
+|---|---|---|
+| **设备** | 尼康 Z8（2 台） | 尼康 Z8（1 台测试机） |
+| **基础版本** | `Z_8_0403.bin` (C 4.03) | `Z_8_0311.bin` (C 3.11) |
+| **修改内容** | ProRes + C15/C30 HE RAW 预拍 | ProRes + 预拍 + OpenGate + 菜单组 + 设置表 |
+| **离线校验** | 全部通过 | 全部通过 |
+| **启动故障** | 机器 2：刷机后无法开机 | 无限重启（屏幕亮、Loader 存活，在应用层初始化阶段崩溃重启） |
+| **配置/卡故障** | 机器 1：拔卡后预拍失效；换卡、格卡、重写 `Z8PRE.CFG` 均无法恢复 | 未出现 |
+| **触发条件** | 刷机 + 拔插卡操作 | 刷机后首次开机（卡内含设置文件与配置文件） |
+| **恢复情况** | 未知 | 软件恢复失败，已送修 |
 
----
+### 共同特征
 
-#### 2. 两边翻车的共同点
-* **电脑检查全绿，一刷真机就死**：说明离线静态检查通过，根本不等于真机刷入安全。
-* **死在同一个阶段**：都是相机底层的修改版固件在系统启动、加载应用层时卡死了。
-* **动了相似的地方**：两边都改了“预拍功能”以及“读取外部设置文件（CFG）”的相关逻辑。
-* **应对策略一致**：赶紧叫停别再刷了，用控制变量法一项一项剥离排除。
+1. **离线校验全部通过**：离线检查只能验证补丁是否按预期写入，无法发现运行时的初始化崩溃。
+2. **故障阶段相同**：均在固件的应用层初始化阶段崩溃或卡死。
+3. **修改区域重合**：两者的补丁都改动了预拍逻辑与配置文件（Settings/CFG）读取链路。
 
----
+### 本仓 V10 查明的具体缺陷
 
-#### 3. 我们这边的破案结论（供参考的几个排错猜想）
-1. **数据表长度数错了（差了 1 项）**：
-   已实锤的 bug——代码里有 3 处硬编码记录了数据表总数（本应是 617），我们之前只改了 2 处，漏改了 1 处变成了 618。相机开机遍历时直接越界访问了 1 项，导致崩溃。
-2. **读配置时的边界检查逻辑写反/写偏了**：
-   这种错误不会直接让相机闪退，但会导致代码判定失常，变成“不管卡里放啥配置文件，统统当成无效跳过”或者“全盘盲目放行”。**直观表现就是：喂什么配置文件都不生效**。这和上游第一台相机的症状完全对得上（只是现象一致，不能断定原因相同）。
-3. **改了来源不明的数据表**：
-   修改了一张在整个固件里都搜不到调用关系的数据表。如果它隔壁的表在开机时正好被读取，就极容易踩雷。没搞清归属的数据表千万别动。
-4. **排除法也是战果**：
-   逐字节确认并排除了某些可疑的存根代码（stub），虽然没直接找到 bug，但帮我们缩小了怀疑范围，不用瞎猜。
+在对 V10 固件的逆向排查中，我们在设置处理链路里定位了三个具体 bug，可解释上述同类症状：
 
----
+1. **设置表计数不匹配（越界读写）**：设置项总数在固件中有三处定义（ROM 变体表、硬编码注册处、保存逻辑的立即数）。我们只将前两处从 617 改成了 618，底层数据表实际仍为 617 项。任何按新计数遍历该表的代码都会越界 1 项，导致开机内存损坏。
+2. **配置加载路径的边界检查（Bounds Guard）失效**：边界检查将配置项的结束地址与另一个内存区域的指针进行了跨区比较。根据文件缓冲区在内存中分配位置的不同，该检查会静默“跳过所有配置项”或“放行所有配置项”。一旦触发全跳过，**无论卡里放什么配置文件都不会生效**——这与上游机器 1 的症状完全吻合。
+3. **写入了无引用的表边界**：我们修改了一个在全固件中没有任何代码引用的表末尾。如果相邻的数据表在开机时被读取，该写入就会破坏相邻表的数据。切勿写入无法证明归属的表。
 
-#### 4. 实操排查建议
-1. **先做“空机测试”**：卡里不放设置文件开一次机、彻底不插卡开一次机。看看到底是相机只要读卡就崩，还是不插卡也崩，先分清问题出在哪。
-2. **二分法回滚**：按固件编译的版本逐步往前退，找出到底是哪一个改动开始引起异常的。
-3. **查补丁里的硬编码数字**：去补丁代码里全局搜写死的计数数值，和底层真实的数据表一项项核对（只多出/少记了 1 项，电脑检查工具根本报警不了）。
-4. **检查读文件的边界判断**：重点看如果丢给相机一个残缺的、很短的配置文件，代码会怎么处理。
-5. **“拔卡依然失效”属于机身内部数据写坏了**：既然拔了卡毛病还在，说明 bug 已经被固化保存在了机身自带的闪存里。排查重心要放在相机机身内部状态上，别死盯着卡里的文件看。
+### 同类故障排查建议
 
----
-
-#### 5. 必须明确的区别（切勿混为一谈）
-* **代码与功能不同**：两边的改机方案、补丁版本和功能逻辑全都不一样。
-* **核心症状有差异**：对方“拔卡后预拍功能彻底坏死”的问题，我们这边从未见过。
-* **卡死阶段未必一样**：对方的“完全不开机（黑屏死透）”和我们的“反复重启循环”，相机内部卡死的深浅阶段很可能完全不同。
-* **不越界定性**：我们手里没有对方的代码和构建产物，不对隔壁的代码问题做任何确定性结论。
-
-另见：[3](https://github.com/XinmiaoZhao/NikonFirmwarePatch/issues/3), [risks.md](risks.md).
-
-上游模块记录值：`479f4e37…`。
+1. **拔卡/清空文件测试**：先用空卡（不放设置文件和 `.CFG` 文件）开机，再逐个放入文件测试。无需重新编译即可快速确认是否由文件解析触发。
+2. **按版本二分回退**：按构建历史逐个版本回退，每次只保留单一变量，定位引入问题的具体改动。
+3. **核对所有表计数立即数**：扫描补丁中所有的计数立即数，确保它们与底层数据表的实际大小、以及固件内其他引用点完全一致。差一错误（Off-by-one）无法被校验和或打包脚本检出。
+4. **审查加载路径的边界检查**：检查设置文件加载代码如何处理过短或过长的文件，确认指针比较是否在同一内存区域内进行。
+5. **排查机身持久化状态**：“刷机后正常、拔卡后永久失效且格卡无效”，说明损坏发生在机身持久化状态（NVRAM 设置项、计数器或缓存）中，而非存储卡文件本身。

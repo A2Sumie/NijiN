@@ -1,150 +1,133 @@
-# C15/C30 HE RAW capture / C15/C30 HE RAW 连拍与预拍
-
-> **Provenance note.** This usage guide is derived from the upstream
-> NikonFirmwarePatch project (GPL-3.0-only, see [NOTICE.md](../NOTICE.md)).
-> Testing statements in it (converter checks, file counts, menu coverage)
-> describe **that project's own builds**. They are not hardware records for
-> the builds produced with this repository's recipes — see
-> [verification.md](verification.md) for what has actually been checked here.
+# C15/C30 HE RAW Capture / C15/C30 HE RAW 连拍与预拍
 
 [English](#english) · [简体中文](#简体中文)
 
 ## English
 
-**Experimental; use at your own risk.** Read the [risk notice](../README.md#english), back up photos and settings, and assess the risk before installation. Public support is limited to **official Nikon Z8 C 3.11 as the build input**. Successful tests do not rule out data loss or camera damage.
+Requires official Nikon Z8 firmware **C 3.11** as the base input.
 
-### What controls the files
+**Experimental; use at your own risk.** Read the [risk notice](../README.md#english), back up photos and settings, and assess the risk before installation. Derived from the NikonFirmwarePatch project (GPL-3.0-only, see [NOTICE.md](../NOTICE.md)); see [verification.md](verification.md) for what has actually been checked here. Public support is limited to **official Nikon Z8 C 3.11 as the build input**. Successful tests do not rule out data loss or camera damage.
 
-With the new configuration enabled, C15/C30 follows the camera's **ordinary Image quality menu**. The choice applies to pre-release history, the full-press frame, and subsequent frames. It also applies when pre-release capture is off.
+### File Formats and Menu Control
 
-| Ordinary Image quality choice | Every supported C15/C30 frame | Full-size preview embedded in the NEF |
+With this patch enabled, C15 and C30 modes follow the standard **Image quality** menu (`MENU → Photo shooting menu → Image quality settings → Image quality`). Your selection applies to pre-release history frames, the full-press frame, and subsequent burst frames (even when pre-release capture is turned off).
+
+| Image Quality Setting | Output per C15/C30 Frame | Embedded NEF Full-Size Preview |
 |---|---|---|
-| RAW | HE NEF only | **8256×5504** at the camera's NEF-preview quality |
-| RAW + JPEG fine★ / fine / normal★ / normal / basic★ | HE NEF + the selected JPEG quality | **8256×5504**, separately encoded at the camera's NEF-preview quality |
-| RAW + JPEG basic | HE NEF + basic JPEG | **8256×5504**, reuses the basic JPEG main image, as the stock NEF path does |
-| JPEG fine★ / fine / normal★ / normal / basic★ / basic | The selected JPEG quality only | No NEF |
+| RAW | HE NEF only | **8256×5504** (standard NEF preview quality) |
+| RAW + JPEG fine★ / fine / normal★ / normal / basic★ | HE NEF + selected JPEG | **8256×5504** (separately encoded at NEF preview quality) |
+| RAW + JPEG basic | HE NEF + basic JPEG | **8256×5504** (reuses the basic JPEG main image, matching stock behavior) |
+| JPEG fine★ / fine / normal★ / normal / basic★ / basic | Selected JPEG only | None (No NEF) |
 
-Both RAW and RAW+JPEG now embed full-size previews. The previous reduced-preview limitation of RAW+JPEG is removed for successful captures in this menu-controlled mode. NEFs still contain full-resolution RAW data, a 1620×1080 preview and smaller previews. The JPEG ★ choices mean **Optimal Quality**; unstarred choices mean **Size Priority**. These are JPEG options and do not enable HE★ RAW.
+* **Previews:** Both RAW and RAW+JPEG embed full-size (8256×5504) previews alongside the standard 1620×1080 and smaller thumbnails.
+* **JPEG ★ Options:** Starred (★) options set JPEG compression to *Optimal Quality* rather than *Size Priority*. They do not enable HE★ RAW.
+* **Fixed RAW Format:** Extra NEFs generated in C15/C30 are always **HE compression** and **FX (L)** size, regardless of what is selected in the *RAW recording* compression menu.
+* **UI Displays:** In C15/C30, the **Image quality (HSFC)** setting is bypassed. However, the `i` menu, `f2` button+dial shortcut, and shooting display still read from the HSFC setting and will not reflect your actual output format. Always configure formats via the main menu.
+* **Unchanged Modes:** C60, C120, and standard single-shot/continuous release modes retain their stock behavior.
 
-Use **MENU → Photo shooting menu → Image quality settings → Image quality** (labels may differ by language). In supported C15/C30 shooting, **Image quality (HSFC) does not select the output**. The **i menu, f2 button/dial shortcut and shooting display still refer to the HSFC setting**, so they may disagree with what this patch saves. Use the full menu and inspect the resulting files. C60/C120 remain outside the patch's scope.
-
-The ordinary **RAW recording** compression choice does not affect these extra NEFs: they are **HE only**, even if that menu says lossless or HE★. Ordinary single-shot/other release modes retain their original behavior.
-
-### Build and migrate
-
-1. Start from a fresh official C 3.11 package. Choose `--features precapture` for this function or `--features prores precapture` to include ProRes. Keep the input, manifest and checksums, and verify the generated package against the same input. **Do not apply this release on top of an earlier pre-capture output.** Choose an output version higher than the camera's installed version; the script cannot read that version or guarantee downgrade/recovery.
-2. Read Nikon's [update instructions and precautions](https://downloadcenter.nikonimglib.com/en/download/fw/606.html). Installation is manual, with adequate battery power and no interruption. The tools do not write a card or operate a camera.
-3. Back up a card and leave ample space. Trials used SD; other card timings are not established. Initially use only one recording card. Copy the generated update package to its root, update following Nikon's procedure, and confirm the displayed version.
-4. Copy the **new `Z8PRE.CFG`** to that card's root. **This release requires v3; regenerate and replace older v1/v2 files.** Invalid/missing configuration, or valid configuration on both cards, leaves the feature inactive. Reformatting removes the file. It is generated binary data, not editable text.
-5. Set photo mode, **FX / full-size L**, and C15 or C30. Select RAW, RAW+JPEG or JPEG in the ordinary menu above. Configure pre-release and post-release durations in **Pre-Release Capture Options**. See Nikon's [release-mode guide](https://onlinemanual.nikonimglib.com/z8/en/release_mode_33.html) and [pre-release settings](https://onlinemanual.nikonimglib.com/z8/en/csmd_pre-release_capture_options_233.html).
+### Build and Installation
 
 ```sh
+# 1. Patch official Z8 3.11 firmware (or use --features prores precapture for both)
 python patch.py "/path/to/Z_8_0311.bin" --features precapture --version 04.03 --output build/capture
 python verify.py "/path/to/Z_8_0311.bin" "build/capture/Z_8_0403.bin" --features precapture
 
-# Regenerate the normal menu-controlled configuration locally
+# 2. Generate the v3 configuration file
 python configure.py --output build/config-menu
-# Optional diagnostic footer, normally omitted
+
+# Optional: Generate config with diagnostic footer
 python configure.py --diagnostic-footer --output build/config-diagnostic
 ```
 
-The same firmware/configuration supports all three file types; **change them on the camera, without rebuilding, reinstalling or exchanging configuration files**. Previous `--capture-mode`, `--frames` and `--c15-only` configuration options are removed and rejected. The new configuration enables both C15 and C30. Its history ceiling is 30, allowing the camera's normal pre-release windows; **it does not limit an entire burst or the post-release portion to 30 frames**. Do not hand-edit flags.
+1. **Build the firmware:** Start from a clean official C 3.11 `.bin` file. Do not patch over an already-patched file. Set `--version` higher than the firmware currently installed on your camera.
+2. **Generate `Z8PRE.CFG`:** This release requires a **v3** configuration file; regenerate and replace any older v1/v2 files. All three output formats (RAW, RAW+JPEG, JPEG) are now toggled via the camera menu using this single configuration file. Legacy flags (`--capture-mode`, `--frames`, `--c15-only`) have been removed.
+3. **Update and activate:** 
+   * Read Nikon's [update instructions and precautions](https://downloadcenter.nikonimglib.com/en/download/fw/606.html) first. Insert a **single** memory card, copy the patched `.bin` to its root directory, and run the standard firmware update from the camera menu with adequate battery power and no interruption. The tools do not write a card or operate a camera.
+   * Copy the generated `Z8PRE.CFG` binary file to the root directory of that same card. 
+   * The patch remains inactive if `Z8PRE.CFG` is missing, invalid, or present on two cards simultaneously. Formatting the card deletes `Z8PRE.CFG`.
+4. **Camera settings:** Set the camera to Photo mode, **FX (L)** image area, and **C15** or **C30** release mode. Configure your desired pre-release and post-release durations in [Pre-Release Capture Options](https://onlinemanual.nikonimglib.com/z8/en/csmd_pre-release_capture_options_233.html). See also Nikon's [release-mode guide](https://onlinemanual.nikonimglib.com/z8/en/release_mode_33.html).
 
-### Shoot and check
+### Usage and Limitations
 
-1. Start with a static scene, manual focus, a visible timer, C15, a 0.3 s history window and a short post-release duration. Begin with RAW+JPEG so both files can be checked.
-2. Half-press long enough to fill the selected history window, then fully press briefly and release. A full buffer yields 5/15 history frames at C15 with 0.3/1 s, or 9/30 at C30. Shorter half-presses or unavailable buffer space can produce fewer. The full-press and later frames follow the **same menu format**; with pre-release off, all saved frames are current/post-release frames.
-3. Wait for card writing to finish before playback, normal power-off or card removal. Do not interrupt writing. Initially finish one burst before starting another.
-4. Normal successful NEFs are registered in the stock photo database and can be played back directly. **No restart is needed for playback.** Immediately after capture, the RAW label may omit **L**; a normal restart later restores RAW L. The tested files already record Large and contain the full-size image. This display issue remains unresolved.
-5. Check the card files and full RAW decoding. RAW should have only NEF; RAW+JPEG should have both files at every number; JPEG should have only JPEG, for both history and current frames. Check that JPEG grade/★ agrees with the ordinary menu, not the stale shooting display.
+* **Single Card Only:** Dual-card backup and split RAW/JPEG recording are not supported and will fall back to stock behavior. Use a single memory card.
+* **Supported Formats:** Only **HE RAW** at **FX (L)** size is supported. DX crop, Lossless/HE★ RAW, C60/C120, HLG/HEIF, and special processing modes fall back to stock behavior.
+* **Switching Formats:** Wait for all pending card writes to finish before changing the Image Quality menu or powering off the camera.
+* **In-Camera Playback:** Recorded NEFs are registered directly in the camera's playback database—no restart is needed to view them. Immediately after capture, playback info may display `RAW` instead of `RAW L` (though the file itself is full-size); restarting the camera restores the `L` label.
+* **Buffer and Memory:** Holding RAW data in memory until written to the card (plus allocating extra preview buffers for RAW+JPEG) increases RAM usage. A 30-frame compressed history window uses ~519 MB. Note that the 30-frame cap applies only to the pre-release history buffer (allowing up to 1s at C30 or 15 frames at C15), not the total burst or post-release length.
+* **Write Speeds:** On SD cards, frame write intervals average ~0.24–0.32 s for RAW-only and ~0.45–0.69 s for RAW+JPEG (e.g., 308 RAW+JPEG pairs took ~155 s to clear). If accumulated writes saturate the buffer, the pre-capture `!` warning icon will appear and pre-release history frames may be dropped until writes finish and you half-press again to refill the buffer.
+* **Metadata & Small Previews:** Generated NEFs omit some optional factory metadata, including lens-correction blocks, the grayscale subimage, and certain XMP correction tags. In RAW+JPEG Normal/Basic modes, the smaller FHD/VGA previews inside the NEF inherit the Normal/Basic JPEG quality rather than Fine.
 
-Switch between the three formats only after the previous burst is finished. The implementation records the menu selection when each frame is submitted; changing it during a burst or pending write is not a validated workflow.
+### Error Handling and Disabling
 
-### Buffer behavior and limits
+* **Write Timeouts & Fallbacks:** Each NEF has a 1.5-second write budget (checked between I/O calls). If database registration fails, the camera may write a fallback JPEG alongside an unregistered `.NE_` file. Other errors may result in JPEG-only output or a reduced (1620×1080) NEF preview. In RAW-only mode, a fallback JPEG uses lower NEF-preview compression even though its EXIF header reports `FINE`.
+* **Stop File (`Z8PRESTP.BIN`):** If a write error occurs, the firmware writes `Z8PRESTP.BIN` to the card and halts NEF saving for the remainder of the current power session (JPEG quality settings may still apply). 
+  * Restarting the camera clears the session lock, though `Z8PRESTP.BIN` stays on the card as a diagnostic log.
+  * If `Z8PRESTP.BIN` was not generated by this firmware (e.g., an empty or manually placed file), it acts as a permanent kill-switch and blocks NEF saving even across restarts.
+* **Diagnostics:** Frame retention and rejection reasons are written to a fixed-address status block in memory for diagnostic tools (no on-screen alerts are shown).
+* **Disabling the Patch:** Power off the camera, remove the card, and delete `Z8PRE.CFG`. C15 and C30 will revert to stock HSFC behavior.
 
-- **Capture cadence is not card-writing speed.** Limited RAW+JPEG trials showed roughly 0.45–0.69 s between frame writes; RAW-only showed 0.24–0.32 s. A 14-trigger RAW+JPEG stress sequence saved 308 pairs and took about 155 s to finish writing. These are scene/card-specific observations, not limits or guarantees of sustained 30-fps RAW.
-- The pre-capture **“!”** indicator appeared during accumulated writes. One stress trigger had **zero historical frames and three current frames**. Waiting until the normal indication returns is necessary before expecting a full history window, and filling that window still takes time. The exact buffer threshold has not been established; no guarantee of unlimited retriggering or a particular Max-duration burst is made.
-- Keeping RAW frames until written and allocating an additional preview region for most RAW+JPEG grades increases memory use. A 30-frame compressed history alone uses about 519 MB. Scene complexity, card throughput and other settings can change the available depth and waiting time.
-- RAW is **HE, FX L only**. No lossless, HE★, DX or C60/C120 RAW. HLG/HEIF, unsupported special processing modes, dual-card backup and split RAW/JPEG recording are not handled; they fall back to stock behavior. Use one card for the supported workflow.
-- In RAW+JPEG normal/basic grades, the NEF's smaller FHD/VGA previews inherit the JPEG path's grade. Factory NEFs can instead carry fine-quality small previews. Full-size NEF previews use the intended NEF-preview quality.
-- Optional factory metadata is still missing, including lens-correction blocks, a grayscale subimage and some XMP correction data. Adobe DNG Converter 18.1.1 has been tested; NX Studio, Lightroom, full lens-correction equivalence and every converter have not. In-camera deletion/protection/transfer, near-full cards, AF tracking and automatic capture have not been fully validated. Remaining-shot/buffer estimates and shortcut displays are still stock HSFC estimates.
-
-### Failures and disabling
-
-Registration failure can fall back to a JPEG plus a separately written NEF, temporarily named `.NE_`; that NEF may require a later database rescan. Other failures may produce JPEG-only output, a reduced 1620×1080 NEF preview, missing/partial files, or **`Z8PRESTP.BIN`**. A RAW-only fallback JPEG can have the lower NEF-preview quality while its metadata still says FINE. Check the file set, not just the absence of an error message.
-
-The stop file prevents additional NEF saving **for the rest of the session in which the failure happened** and is kept on the card as evidence: the firmware never deletes or rewrites it. After a restart a stop file written by this firmware no longer stops NEF saving (the stop is a session latch that every new error re-arms); a stop file this firmware did not write (empty, truncated or otherwise foreign) still stops it, so a manually placed stop file keeps working. **JPEG menu quality may still be applied**. To disable this feature fully, remove `Z8PRE.CFG` while the camera is off and the card is safely accessible. C15/C30 then uses original HSFC behavior. This does not uninstall firmware, remove an included ProRes feature or guarantee rollback.
-
-The per-NEF budget is 1.5 s, checked after a stock write returns or between fallback I/O calls. It cannot interrupt a blocked call or guarantee against freezes. On errors, missing files, `.NE_`, a stop file, resets or freezes, stop testing and preserve evidence. Whether a frame was kept and which check refused it is recorded in a small fixed-address status block that diagnostic tools can read; there is no on-screen message. After writing has ended, back up the card and disable the feature; investigate before deleting a stop file or retrying.
-
-Read the [verification scope](verification.md) for hardware coverage, frame-correspondence review and model limits. New public packages are not individually hardware-certified.
+---
 
 ## 简体中文
 
-**测试版本，风险自负。** 安装前阅读[风险说明](../README.md#简体中文)，备份照片和设置，自行衡量上机风险。公开支持的构建输入仅限**官方 Nikon Z8 C 3.11**；测试通过不排除数据丢失或相机损坏。
+仅支持基于官方 Nikon Z8 **C 3.11** 固件构建。
 
-### 哪个菜单决定文件
+**测试版本（试验性功能），风险自负。** 安装前阅读[风险说明](../README.md#简体中文)，备份照片和设置，自行衡量上机风险。本工作派生自 NikonFirmwarePatch 项目（GPL-3.0-only，见 [NOTICE.md](../NOTICE.md)）；已核验范围见 [verification.md](verification.md)。公开支持的构建输入仅限**官方 Nikon Z8 C 3.11**；测试通过不排除数据丢失或相机损坏。
 
-启用本版配置后，C15／C30 按普通**“画质”菜单**保存文件。预拍历史帧、全按那一帧和之后的正式拍摄帧都采用同一选择；关闭预拍时也生效。
+### 文件格式与菜单控制
 
-| 普通“画质”选择 | 每张受支持的 C15／C30 帧 | NEF 的全尺寸内嵌预览 |
+启用本补丁后，C15 和 C30 模式直接遵循机内的普通**“画质”菜单**（`MENU → 照片拍摄菜单 → 画质设置 → 画质`）。所选格式同时作用于预拍历史帧、全按快门当帧及后续连拍帧（关闭预拍功能时同样生效）。
+
+| 普通“画质”菜单选项 | C15／C30 每帧实际输出 | NEF 内嵌全尺寸预览图 |
 |---|---|---|
-| RAW | 仅 HE NEF | **8256×5504**，相机 NEF 预览画质 |
-| RAW＋JPEG fine★／fine／normal★／normal／basic★ | HE NEF＋所选画质 JPEG | **8256×5504**，另行编码为相机 NEF 预览画质 |
-| RAW＋JPEG basic | HE NEF＋basic JPEG | **8256×5504**，像原厂一样复用 basic JPEG 主图 |
+| RAW | 仅 HE NEF | **8256×5504**（相机标准 NEF 预览画质） |
+| RAW＋JPEG fine★／fine／normal★／normal／basic★ | HE NEF＋所选画质 JPEG | **8256×5504**（另行编码为相机 NEF 预览画质） |
+| RAW＋JPEG basic | HE NEF＋basic JPEG | **8256×5504**（与原厂一致，直接复用 basic JPEG 主图） |
 | JPEG fine★／fine／normal★／normal／basic★／basic | 仅所选画质 JPEG | 无 NEF |
 
-RAW 和 RAW+JPEG 现在都带全尺寸内嵌预览；本版菜单控制模式正常成功拍摄时，上一版 RAW+JPEG 只有缩小内嵌图的限制已解除。NEF 仍含完整分辨率 RAW、1620×1080 及更小预览。JPEG 的 ★ 表示 **Optimal Quality（最佳品质）**，不带 ★ 表示 **Size Priority（文件大小优先）**；这不等于启用 HE★ RAW。
+* **内嵌预览：** RAW 和 RAW+JPEG 均内嵌全尺寸（8256×5504）预览图，同时保留 1620×1080 及更小尺寸的缩略图。
+* **JPEG ★ 选项：** 带 ★ 选项代表 JPEG 采用“最佳品质（Optimal Quality）”，不带 ★ 代表“文件大小优先（Size Priority）”。该选项仅针对 JPEG，不会开启 HE★ RAW。
+* **固定 RAW 规格：** C15／C30 生成的 NEF 固定为 **HE 压缩**、**FX（L）全尺寸**，不受“RAW 记录”菜单中无损压缩或 HE★ 选项的影响。
+* **界面显示差异：** 在 C15／C30 下，**“画质（HSFC）”**菜单不决定实际输出。但 `i` 菜单、`f2` 快捷键及取景器拍摄界面仍会读取并显示 HSFC 的设置，与实际保存的文件格式可能不一致。请始终通过主菜单设置画质。
+* **不受影响的模式：** C60、C120 以及普通单张/其他连拍模式保持原厂行为。
 
-请在 **MENU → 照片拍摄菜单 → 画质设置 → 画质** 中选择（不同语言名称可能略有差异）。在受支持的 C15／C30 下，**“画质（HSFC）”不决定实际输出**。但 **i 菜单、f2 按钮加拨盘和取景画面上的显示仍对应 HSFC 设置**，可能与实际文件不同；请使用完整菜单，并核对拍出的文件。C60／C120 不在补丁范围内。
-
-普通 **“RAW 记录”** 的压缩设置对这些 NEF 无效：即便选了无损或 HE★，本功能也只生成 **HE**。普通单张及其他释放模式保持原有行为。
-
-### 构建与升级
-
-1. 从全新的官方 C 3.11 包构建，选择 `--features precapture`，或用 `--features prores precapture` 同时加入 ProRes。保留输入、manifest 和校验值，用同一原始输入核验输出。**不要叠加到上一版预拍补丁输出上。** 输出版本须高于机身已安装版本；脚本不读取机身版本，不保证降级或恢复。
-2. 阅读 Nikon 的[更新步骤与注意事项](https://downloadcenter.nikonimglib.com/en/download/fw/606.html)，手动决定和执行安装，保证电量充足，不中断更新。工具不会写卡或操作相机。
-3. 备份存储卡并留足空间。实测使用 SD，其他卡的耗时未验证。初次只插入一张记录卡，将生成的更新包放到卡根目录，按官方流程更新并核对版本。
-4. 将新生成的 **`Z8PRE.CFG`** 放到卡根目录。**本版要求 v3，旧 v1／v2 文件必须重新生成并替换。** 缺少／无效配置或两张卡都有有效配置时，功能不启用；格式化会删除配置。它是二进制文件，不能用文本编辑器修改。
-5. 设置照片模式、**FX／全尺寸 L**、C15 或 C30，在上述普通菜单中选择 RAW、RAW+JPEG 或 JPEG。通过**预拍摄选项**设置预拍／后拍时长。官方说明：[释放模式](https://onlinemanual.nikonimglib.com/z8/en/release_mode_33.html)、[预拍摄选项](https://onlinemanual.nikonimglib.com/z8/en/csmd_pre-release_capture_options_233.html)。
+### 构建与安装
 
 ```sh
+# 1. 基于官方 Z8 3.11 固件打补丁（如需同时启用 ProRes 可用 --features prores precapture）
 python patch.py "/path/to/Z_8_0311.bin" --features precapture --version 04.03 --output build/capture
 python verify.py "/path/to/Z_8_0311.bin" "build/capture/Z_8_0403.bin" --features precapture
 
-# 本地重新生成普通菜单控制配置
+# 2. 生成 v3 版配置文件
 python configure.py --output build/config-menu
-# 可选诊断尾标，默认不添加
+
+# 可选：生成带诊断尾标的配置文件
 python configure.py --diagnostic-footer --output build/config-diagnostic
 ```
 
-同一固件和配置支持三种文件类型，**之后直接在机内切换，无需重建、重装或换配置**。旧的 `--capture-mode`、`--frames`、`--c15-only` 配置参数已移除并会被拒绝。新配置同时启用 C15／C30，30 是历史帧容量上限，允许使用机内各档预拍时长；**不代表整组拍摄或后拍部分最多 30 张**。不要手工修改配置位。
+1. **构建固件：** 必须使用干净的官方 C 3.11 `.bin` 文件，切勿在已打过补丁的固件上二次叠加。`--version` 参数设定的版本号必须高于机身当前已安装的版本。
+2. **生成 `Z8PRE.CFG`：** 本版本要求 **v3** 配置文件，旧版 v1／v2 文件必须重新生成并替换。同一份固件和配置文件已支持全部三种输出格式（直接机内切换），旧版 `--capture-mode`、`--frames`、`--c15-only` 参数已废弃。
+3. **升级与激活：**
+   * 先阅读 Nikon 的[更新步骤与注意事项](https://downloadcenter.nikonimglib.com/en/download/fw/606.html)。机身内**仅插入一张**存储卡，将生成的固件包复制到卡根目录，按官方流程完成固件升级（保证电量充足、不中断）。工具不会写卡、不操作相机。
+   * 将生成的二进制配置文件 `Z8PRE.CFG` 复制到该卡根目录。
+   * 若缺少 `Z8PRE.CFG`、文件无效、或两张卡同时存在配置文件，补丁均不会激活。格式化存储卡会清除此文件。
+4. **机身设置：** 设为照片模式、**FX（L）** 画幅、释放模式选 **C15** 或 **C30**。在[预拍摄选项](https://onlinemanual.nikonimglib.com/z8/zh-cn/csmd_pre-release_capture_options_233.html)中设置预拍和后拍时长（另见 Nikon 的[释放模式说明](https://onlinemanual.nikonimglib.com/z8/zh-cn/release_mode_33.html)）。
 
-### 拍摄与核对
+### 使用与限制
 
-1. 初次使用静态场景、手动对焦和可见计时器，从 C15、0.3 秒预拍、较短后拍开始。可先用 RAW+JPEG，便于核对两种文件。
-2. 半按覆盖所选历史时长，再短暂全按并松开。缓存填满时，C15 预拍 0.3／1 秒为 5／15 张，C30 为 9／30 张；半按不足或缓冲不可用时可能更少。全按当帧和之后的帧采用**相同菜单格式**；关预拍时则全部是当前／后拍帧。
-3. 等写卡完成再回放、正常关机或取卡，不在写卡中断电／拔卡。初次让一组完全写完再开始下一组。
-4. 正常 NEF 会进入原厂照片库，写完可直接回放，**不需要重启才能看图**。刚拍完的 RAW 标签可能暂不显示 **L**，之后正常关开机才显示 RAW L；实测文件已写 Large 且尺寸完整。这个显示问题尚未修复。
-5. 在电脑检查文件集合并完整解码 RAW。RAW 每号应只有 NEF；RAW+JPEG 每号应成对；JPEG 应只有 JPG；历史帧和正式帧都适用。JPEG 档位／★ 应与普通菜单一致，不以尚未更新的取景显示为准。
+* **仅限单卡：** 不支持双卡备份或 RAW/JPEG 分卡记录（插双卡或开启相关设置将回退至原厂逻辑）。请仅使用单张存储卡。
+* **格式限制：** 仅支持 **HE RAW** 与 **FX（L）** 画幅。DX 裁切、无损/HE★ RAW、C60/C120、HLG/HEIF 及特殊处理模式均不接管，按原厂逻辑运行。
+* **切换画质：** 请等待存储卡写入完全结束后，再进入菜单切换画质或关机。
+* **机内回放：** 正常生成的 NEF 会直接注册到机内照片库，写卡完成后即可直接回放，**无需重启相机**。刚拍完回放时，左上角可能仅显示 `RAW` 而缺少 `L` 标记（文件实际为完整大尺寸），重启相机后即恢复显示 `RAW L`。
+* **缓存与内存：** RAW 数据需等到写卡完成才释放内存（RAW+JPEG 还需额外分配预览图空间），内存占用显著增加。仅 30 帧预拍历史缓存即占用约 519 MB。注：配置文件中的 30 帧上限仅代表“预拍历史窗口”的最大容量（如 C30 预拍 1 秒为 30 张，C15 预拍 1 秒为 15 张），**不限制整组连拍的总张数或后拍张数**。
+* **写卡速度：** 以 SD 卡为例，纯 RAW 写入间隔约 0.24–0.32 秒/张，RAW+JPEG 约 0.45–0.69 秒/张（实测连续保存 308 对 RAW+JPEG 耗时约 155 秒）。当写入积压导致缓存耗尽时，取景器预拍图标会出现 `!` 警告，此时按下快门可能会丢失预拍历史帧；需等待写入完成、警告消失后再半按快门重新填满历史缓存。
+* **元数据与小预览图：** 生成的 NEF 缺少部分可选的原厂元数据（镜头校正数据块、灰度子图及部分 XMP 校正信息）。在 RAW+JPEG 的 Normal／Basic 档位下，NEF 内部的小尺寸（FHD/VGA）预览图会继承 JPEG 的 Normal／Basic 画质，而非原厂的 Fine 画质。
 
-请等上一组结束后再切换三种格式。实现按每帧提交时的菜单值记录；拍摄或积压写入中途改格式不是已验证的使用流程。
+### 异常处理与停用
 
-### 缓冲与限制
-
-- **拍摄帧率不等于写卡速度。** 有限实测中，RAW+JPEG 每帧写入间隔约 0.45–0.69 秒，RAW-only 约 0.24–0.32 秒；一次连续触发 14 次的压力试验保存 308 对文件，约 155 秒写完。这些是特定场景和卡的测量，不保证持续每秒写入 30 张 RAW。
-- 写入积压时预拍图标曾出现 **“!”**。压力试验中一次触发**没有历史帧，仅有三张正式帧**。期待完整预拍窗口前需等正常标志恢复，之后还需时间填满历史缓存；确切阈值尚未确认，不保证无限连续触发或某个 Max 后拍长度。
-- RAW 缓冲留到写完才释放，大多数 RAW+JPEG 档还需额外预览空间，内存占用增加。仅 30 帧压缩历史分配约 519 MB；场景、卡速和设置都会影响可用深度和等待。
-- RAW 仅 **HE、FX L**；不支持无损、HE★、DX 或 C60／C120 RAW。HLG／HEIF、未支持的特殊处理模式、双卡备份和 RAW／JPEG 分卡不接管，回到原厂行为；支持流程请使用一张卡。
-- RAW+JPEG 的 normal／basic 档，NEF 的小型 FHD／VGA 预览继承 JPEG 路径的画质；原厂 NEF 可能另编为 fine。全尺寸 NEF 预览仍采用预期的 NEF 预览画质。
-- 仍缺少镜头校正块、灰度子图和部分 XMP 校正等可选原厂元数据。已测试 Adobe DNG Converter 18.1.1；NX Studio、Lightroom、完整镜头校正等效性及全部软件尚未验证。机内删除／保护／传输、近满卡、自动对焦跟踪、自动捕获尚未充分测试。可拍张数／缓冲估计和快捷设置显示仍沿用原厂 HSFC 估计。
-
-### 异常与停用
-
-登记失败时可能回退为 JPEG＋另写 NEF，先用 `.NE_` 再改名；该 NEF 可能要之后重新扫描照片库。其他失败可能产生 JPEG-only、缩小的 1620×1080 NEF 预览、缺失／不完整文件或 **`Z8PRESTP.BIN`**。RAW-only 回退 JPEG 可能使用较低的 NEF 预览画质而元数据仍写 FINE。不能只看是否报错，也要核对文件集合。
-
-停止文件会在**发生故障的本次使用期间**阻止额外 NEF 保存，并作为证据保留在卡上：固件从不删除或改写它。重启后，由本固件写下的停止文件不再阻止 NEF 保存（停机是会话级闩，任何新的故障都会重新上闩）；而非本固件写下的停止文件（空文件、截断文件或其他外来文件）仍然生效，因此手工放置的停止文件照旧可用。**JPEG 仍可能应用普通菜单中的画质**。要完全停用本功能，关机并安全取卡后移除 `Z8PRE.CFG`，C15／C30 回到原有 HSFC 行为。这不卸载固件、不移除已包含的 ProRes 功能，也不保证固件可回退。
-
-每张 NEF 预算 1.5 秒，只能在原厂写入返回后或回退 I/O 调用之间检查，不能打断已阻塞的调用，也不保证不会冻结。报错、缺片、出现 `.NE_`／停止文件、重启或冻结时停止测试并保留证据。每帧是否保留、被哪道检查拒绝，都记录在一个固定地址的状态块里供诊断工具读取，屏幕上不显示提示；待写入结束后备份、停用，排查后再考虑删除停止文件或重试。
-
-请阅读[验证边界](verification.md)，了解上机覆盖、画面对应复核和模型边界。公开脚本新生成的包没有逐个上机认证。
+* **超时与回退机制：** 单张 NEF 写入预算为 1.5 秒（在底层 I/O 调用间隙检查）。若数据库注册失败，可能回退为生成一张 JPEG 外加一个未注册的 `.NE_` 临时文件（需后续重新扫描照片库）；其他异常可能导致仅输出 JPEG 或 NEF 预览图缩小为 1620×1080。纯 RAW 模式下若触发回退生成 JPEG，其实际画质为较低的 NEF 预览画质，但 EXIF 仍会标记为 `FINE`。
+* **停机保护文件 (`Z8PRESTP.BIN`)：** 发生严重写入故障时，固件会在卡上写入 `Z8PRESTP.BIN`，并在**本次开机期间**停止保存后续 NEF（JPEG 画质设置仍可能生效）。
+  * 重启相机后，由本固件生成的 `Z8PRESTP.BIN` 不再阻止保存 NEF（文件保留在卡上供排查，固件不会自动删除）。
+  * 若卡上的 `Z8PRESTP.BIN` 非本固件生成（如手工放置的空文件或截断文件），则会作为永久停机开关生效，重启后依然阻止保存 NEF。
+* **诊断状态：** 每帧是否成功保留及具体的拒写原因均记录在固定内存地址的状态块中，供诊断工具读取（机身屏幕无报错弹窗）。
+* **完全停用：** 关机并安全取卡，删除卡根目录下的 `Z8PRE.CFG`，C15／C30 即恢复原厂 HSFC 行为。

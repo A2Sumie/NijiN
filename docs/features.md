@@ -1,147 +1,107 @@
-这里为你用直白、硬核的大白话重写了一版。去掉了生硬的机翻腔和空洞的套话，意思 100% 保留，尤其是**安全警示和翻车风险**完全如实还原。
+# Feature inventory
 
----
+Overview of features supported by this toolchain and their verification status.
 
-# 功能清单与实测状态
-
-这是一份本工具箱能编译出的**所有功能清单及其真实状态**。我们不画饼、不隐瞒：哪些能用、哪些压根没测、哪些做不出来，全都在这里如实交代。
-
-### 状态图标说明：
-
-| 图标 | 含义 |
+| Symbol | Status |
 |---|---|
-| ✅ | **真机实测可用**（仅限明确指定的具体编译版本） |
-| ⚠️ | **仅在电脑上跑通（离线验证）**——编译过了、二进制对比过了、自动化测试跑通了，但**压根没刷进真机测过**！ |
-| ❌ | 已知有严重 Bug，或者确认目前搞不定 |
-| 🧪 | 实验性功能——只是写了个草稿/原型，非常不靠谱，别抱指望 |
+| ✅ | **Tested on hardware** (verified in a specific build) |
+| ⚠️ | **Verified offline only** (passes build and byte checks; untested on camera hardware) |
+| 🧪 | **Experimental** (proof of concept, incomplete or unproven) |
+| ❌ | **Broken or unimplemented** |
 
-> **⚠️ 必须牢记的底线原则：**
-> 表格里写着“离线验证通过（⚠️）”，**仅仅代表改出来的二进制代码符合预期，绝不代表相机能正常运行！**
-> 在开发过程中，就出现过电脑测试全绿、刷进相机直接**无限重启变砖**的惨剧（详见 [risks.md](risks.md)）。
+> **Warning:** Passing offline checks only confirms that the output bytes match the patch definitions—it does not guarantee the firmware will run safely on the camera. One build that passed all offline tests caused a hardware boot loop (see [risks.md](risks.md)).
 
 ---
 
-## 1. `precapture` —— RAW 格式预拍摄
+## `precapture` — RAW pre-capture
 
-* **编译方式**：`--features precapture`（需要 Clang 编译器）。
-* **产物**：预拍功能模块 + `Z8PRE*.CFG` 配置文件。
-* **实操说明**：详细准备、操作步骤与限制见 [raw-precapture.md](raw-precapture.md)。
+Build with `--features precapture` (requires Clang). Generates the pre-capture module and `Z8PRE*.CFG` configuration files. For usage instructions and limitations, see [raw-precapture.md](raw-precapture.md).
 
-| 功能 | 触发/控制方式 | 状态 | 实测验证程度 |
+| Feature | Control | Status | Notes |
 |---|---|---|---|
-| **HE★ 预拍摄**（缓存帧存为真正的原厂高效率 HE★ RAW） | 功能开关；自动选择 Tier 14 | ✅ | **早期版本在真机上测过**：能正常生成 HE★ NEF 文件，且与原厂文件比对一致。**注意：后来对该模块的代码改动仅有 ⚠️ 离线测试！** |
-| **C15 预拍摄时间窗口** | 切换到 C15 自动生效 | ✅ | **早期版本真机测过**。 |
-| **C30 预拍窗口、1 秒截断限制及帧数上限** | 容量表里的固定常量 | ⚠️ | 纯离线验证（查表+反汇编）。之前在真机上只排查过为什么会被截断，但最终放进固件的数值**从未在真机上跑过**。 |
-| **各档位预拍张数上限**（无损 8 张 / HE 30 张 / HE★ 20 张） | 各档位自动适配 | ⚠️ | 纯离线验证。 |
-| **画质菜单联动**（用机身菜单同时控制预拍和全按快门存 RAW / RAW+JPG / JPG） | 机身自带菜单 | ⚠️ | 纯离线验证（只核对过菜单结构和补丁规则），**从未在真机上试过**。 |
-| **NEF 内嵌 8256×5504 全尺寸预览图** | 自动 | ⚠️ | 纯离线验证。 |
-| **照片正常录入相册数据库、机内可直接回放** | 功能开关 | ⚠️ | 纯离线验证。上游项目虽然宣称真机测过，那是他们自己的版本，不能当成本项目的证据。 |
-| **纯 RAW 模式**（彻底不写 JPEG） | `Z8PRE*.CFG` 文件开关 | ⚠️ | 纯离线验证（仅在代码层面确认了跳过写入的路径），真机未测。 |
-| **固定尺寸小缩略图预览** | `Z8PRE*.CFG` 文件开关 | ⚠️ | 纯离线验证（尺寸已写死），机内回放未测试。 |
-| **文件修改时间对齐拍摄时间**（修复原版 bug） | 默认常开 | ⚠️ | 纯反汇编分析，真机上写出的文件时间戳从未核对过。 |
-| **剩余拍摄张数显示校正** | 自动 | ⚠️ | 纯反汇编验证。**这只是对界面显示的数字做了比例缩放**，底层计算逻辑压根没动，换了其他配置可能就不准了。 |
-| **7 款已知镜头的畸变校正信息**（写入 NEF 元数据） | 自动识别，未知镜头有安全回退机制 | 🧪 | 仅做过概念验证和反汇编分析。**完全没有**在 Lightroom / Camera Raw / NX Studio 里做过兼容性验收！ |
-| **D5 兼容性占位数据块** | 自动 | 🧪 | 纯离线验证：结构做得跟原生空块一模一样，但修图软件认不认完全没测。 |
-| **12-bit / 14-bit 色深切换** | 配置文件字段 | 🧪 | 处理逻辑写了，但机身菜单里具体该怎么接线把它露出来，还没搞清。 |
-| **无损压缩 (Lossless) 预拍档位** | 菜单选无损 | 🧪 | 纯离线验证。条带长度（strip-length）字段是写死的预估值，极不可靠。 |
-| **HE 预拍档位** | 菜单选 HE | 🧪 | 纯离线验证（仅验证了档位分配与阈值逻辑）。 |
-| **D3 项中的“最大 (Max)”预拍摄时长选项** | 理应在机身菜单可选 | ❌ | **目前无法交付**：底层数据范围的逻辑没理顺，导致菜单里选不了（虽然底层数据表已经搭好了）。 |
-| **i 菜单 / 拨盘 / 实时屏幕显示一致性** | — | ❌ | **原厂遗留硬伤**：这些界面依然显示原厂的高速连拍画质设置，会跟本功能选的菜单产生冲突。 |
+| HE★ pre-capture (saves history frames as true HE★ RAW) | Feature flag (auto-selects tier 14) | ✅ | Verified on hardware in an early build against native reference NEFs. Later changes to this code are only verified offline (⚠️). |
+| C15 pre-capture window | Automatic in C15 | ✅ | Verified on hardware in an early build. |
+| C30 pre-capture window (1 s clamp, frame cap) | Capacity table constant | ⚠️ | Clamping logic was probed on hardware, but the shipped table values are only verified offline. |
+| Per-tier history frame cap (8 lossless / 30 HE / 20 HE★) | Automatic per tier | ⚠️ | Verified via disassembly and table checks. |
+| Image-quality menu controls RAW / RAW+JPEG / JPEG for pre-release and full press | Camera menu | ⚠️ | Menu structures and patches verified offline. |
+| Full-size (8256×5504) embedded NEF preview | Automatic | ⚠️ | |
+| Stock photo database registration and direct playback | Feature flag | ⚠️ | Tested on hardware in the upstream project, but untested in this build. |
+| RAW-only mode (skips JPEG write) | `Z8PRE*.CFG` flag | ⚠️ | Code path traced offline. |
+| Fixed-size small previews | `Z8PRE*.CFG` flag | ⚠️ | Dimensions verified offline; in-camera playback untested. |
+| Set file modification time to capture time | Always on | ⚠️ | Verified via disassembly; actual file timestamps untested on hardware. |
+| Remaining-frames display correction | Automatic | ⚠️ | Scales the UI value only; does not change the underlying calculation. Other configurations may need retuning. |
+| Lens correction metadata (NEF) for 7 known lenses | Automatic (no-op on unknown lenses) | 🧪 | Proof of concept. Not yet tested in Lightroom, Camera Raw, or NX Studio. |
+| D5 compatibility placeholder blocks | Automatic | 🧪 | Matches native empty block formatting; parser compatibility untested. |
+| 12-bit / 14-bit depth selection | Config field | 🧪 | Logic implemented, but not yet wired to the camera menu. |
+| Lossless pre-capture tier | Camera menu (Lossless) | 🧪 | Uses a low-confidence static estimate for the strip-length field. |
+| HE pre-capture tier | Camera menu (HE) | 🧪 | Tier dispatch and thresholds verified offline. |
+| D3 "Max." pre-capture duration | Camera menu | ❌ | Data tables exist, but value-range record semantics are unresolved, so the menu option cannot be selected. |
+| i-menu / dial / shooting display sync | — | ❌ | Displays still read from standard HSFC quality settings and may disagree with the active pre-capture quality. |
 
----
+## `prores` — ProRes quality
 
-## 2. `prores` —— ProRes 视频规格扩展
+Build with `--features prores`. Does not require a C compiler.
 
-* **编译方式**：`--features prores`（免编译器）。
-
-| 功能 | 触发/控制方式 | 状态 | 实测验证程度 |
+| Feature | Control | Status | Notes |
 |---|---|---|---|
-| **4 档画质可选**（HQ / 422 / LT / Proxy）、MOV 标识与机内回放标签 | 机身菜单 | ⚠️ | 补丁代码 100% 照搬上游已审阅的字节。但**本分支从未在真机上测过**。 |
-| **拍摄菜单库 A/B/C/D 独立记忆** | 机身拍摄菜单库 | ⚠️ | 纯离线验证（挂了两个 Hook 路径）。已知缺陷：通过卡存取设置文件时，这个值存不住。 |
-| **根据不同画质预估剩余录制时间** | 自动 | ⚠️ | 纯离线验证。 |
-| **拍摄界面显示当前档位图标** | — | ❌ | **已知缺陷**：屏幕上的图标看不出当前到底选了哪一档。 |
+| Four quality tiers (HQ / 422 / LT / Proxy), MOV IDs, and playback labels | Camera menu | ⚠️ | Matches upstream patch bytes; untested on hardware in this build. |
+| Shooting menu bank (A/B/C/D) persistence | Camera menu banks | ⚠️ | Verified offline. Saving/loading to card settings files is not supported. |
+| Quality-adjusted recording time estimates | Automatic | ⚠️ | |
+| Shooting screen quality icon | — | ❌ | On-screen icon does not update to reflect the selected tier. |
 
----
+## `opengate` — OpenGate 3:2 recording
 
-## 3. `opengate` —— OpenGate 3:2 全画幅录制
+Build with `--features opengate` (requires `precapture`). Enables experimental 3:2 recording at 8256×5504 and two smaller resolutions when `Z8OG.CFG` is present on the card. Delete the file to disable.
 
-* **编译方式**：`--features opengate`（依赖 `precapture`）。
-* **功能**：实验性的 8256×5504 及两档裁切规格的 3:2 录制。卡里放 `Z8OG.CFG` 开启，删掉即关闭。
-
-| 功能 | 触发/控制方式 | 状态 | 实测验证程度 |
+| Feature | Control | Status | Notes |
 |---|---|---|---|
-| **3:2 尺寸元数据与码率配置** | `Z8OG.CFG` | 🧪 | 纯离线验证（改了补丁窗口、码率表和分发逻辑）。**真机录制压根没试过**。 |
-| **传感器读取区域跟随 3:2 尺寸** | — | ❌ 纯属盲猜 | 没测之前，真机出现**黑边、画面拉伸、或者对焦框严重跑偏**都有可能。 |
-| **与 ProRes 各档位混合使用** | 自动 | ⚠️ | 纯离线验证：分发逻辑与组合逻辑矩阵已锁死。 |
+| 3:2 resolution metadata and bit-rate tables | `Z8OG.CFG` | 🧪 | Patch windows, bit-rate tables, and dispatch logic verified offline. |
+| Sensor readout window scaling | — | ❌ | Untested. May result in black bars, stretched aspect ratio, or misaligned AF boxes. |
+| ProRes tier integration | Automatic | ⚠️ | Dispatch logic and combination matrix verified offline. |
 
----
+## `menuh` — Custom settings menu group
 
-## 4. `menuh` —— 自定义设置菜单组
+Build with `--features menuh`. Adds a custom settings menu group and one persistent setting item.
 
-* **编译方式**：`--features menuh`。
-* **功能**：在自定义设置菜单里加一个新分组，并加入一个支持保存到存储卡的项目。
-
-| 功能 | 触发/控制方式 | 状态 | 实测验证程度 |
+| Feature | Control | Status | Notes |
 |---|---|---|---|
-| **新菜单组可见且可进入** | 自动 | ⚠️ | 纯离线验证（自动化回归测试已锁死，过了 18 项 pytest）。但图标长啥样、菜单点进去顺不顺，**从未在真机上见过**。 |
-| **菜单组里有能用的设置项** | — | ❌ | **目前做不到**：现在只是个空壳，里面什么都没有，以后再做。 |
-| **新配置项随存储卡保存/加载** | 自动 | ⚠️ | 仅在离线状态下拿真实相机的配置文件样本跑过回归测试，真机未测。 |
-| **加载旧版配置文件时的边界越界保护** | 自动 | ⚠️ | 纯离线验证。**这个保护边界算跨了两个不同的内存区**：虽然能防崩溃，但可能会导致防御失效，或者放任非法输入（详见 [risks.md](risks.md)）。 |
+| Menu group visible and accessible | Automatic | ⚠️ | Verified offline. Icon rendering and menu navigation are untested on hardware. |
+| Functional menu items inside group | — | ❌ | Empty shell only; no items added yet. |
+| Card save/load persistence for the new setting | Automatic | ⚠️ | Tested offline against a sample camera settings file. |
+| Bounds check when loading older settings files | Automatic | ⚠️ | Compares addresses across two different memory regions. Prevents crashes, but may either skip validation or allow invalid values (see [risks.md](risks.md)). |
 
----
+## Unimplemented & out-of-scope features
 
-## 5. 做不出来 / 主动砍掉的功能
-
-这些是我们深入研究后放弃的项目，摊在明处，绝不悄悄删代码。
-
-| 功能项 | 最终结论 | 砍掉原因 |
+| Feature | Status | Reason |
 |---|---|---|
-| **ISO 0.5 步进微调** | ❌ 无法交付 | 固件包里根本找不到接收这个控制信号的接口（静态分析已到死胡同，实测根本连不上）。绕路方案也做不出真正的 0.5 步进，索性放弃。 |
-| **新功能在屏幕上的文字提示 (OSD)** | ❌ 无法交付 | 相机显示描述符里压根没有预留文字槽位；强行手写独立的文字渲染组件太危险，不值得冒变砖风险。 |
-| **D3 预拍时长菜单可选“最大 (Max)”** | ❌ 暂做不出来 | 数据范围的底层定义没搞顺。底层配置虽然配齐了，但界面上就是点不了。 |
-| **C60 / C120 超高速预拍** | ❌ 主动砍掉 | 主动放弃：这两种超高帧率用的传感器读取模式完全不同，超出了本项目能力范围。 |
-| **SubIFD3 灰度子图及额外的 NEF 信息块** | ❌ 未实现 | 生成算法和内部数据格式完全是一头雾水，做不出来。 |
-| **将 ProRes 档位以独立配置项存进卡里的文件** | ❌ 原有结构做不到 | 相机本身不把这项设置写入卡的配置；要强行支持必须重写大底层结构表，成本过高。 |
-| **机内调试/诊断工具箱** | 🧪 仅有设计草案 | 主动选择不合并进主分支。就算以后要做，也必须通过所有严苛测试并做好防变砖限制。 |
+| ISO 0.5 EV steps | ❌ | The code that consumes this value lies outside the patchable firmware package. |
+| OSD text hints for new options | ❌ | Display descriptors have no text slot, and routing through a separate text widget is unsafe. |
+| Selectable D3 "Max." duration in menu | ❌ | Value-range record semantics are unresolved; tables exist, but the UI option cannot be selected. |
+| C60 / C120 pre-capture | ❌ | Out of scope (uses different sensor readout configurations). |
+| SubIFD3 grayscale sub-image & extra NEF info blocks | ❌ | Payload generation algorithm and internal format are unknown. |
+| Card-file persistence for standalone ProRes tier setting | ❌ | Setting is not written to card config files; adding it requires table-level changes. |
+| Debug / diagnostic toolkit | 🧪 | Design only; not implemented. |
 
----
+## Known issues
 
-## 6. 已知严重问题（重点看这部分！）
-
-| 故障现象 | 当前状态与定性 |
+| Issue | Details |
 |---|---|
-| **V10 编译版本刷入真机直接无限重启（变砖）** | **绝对不要刷！** 根本原因已部分确认：发现了一处内存越界遍历行为，但具体的崩溃地址还没完全揪出来。目前正在 `bricking-edge` 分支进行事故排查。 | — experimental — UNSAFE。
-| **边界保护计算跨了两个内存区** | 保护机制可能会**悄无声息地失效**。修复方案正在 `bricking-edge` 分支处理。 |
-| **配置项计数总数只改了 2 处，漏了第 3 处** | 漏改的第 3 处会导致代码遍历时多查一项，造成**越界溢出**。机制已坐实，极度怀疑这就是导致真机无限重启变砖的元凶之一。 |
-| **无损条带长度 (Strip-length) 为写死预估** | 纯静态估算，遇到极端复杂的边缘场景可能会导致画面被截断损坏。靠谱程度很低。 |
-| **剩余拍摄张数显示** | 纯 UI 层的缩放掩耳盗铃，没有从根本解决底层计算问题。 |
-| **相同版本号固件重复刷入** | 未在真机上测过。如果相机嫌版本号相同拒绝刷入，就手动把源码版本号改大再编译。 |
-| **菜单显示与实际拍摄画质打架** | 原厂继承下来的老毛病：快捷 i 菜单、机身拨盘和拍摄屏幕上显示的参数，可能会跟你实际生效的高级画质设置互相冲突。 |
+| **V10 build causes a hardware boot loop** | **Do not flash.** Caused by an out-of-bounds read during table traversal. Under investigation on the `bricking-edge` branch. |
+| Cross-region bounds check | The settings file bounds guard compares pointers across two memory regions, which can make the check ineffective. Fix is tracked in `bricking-edge`. |
+| Incomplete settings-count update | The total settings count is updated in only two of three locations, allowing table traversal to overrun by one entry. Likely contributor to the V10 boot loop. |
+| Estimated lossless strip length | Uses a static estimate that may truncate data in edge cases. |
+| Remaining-frames counter | Scales the displayed number in the UI rather than fixing the underlying buffer calculation. |
+| Same-version firmware flashing | Untested on hardware. If the camera rejects flashing the same version number, rebuild with a higher version. |
+| Inconsistent quality indicators | The i-menu, command dials, and live shooting display read from standard quality settings and may not match the pre-capture menu. |
+
 ## 简体中文
 
-这里用通俗、直白的大白话为您重写：
-
----
-
-## 进度与状态说明（中文白话版）
-
-- **先看懂图标：**
-  - **✅ 真机跑通**：已经在实机上测过，确认好使（会标明具体版本号）。
-  - **⚠️ 仅电脑跑通**：代码编译、字节比对、自动化测试全绿，但**还没刷进真机测过**。
-  - **❌ 确定不行**：已知有严重 Bug，或者已经判定做不出来、放弃交付。
-  - **🧪 实验草稿**：还在试验阶段的代码，随时会改。
-
-- **划重点：电脑全绿，真机不一定能跑！**
-  代码比对和测试全过，顶多说明“改动符合预期”，绝不代表相机就能正常用。之前就翻过车：有一版电脑测试全绿，刷进相机直接无限开机重启（翻车记录详见 [risks.md](risks.md)）。
-
-- **真机实测其实很少：**
-  目前真拿相机实机测过的，只有早期版本的“HE★ 预拍”、“C15 预拍”等少数几个功能；剩下的绝大多数条目，都还停留在电脑验证阶段。
-
-- **不行就是不行，绝不悄悄删掉装作没发生：**
-  那些搞不出来或没法交付的功能（比如 ISO 0.5EV 步进、屏幕文字提示、D3 Max 档、C60/C120 预拍等），我们都保留在清单里，并写明了具体失败原因。
-
-- **已知暗坑都记着：**
-  所有的已知 Bug（比如 V10 无限重启、guard 跨区比较、三处计数数据不同步、无损 strip 长度问题、同号受理未实测等）全都逐条登记在案，绝不隐瞒。
-
-- **详细清单看英文表格：**
-  每个功能的详细控制方式、验证进度，请直接看上方的英文大表（共 41 项：**3 项真机跑通 ✅ / 18 项仅电脑跑通 ⚠️ / 12 项确定不行 ❌ / 8 项实验中 🧪**）。中文这里只做总结，具体功能的最新状态一律以英文表格为准。
+- **状态图例**：
+  - ✅ **真机实测可用**（基于特定早期构建）
+  - ⚠️ **仅离线验证**（通过编译、字节比对与自动化测试，未上机实测）
+  - 🧪 **实验性实现**（仅完成概念验证或草稿，未充分验证）
+  - ❌ **已知缺陷或未实现**
+- **风险提示**：离线测试通过仅代表生成的补丁字节符合预期，**不能保证真机运行安全**。此前曾有离线测试全绿的构建（V10）在真机上引发无限重启（详见 [risks.md](risks.md)）。
+- **实测范围**：目前仅有早期构建的“HE★ 预拍”和“C15 预拍”经过真机实测；其余功能均仅完成离线验证。
+- **未实现功能**：ISO 0.5 EV 步进（目标代码在固件包范围外）、OSD 文本提示（无安全文本槽位）、D3 Max 时长选项、C60/C120 预拍（传感器读出配置不同）等均未实现。
+- **已知问题**：V10 构建存在越界读取导致的开机死循环（请勿刷入）；此外还存在跨内存区边界检查失效、设置项计数未全量同步（三处仅改两处）、无损 RAW 条带长度采用静态估算、剩余张数仅为 UI 缩放等问题。逐项状态表见上文英文表格（共 41 行：**3 ✅ / 18 ⚠️ / 12 ❌ / 8 🧪**），中文摘要不逐行重复，结论与英文表完全一致。

@@ -1,107 +1,58 @@
-这里用最直白的大白话把原文重新梳理了一遍：
+# Verification
 
----
+Verification in this project is split into offline build checks and on-camera hardware tests.
 
-# 必读：关于“已验证”的生死警告
+## 1. Offline checks
 
-在这个项目里，“**已验证**（Verified）”有两个截然不同的意思。**如果你把它们搞混了，你的相机会直接变砖。** 
+Offline checks run locally without a camera. They confirm that the output binary matches the patch recipes byte-for-byte. 
 
-请务必分清电脑模拟和真机实测的区别：
-
----
-
-## 1. 离线验证（这只是电脑上的“代码对账”）
-
-**离线验证全程在你的电脑上跑，跟真相机没有半点关系。**  
-它唯一能证明的，是**“修改后的固件字节，完全符合我们设计的配方”**，证明文件没有打包错。
-
-| 检查层级 | 它到底在查什么？ |
+| Component | What it checks |
 |---|---|
-| `verify.py` | 独立对账：确认该改的地方改得一模一样，没说要改的字节原封不动，版本号和引导程序完全正确。 |
-| 兼容性门禁 | 动工前检查：原厂固件的大小、每个模块的哈希指纹对不对。只要有一点不对，立刻终止。 |
-| 编译器锁定 | 注入的代码是用本地 C 源码编译的。只要编译出的机器码和审查过的有半点偏差，立刻终止。 |
-| 自动化回归测试 | 检查配方重新生成、反向对照、配置文件逻辑和命令行工具是否正常。 |
-| 菜单补丁检查 | 检查菜单补丁的结构（需要本地切片文件，没有就会跳过）。 |
-| 严苛门禁（7道关卡） | 33 项检查：涵盖字节校验、固件完整性链、功能冲突检测、配置文件、测试栈、输出目录清理以及刷机前清单生成。 |
-| 变异破坏测试 | 人为制造 34 种“表面合法但内部损坏”的毒包，测试工具能否准确识破并拦截（而不是傻傻看校验和）。 |
-| 功能组合矩阵 | 把所有允许的功能组合都编译一遍，确保合法组合能 100% 字节级还原，非法组合会被直接拦截。 |
-| 结构压力测试 | 针对文件解包/打包往返、单字节篡改、逆向完整性链等做极限测试。 |
-| 配方锁定 | 记录源码哈希，一旦发现有人在打包后偷偷改了配方，立刻报错。 |
+| `verify.py` | Confirms patched regions match the recipe (offset, length, `old_sha256` before and `new_sha256` after), unpatched regions and other modules are untouched, and loader/version edits are correct. |
+| Compatibility gate | Validates input file size, module IDs, and hashes before patching. Stops the build on any mismatch. |
+| Compiler lock | Compiles injected C code locally and stops the build if the output bytes differ from the reviewed reference. |
+| `tests/validate.py`, `tests/validate_features.py` | Regression tests for recipe generation, negative controls, config parsing, and CLI behavior. |
+| `tests/test_menuh.py` | Checks structure and recipes for the menu patch (skips if the local EG slice is missing). |
+| `gauntlet/gates.py` | Runs 33 checks across 7 areas: byte validation (G1), package integrity (G2), feature combinations and overlaps (G3), configs (G4), test suite (G5), output directory state (G6), and pre-flash checklist generation (G7). |
+| `gauntlet/mutations.py` | Tests 34 corrupted packages with valid checksums to ensure content checks catch errors that checksums miss. |
+| `gauntlet/combos.py` | Builds and verifies all valid feature combinations, rejects invalid ones, and confirms the default build is byte-reproducible. |
+| `gauntlet/structural.py` | Tests decode/encode round-trips, single-byte mutations with repaired checksums, reverse integrity-chain traversal, and cross-tool decoding. |
+| Recipe lock | Logs source hashes in `manifest.json`; gate G3.4 re-hashes the sources and fails if recipes changed after the build. |
 
-> **血的教训：**  
-> 哪怕上面所有测试**全亮绿灯**，也仅仅代表“固件完全按照配方打包好了”。  
-> **它绝对不保证相机能开机、能拍照，更不保证刷机不会变砖！**
+## 2. Hardware test history
 
----
-
-## 2. 真机实测（惨淡的真实记录）
-
-这是本项目**真正拿实体相机刷机测试过**的完整记录（全世界就这么多，其他别脑补）：
-
-| 功能模块 | 真机实测结果 | 对应固件版本 |
+| Feature / Build | Result | Generation |
 |---|---|---|
-| HE★ 预拍摄核心 | 成功拍出 HE★ 格式的 NEF 照片，并与原厂样片对比一致 | 早期测试版（第一代） |
-| C15 预拍摄 | 在 C15 模式下预拍摄功能正常 | 早期测试版 |
-| 去掉 JPEG 限制 | 逻辑成立，真机测试可用 | 早期测试版 |
-| 原厂 C30 故障排查 | 做了一次对照实验，查明了原版 C30 为何会失效 | 早期测试版 |
-| **功能清单里的其他所有东西** | **零。从未在真机上测过。** | — |
-| **当前所谓“稳定版”（V10）** | **就刷过一次真机，直接死循环重启（Boot Loop），彻底变砖没救回来。** | V10 |
+| HE★ pre-capture core | Working. Captured NEFs matched camera-generated references. | Early build (Gen 1) |
+| C15 pre-capture | Working. | Early build (Gen 1) |
+| No-JPEG mode | Working. | Early build (Gen 1) |
+| C30 root-cause test | Identified why the stock C30 window failed. | Early build (Gen 1) |
+| V10 build | **Failed.** Caused an unrecoverable boot loop (bricked). | V10 |
+| All other features in [features.md](features.md) | **Untested.** | — |
 
-**以上就是全部事实。** 上游其他项目的测试记录是他们自己的事，不代表本项目的固件安全。
+Flashing and hardware operation are entirely your own risk; see [risks.md](risks.md).
 
----
+## 3. Limitations of offline checks
 
-## 3. 电脑测试永远测不出的 5 件事
+Offline tools only validate static files against build rules. They cannot verify:
+- Whether the firmware will boot or brick the camera.
+- How patched code in the boot path behaves at power-on.
+- Whether reverse-engineered constants match the camera's internal tables.
+- How modified menus render or behave at runtime.
+- Whether third-party software (Lightroom, Adobe Camera Raw, NX Studio, recovery tools) will accept the output files.
 
-就算离线测试全部拿满分，电脑也绝对无法测出以下问题：
-
-1. **相机能不能开机**：之前导致相机变砖死循环的那个版本，离线测试也是全绿的。电脑工具根本发现不了开机崩溃。
-2. **开机瞬间的代码行为**：离线工具只能看静态文件，模拟不了硬件通电瞬间的真实执行情况。
-3. **硬件隐藏参数对不对**：我们对相机的硬件理解全靠逆向工程，并不完整，猜出来的参数可能和机身内部参数冲突。
-4. **菜单会不会崩**：真机上的菜单图标、菜单层级、文字数量，可能和电脑解出来的二进制切片完全对不上。
-5. **修图软件认不认**：拍出来的照片，Lightroom、ACR、NX Studio 甚至读卡器会不会报错损坏，电脑测不出来。
-
----
-
-## 4. 如何运行离线测试
-
-在终端运行以下命令：
+## 4. Running offline checks
 
 ```sh
-python tests/validate.py --stock "/原厂固件路径/Z_8_0311.bin" --report build/validate.json
-python tests/validate_features.py --stock "/原厂固件路径/Z_8_0311.bin" --report build/features.json
-python gauntlet/gauntlet.py run --kit build/mybuild --stock "/原厂固件路径/Z_8_0311.bin" --out build/gauntlet
+python tests/validate.py --stock "/path/to/Z_8_0311.bin" --report build/validate.json
+python tests/validate_features.py --stock "/path/to/Z_8_0311.bin" --report build/features.json
+python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.bin" --out build/gauntlet
 ```
 
-- 退出码为 `0` 代表全部门禁通过。
-- 看到 `SKIPPED` 代表缺少某些外部工具或文件，这些项目被跳过了，**绝不会被算作“通过”**。
-- 详细日志会在输出目录生成 `GAUNTLET_REPORT.md` 和 `PREFLIGHT_CHECKLIST.md`，刷机前自己看清楚。
+Exit code `0` means all checks passed. Checks missing required local inputs or external tools are marked `SKIPPED` rather than passed. Full results are written to `GAUNTLET_REPORT.md` and `PREFLIGHT_CHECKLIST.md` in the output directory.
 
----
-
-## 5. 本项目的用词潜规则（别自欺欺人）
-
-为了避免害人变砖，本项目的说明文字非常克制：
-
-- 只要写 **“离线验证” (offline verified)**：意思**仅仅**是电脑测试代码通过了，跟能不能用没半毛钱关系。
-- 只要写 **“真机验证” (on hardware)**：必须是我们**真的刷进过相机**、并且亲眼看到功能跑通了。没刷过相机的绝对不敢这么写。
-- 只要写 **“未验证” (not verified)** 或 **“不可交付” (not deliverable)**：字面意思——**千万别刷，后果自负**。
-
-See also: [features.md](features.md).
 ## 简体中文
 
-用大白话重写如下（字面直白、去黑话，原意完全不变）：
-
----
-
-- **电脑里测得再严，也只证明“代码没编错”，不代表真机能跑**：
-  虽然我们设了极其严格的离线测试（包括 7 道门禁、33 个检查点、34 种变异测试、各种压力测试和代码校验锁），但这些只能证明**编译出来的文件完全符合设定**，仅此而已。
-
-- **真机实测基本是一片空白**：
-  我们只在早期用真机测过极少数功能（HE★ 预拍、C15、不存 JPEG、做过一次 C30 排错实验）；**其余所有功能从未进过真机**。更严重的是，目前所谓的“稳定版 V10”只上过一次真机，结果**当场陷入无限死机重启，至今没能恢复** — 未上机 — 从未上机。
-
-- **离线测试根本证明不了关键问题**：
-  电脑上跑得通，完全**无法证明**：相机能不能开机、开机补丁在真机里能不能正常跑、我们推算的参数和真机底层到底合不合、生成的素材第三方软件认不认。
-
-- **汇报说话必须老实、严禁吹嘘**：
-  “离线测过”、“真机测过”、“完全没测”、“绝不可交付”是四码事，**必须严格区分，严禁玩文字游戏**——离线跑通了，绝对不能对外吹成“真机可用”。
+- **离线检查仅核对字节**：通过 `verify.py`、兼容性校验、编译器锁、回归测试及 `gauntlet` 测试集（7 道门 33 个检查点、34 项变异测试、组合穷举与结构测试），确保生成的固件与补丁配方完全一致。
+- **真机测试记录**：仅早期版本（第一代）在真机上测试过 HE★ 预拍、C15 预拍、不写 JPEG 及单次 C30 故障排查。**V10 版本首次刷机即导致相机无限重启（变砖且无法恢复）**。其余功能从未上机测试，刷写与上机操作风险自担。
+- **离线检查的局限**：无法测试刷机后能否正常开机、开机路径补丁的实际运行情况、逆向推导的常量是否匹配真机内部表、菜单在真机上的实际表现，以及第三方软件（如 Lightroom、NX Studio）能否正常读取生成的文件。

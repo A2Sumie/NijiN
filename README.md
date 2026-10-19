@@ -1,110 +1,83 @@
 **WIP. Owner's Z8 bricked! Use at your own risk.**
 **施工中。作者的 Z8 已经刷砖！风险自担。**
 
-这里是一份**彻底去除了“翻译腔”、通俗接地气（说人话）**但**完整保留所有技术细节与严厉警告**的重写版本：
-
----
-
-# ⚠️ 施工中！作者的 Z8 已经刷成砖了！刷机风险极高，后果自负！
-
 <p align="center">
-  <img src="assets/lockup/nijin-lockup-transparent.png" alt="NijiN 项目图标" width="420">
+  <img src="assets/lockup/nijin-lockup-transparent.png" alt="NijiN" width="420">
 </p>
 
-# NijiN (虹N)
+# NijiN
 
-**交流与互助 QQ 群：`1108781835`**
+**QQ Group / QQ 群：`1108781835`**
 
-这是一个纯开源的**补丁构建工具链**。它的作用是：**利用你自己从尼康官网下载的官方固件包，在本地电脑上为你定制、编译并校验专属的实验性 Z8 固件。** 你想要什么功能自己选，工具会在本地打补丁并逐字节验证。
+[English](#english) · [简体中文](#简体中文)
 
-> ⚠️ **郑重声明：本项目代码库不包含任何官方固件文件，也不提供任何预编译好的可刷机固件。** 详见 [NOTICE.md](NOTICE.md)。
-
----
-
-## 刷前必读（保命指南）
-
-**这不是免责声明的客套话：刷这个固件真的会把你的相机变成板砖。**
-
-在开发测试 V10 版本时，我们往测试机上刷了一次，**相机直接陷入无限重启死循环，彻底无法开机，目前已经返厂送修。**  — experimental — never on hardware。
-最可怕的是：**那个导致变砖的版本，在电脑上的所有离线自动化测试中全亮绿灯。** 电脑测试全过，绝不代表真机安全！
-
-- 本项目没有任何一个功能是“正式成品”，全是实验性半成品。
-- 刷机、硬件操作、救砖排查**全是你自己的责任**。本工具不直接连相机，也不会帮你拷卡。
-- **绝对不要拿干活的商业机、或者要拍重要题材的机器来玩！**
-- 如果你需要的是一台稳定可靠的相机，请**老老实实呆在官方固件**。
-
-关于这次变砖事故的成因排查，以及与其他 Z8 改版项目的故障对比，详见 [docs/upstream-issue-3.md](docs/upstream-issue-3.md)。
-根据开源协议，本项目作者及贡献者不对任何数据损坏、坏卡、相机变砖等损失承担法律责任。详见 [NOTICE.md](NOTICE.md) 和 [docs/risks.md](docs/risks.md)。
+An open-source toolchain for building custom Nikon Z8 (C 3.11) firmware packages locally. 
 
 ---
 
-## 这东西到底是干什么的？
+## English
 
-你先去尼康官网下载 **Z8 C 3.11 官方固件更新包**（文件大小精确为 99,051,117 字节），然后 NijiN 工具链会在你本地做这几件事：
+### ⚠️ Warning
 
-1. **查验血统**：通过 SHA-256 哈希比对官方固件的特征区间，确认固件版本对得上（我们不存储任何尼康版权代码）。
-2. **源码编译**：把你挑中的新功能（C 语言/汇编源码）现场编译出来。
-3. **安全打补丁**：把编译出的代码和引导补丁精准植入固件指定位置。
-4. **逐字节回验**：确保没被改动的地方原封不动，改动的地方和预期哈希一字不差。
-5. **严苛考机测试**：打包前必须跑完一套严苛的离线自动化测试套件（`gauntlet/`）。
+**Flashing firmware built with this tool can brick your camera.** 
 
-本工具**不提供下载固件服务、不负责往存储卡写文件、不直连相机，也不附带刷机软件**。
+During development, a V10 build passed all offline verification checks but caused an unrecoverable boot loop when flashed to hardware, requiring factory repair. **Passing offline checks does not guarantee hardware safety.**
 
----
+- All features are experimental. Do not use this on cameras needed for production or critical shoots.
+- See [docs/risks.md](docs/risks.md) for current risk assessments and [docs/upstream-issue-3.md](docs/upstream-issue-3.md) for forensics on a similar bricking incident in another Z8 project.
+- Provided as-is with no warranty. You assume all risks for hardware damage or data loss. See [NOTICE.md](NOTICE.md).
 
-## 固件请自备（BYOF）
+### How It Works
 
-请自行前往 [尼康官网下载中心](https://downloadcenter.nikonimglib.com/en/download/fw/606.html) 遵照其条款下载官方 3.11 固件。本项目不提供任何密钥、解密服务或提取工具。本项目的开源许可证绝不代表尼康官方代码的授权。
+NijiN takes an official Nikon Z8 C 3.11 firmware file (`Z_8_0311.bin`, 99,051,117 bytes) and generates a patched firmware package containing the features you select.
 
----
+**Bring your own firmware.** This repository contains **no firmware and no prebuilt binaries** (see [NOTICE.md](NOTICE.md)); download the official package from Nikon's download center under Nikon's terms and hand it to the tool. The tools never talk to a camera or a card: no downloader, no card writer, no flashing utility.
 
-## 功能开发进度一览表
+1. **Input verification**: Checks the stock firmware against SHA-256 fingerprint windows.
+2. **Compilation**: Compiles custom C and AArch64 assembly routines from source.
+3. **Patching**: Applies selected feature patches and a shared loader modification.
+4. **Output verification**: Independently verifies that all bytes outside target patch windows remain untouched, and all patched windows match expected recipe hashes byte-for-byte.
+5. **Validation**: Runs an automated test suite (`gauntlet/`) to verify structural integrity.
 
-- ✅ **真机已测通**
-- ⚠️ **仅电脑离线跑通，从未在真机上验证过**
-- ❌ **已知问题 / 暂不可用**
-- 🧪 **纯概念/草稿阶段，别抱太大指望**
+### Features
 
-| 功能模块 | 说明 | 现状 | 备注 |
+Status legend: **✅ Tested on hardware** · **⚠️ Verified offline only** · **🧪 Experimental / incomplete** · **❌ Blocked / dropped**
+
+| Feature | Description | Status | Notes |
 |---|---|---|---|
-| `precapture` (RAW 预拍摄) | 连拍全按前的预录画面，直接存为真正的 HE★ RAW 格式 | ✅ (早期版本真机测过) | 早期版本实测真能拍出 HE★ NEF 照片；但后期改动过的代码目前处于 ⚠️ 状态 |
-| `precapture` (C15/C30 预拍摄时长) | 针对 C15/C30 高速连拍的 1 秒预录窗口和帧数限制 | ✅ (C15 早期测过) / ⚠️ (C30 帧数上限) | C30 的 1 秒预录限制和 20 帧环形缓冲限制**仅在电脑上验证过** |
-| `precapture` (画质联动菜单) | 菜单里选 RAW / RAW+JPEG / JPEG，预拍摄和连拍一起生效 | ⚠️ | 仅电脑验证，真机菜单反应未知 |
-| `precapture` (内嵌全尺寸预览) | NEF 里带 8256×5504 预览图，能在相机相册正常回放 | ⚠️ | 仅电脑验证，没在真机回放过 |
-| `precapture` (纯 RAW/预览/时间戳) | 跳过 JPEG 写入，采用固定大小小预览，文件时间=真实快门时间 | ⚠️ | 仅电脑端验证 |
-| `precapture` (无损/HE 预拍摄) | 预拍摄改存无损压缩或普通 HE，代替 HE★ | 🧪 | 无损压缩的条带长度是静态毛估的，未经验证 |
-| `prores` (ProRes 规格任选) | 可以在 HQ / 422 / LT / Proxy 之间切换，支持分配置库保存 | ⚠️ | 补丁代码没变，但相机界面图标不会显示具体是哪档规格 |
-| `opengate` (OpenGate 3:2 录像) | 通过 `Z8OG.CFG` 配置文件实现 8256×5504 全画幅传感器录像 | 🧪 | 底层传感器读取区域到底有没有跟着变大，目前毫无把握 |
-| `menuh` (自定义设置菜单组) | 在相机里加一个全新的菜单组骨架，支持存盘/读盘 | ⚠️ | 能看到菜单也能点进去，但里面还没塞功能；真机上图标会不会炸没试过 |
-| 剩余张数计数修正 | 针对新画质修正屏幕上显示的“剩余可拍张数” | ⚠️ | 只是改了屏幕显示公式，未改底层实际生产逻辑 |
-| 镜头校正数据写入 | 给 7 支已知镜头强行写入 NEF 镜头校正元数据 | 🧪 | 未用 Adobe / NX Studio 验证能否识别；遇未知镜头直接跳过（防崩） |
-| D5 兼容占位符 | 补全某些看图软件需要的 D5 空元数据块 | 🧪 | 复制了原版空数据块，看图软件认不认未测 |
-| 位深切换 (12/14-bit) | 允许在配置中选择 12-bit 或 14-bit | 🧪 | 数据消费端做好了，但菜单控制端还没摸清在哪里 |
-| D3 选项加“Max”档位 | 预拍摄时长加一档“最大值” | ❌ 搞不定 | 数值范围的底层逻辑没理清，加了也选不上 |
-| 屏幕 OSD 文字提示 | 在屏幕上显示新功能的状态字样 | ❌ 搞不定 | 屏幕描述结构体里根本没有文字插槽，找不到安全路径 |
-| 0.5 EV 步进 ISO | 更细腻的 ISO 调节 | ❌ 彻底放弃 | 固件里控制该数值的逻辑无法调用，降级方案已否决 |
-| C60/C120 预拍摄 | 在更夸张的高速连拍下预录 | ❌ 砍掉 | 故意不做，不折腾了 |
+| `precapture` — HE★ pre-capture | Records pre-release frames as true HE★ RAW | ✅ (early build) | Tested on hardware in an early build; subsequent changes to this module are ⚠️ |
+| `precapture` — C15/C30 window | Pre-capture buffer window, 1s limit, and frame cap for C15/C30 | ✅ (C15) / ⚠️ (C30) | C30 1-second clamp and 20-frame ring buffer cap are only verified offline |
+| `precapture` — Image quality menu | Applies RAW / RAW+JPEG / JPEG settings to both pre-capture and full-press frames | ⚠️ | Offline verified; menu behavior not yet tested on hardware |
+| `precapture` — Full-size preview & playback | Embeds 8256×5504 previews in NEFs and registers files in the camera's playback database | ⚠️ | Offline verified; not tested on hardware |
+| `precapture` — RAW-only, thumbnails, timestamps | Skips JPEG writes, writes fixed-size small previews, sets file timestamp to capture time | ⚠️ | Offline verified only |
+| `precapture` — Lossless / HE tiers | Allows pre-capture in Lossless RAW or HE instead of HE★ | 🧪 | Lossless strip length uses an unconfirmed static estimate |
+| `prores` — ProRes quality | Adds HQ / 422 / LT / Proxy selection per shooting menu bank | ⚠️ | Identical to upstream patch bytes; UI icon does not reflect the selected tier |
+| `opengate` — OpenGate 3:2 video | Experimental 8256×5504 video recording configured via `Z8OG.CFG` | 🧪 | Unconfirmed whether the sensor readout window actually scales to the new dimensions |
+| `menuh` — Custom menu group | Adds a new menu group shell and a persistent setting item | ⚠️ | Group is visible but empty; UI behavior not tested on hardware |
+| Shot counter fix | Updates remaining frame counter based on actual output settings | ⚠️ | Patches the display readout rather than the underlying calculation; may need tuning for other configs |
+| Lens correction block | Writes NEF lens correction blocks for 7 known lenses | 🧪 | Not tested in Adobe ACR / NX Studio; skips writing on unknown lenses (fail-safe) |
+| D5 metadata placeholders | Writes empty metadata blocks expected by certain RAW parsers | 🧪 | Parser compatibility untested |
+| Bit-depth selection | 12-bit / 14-bit switching via configuration | 🧪 | Backend logic implemented; menu UI not yet wired up |
+| D3 "Max." duration | Adds a maximum pre-capture duration option | ❌ Blocked | Value-range definitions unresolved; option cannot be selected in UI |
+| OSD text hints | On-screen help text for new options | ❌ Blocked | Display descriptors lack text slots; no safe implementation found |
+| ISO 0.5 EV steps | Finer ISO step increments | ❌ Blocked | Target control logic is unreachable within the firmware package |
+| C60/C120 pre-capture | Pre-capture for high-speed burst modes | ❌ Dropped | Not planned |
 
-每个功能的详细测试排查记录，请看 [docs/features.md](docs/features.md)。
+For full implementation details and verification scope, see [docs/features.md](docs/features.md).
 
----
+### Branches & Releases
 
-## 固件分支状态（生死攸关）
-
-| 版本线 | 分支 / Tag | 是什么 | 状态 |
+| Line | Branch / Tag | Description | Status |
 |---|---|---|---|
-| **V10** | `main` | 目前所谓的“稳定线”。离线自动化测试、字节校验、变态测试全绿。 | ⚠️ 电脑测试全绿；**❌ 绝对不要刷！这正是把作者相机搞成无限重启砖头的版本！** |
-| **V11 `bricking-edge`** | `bricking-edge` | **事故排查/紧急回滚分支**（名字就叫“变砖前沿”）。剥离了 V10 中最可疑的 3 项修改，并将 4 个补丁区域回退到老版本。详见 [docs/bricking-edge.md](docs/bricking-edge.md)。编译出来会标记为 `03.11.p1` 固件。 | **⛔ V11.1 明确极度危险（UNSAFE）**！虽然在电脑里测试通过，但**从未上过真机**。在抓出变砖元凶之前，本分支**无限期无限期冻结**。详见 [docs/risks.md](docs/risks.md)。 |
+| **V10** | `main` | Passes all offline checks and reproducible build tests. | **❌ Do not flash** — caused the hardware boot loop incident. |
+| **V11 `bricking-edge`** | `bricking-edge` (branch and tag) | Forensics/hotfix line: strips the 3 suspect V10 changes and rolls back 4 patch windows. Ships as `03.11.p1` packages (`p0` = the historical smoke/incident generation). See [docs/bricking-edge.md](docs/bricking-edge.md). | **⛔ V11.1 = UNSAFE (known defects, under investigation) — do not flash.** Built and byte-verified offline, published 2026-10-19 as a toolkit trial only; never on hardware; the line stays frozen until the V10 boot-loop cause is settled. See [docs/risks.md](docs/risks.md#known-unsafe-v111-2026-10-19). |
 
-> **冷幽默提示**：分支名叫 `bricking-edge`（变砖前沿，致敬 bleeding-edge 尖端版）不是搞笑，是因为真有一台相机为此牺牲了。解除冻结的苛刻条件见 [docs/unfreeze-criteria.md](docs/unfreeze-criteria.md)。
+See [docs/versions.md](docs/versions.md) for version history and [docs/unfreeze-criteria.md](docs/unfreeze-criteria.md) for the checklist required to lift the release freeze.
 
----
+### Quick Start
 
-## 自己动手编译（进阶）
-
-快速上手单页指引请看：[docs/quickstart.md](docs/quickstart.md)。
-
-**环境要求**：Python 3.10+，安装所需依赖。如果要编译 `precapture`（预拍摄）功能，你电脑里必须装有针对 **AArch64 架构的 Clang 编译器**（编译器输出稍有一字节偏差都会直接拒绝打包）。仅编译 ProRes 功能则不需要 C 编译器。
+1. Download the official Nikon Z8 firmware 3.11 (`Z_8_0311.bin`) from the [Nikon Download Center](https://downloadcenter.nikonimglib.com/en/download/fw/606.html).
+2. Install Python 3.10+. Building `precapture` also requires Clang with AArch64 target support (`prores`-only builds do not require Clang).
 
 ```sh
 git clone https://github.com/A2Sumie/NijiN.git
@@ -113,253 +86,155 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 
-# 第一步：只读模式，检测你下载的官方固件包版本是否匹配
-python patch.py "/你的路径/Z_8_0311.bin" --features prores precapture --check
+# 1. Check input firmware compatibility
+python patch.py "/path/to/Z_8_0311.bin" --features prores precapture --check
 
-# 第二步：构建打过补丁的新固件到空目录
-python patch.py "/你的路径/Z_8_0311.bin" --features prores precapture \
+# 2. Build patched firmware into a new directory
+python patch.py "/path/to/Z_8_0311.bin" --features prores precapture \
     --version 03.11 --tag p1 --output build/mybuild
 
-# 第三步：独立校验打出的固件哈希
-python verify.py "/你的路径/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
+# 3. Independently verify the output binary
+python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
     --features prores precapture
+
+# 4. Run validation suites
+python tests/validate.py --stock "/path/to/Z_8_0311.bin" --report build/validate.json
+python tests/validate_features.py --stock "/path/to/Z_8_0311.bin" --report build/features.json
+python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.bin" --out build/gauntlet
 ```
 
-打完包别急，必须跑完这一整套测试：
+For detailed build instructions and verification explanations, see [docs/quickstart.md](docs/quickstart.md), [docs/build.md](docs/build.md), and [docs/verification.md](docs/verification.md).
 
-```sh
-python tests/validate.py --stock "/你的路径/Z_8_0311.bin" --report build/validate.json
-python tests/validate_features.py --stock "/你的路径/Z_8_0311.bin" --report build/features.json
-python gauntlet/gauntlet.py run --kit build/mybuild --stock "/你的路径/Z_8_0311.bin" --out build/gauntlet
-```
+### Repository Layout
 
-完整的构建逻辑与真机测试清单：[docs/build.md](docs/build.md)。自动化测试到底能证明什么、不能证明什么：[docs/verification.md](docs/verification.md)。
-
----
-
-## 红线：本仓库绝不包含的内容
-
-为了防范法律和合规风险，本项目**坚决不收录、也严禁任何人提交**以下内容：
-- 任何官方固件文件、解密后的机器指令代码
-- 从相机中提取的字体、图标位图、文字字符串表
-- 相机内部的设置文件、第三方商业软件、官方手册
-- 样张照片、相机系统界面截图
-- 任何开发者本人的私有路径或个人数据
-
-代码推送前会强制运行红线扫描器：[tools/redline_scan.py](tools/redline_scan.py)。
-
----
-
-## 项目结构导航
-
-| 路径 | 内容 |
+| Path | Description |
 |---|---|
-| `patch.py`, `verify.py`, `features.py`, `configure.py` | 补丁主程序、独立校验器、功能组装脚本、配置文件生成器 |
-| `z8prores/`, `z8precapture/`, `z8opengate/`, `z8menuh/` | 各大功能模块的 C 代码、AArch64 汇编发射器、链接器与补丁配方 |
-| `resources/` | 补丁定位定义：特征码哈希窗口、内存偏移量、跳转地址（仅有哈希和偏移量，无专有代码） |
-| `tests/` | 电脑端离线自动化测试集（无需相机硬件，不带固件文件） |
-| `gauntlet/` | 终极变态考机测试：7道安全门禁、变异测试、组合兼容性矩阵等 |
-| `tools/` | 代码仓库规范扫描与防泄密红线检测工具 |
-| `recipes/` | 特定实验分支的构建配方（如 `bricking-edge` 的回退配方） |
-| `docs/` | 各种文档：极速上手、编译说明、功能细节、风险揭示、解除冻结准则等 |
-| `assets/` | NijiN 品牌图标与矢量图 |
+| `patch.py`, `verify.py`, `features.py`, `configure.py` | Build script, verifier, feature composer, and config file generator |
+| `z8prores/`, `z8precapture/`, `z8opengate/`, `z8menuh/` | Feature modules (patch recipes, C/AArch64 assembly sources, linker scripts) |
+| `resources/` | SHA-256 fingerprint windows, file offsets, entry addresses, and constants |
+| `tests/` | Offline unit and feature validation suites |
+| `gauntlet/` | Automated integration test suite (gate checks, mutation testing, combination matrix, stress tests) |
+| `tools/` | Repository maintenance scripts and pre-push compliance scanner ([tools/redline_scan.py](tools/redline_scan.py)) |
+| `recipes/` | Patch recipes for specific research branches |
+| `docs/` | Project documentation |
+| `assets/` | The NijiN wordmark and icon, created for this project |
+
+### Contributing & License
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting pull requests. Do not commit proprietary firmware binaries, dumps, extracted assets, or personal data.
+
+Licensed under [GPL-3.0-only](LICENSE). Derived from NikonFirmwarePatch (GPL-3.0-only); see [NOTICE.md](NOTICE.md) for full attribution. This project is not affiliated with or endorsed by Nikon.
 
 ---
-
-## 社区互动
-
-技术交流、问题讨论与互助，请加入 **QQ 群：`1108781835`**。
-在群内交流也请遵守 [CONTRIBUTING.md](CONTRIBUTING.md) 的红线：**严禁传播官方固件文件、内存 Dump、或包含隐私的数据。**
-
----
-
-## 协议与致谢
-
-本工具自身的原创源码基于 **[GPL-3.0-only](LICENSE)** 协议开源。本项目衍生并借鉴自开源项目 NikonFirmwarePatch (GPL-3.0-only)；完整致谢名单、参考材料与协议边界说明见 [NOTICE.md](NOTICE.md)。
-
-**特别说明**：本项目的开源协议绝不延伸至尼康官方固件，打补丁生成的最终固件亦不属于 GPL 软件。本项目纯属民间技术研究，**与尼康公司（Nikon）没有任何关联，未获其任何形式的认可或授权。**
-
-See also: [risks.md](docs/risks.md#known-unsafe-v111-2026-10-19), [versions.md](docs/versions.md).
-
-Status: **experimental** — never on hardware (未上机), zero firmware here; bring your own firmware (bring your own / 自带固件, no firmware / 不含固件).
 
 ## 简体中文
 
-**本仓不含固件与预编译产物**——固件自带；V11.1 不安全（已知缺陷），见 [docs/risks.md](docs/risks.md)。
+### ⚠️ 警告
 
-这是一份完全用**自然、地道、好懂的大白话**重写后的版本。在剔除晦涩机翻腔和生硬黑话的同时，**所有技术参数、风险警告、功能状态与原意细节均 100% 完整保留**。
+**刷入本项目构建的固件可能导致相机变砖。**
 
----
+在开发过程中，V10 分支的一个构建版本通过了所有离线校验，但刷入测试机后直接导致无限重启（Boot loop），最终只能返厂维修。**离线校验全绿不代表真机安全。**
 
-# NijiN - 尼康 Z8 固件改装工具箱
+- 所有功能均处于实验阶段，切勿用于工作机或重要拍摄。
+- 当前风险评估见 [docs/risks.md](docs/risks.md)；另一个 Z8 改装项目的同类变砖故障对比与排查分析见 [docs/upstream-issue-3.md](docs/upstream-issue-3.md)。
+- 本项目不提供任何担保，刷机、硬件损坏或数据丢失的风险完全由使用者自行承担。详见 [NOTICE.md](NOTICE.md)。
 
-**项目施工中。作者自己的 Z8 已经刷成砖送修了！风险自负。**
+### 工作原理
 
----
+NijiN 以用户自备的官方 Nikon Z8 C 3.11 固件包（`Z_8_0311.bin`，99,051,117 字节）为输入，在本地生成打好补丁的固件包。
 
-### 先把这段看完（保命须知）
+**自带固件（bring your own firmware）。** 本仓**不含固件、不含预编译产物**（见 [NOTICE.md](NOTICE.md)）；请自行从 Nikon 下载中心按其条款获取官方升级包再交给工具。工具不与相机或存储卡通信：不下载、不写卡、不带任何刷写程序。
 
-**刷这个固件真的会变砖，这不是吓唬人的免责套话，而是已经发生的血案。** 
+1. **输入校验**：通过 SHA-256 指纹窗口校验原厂固件。
+2. **代码编译**：从源码编译新增的 C 与 AArch64 汇编程序。
+3. **写入补丁**：写入所选功能的补丁窗口及共享加载器修改。
+4. **输出复核**：独立校验输出文件，确保补丁窗口之外的所有字节与原厂完全一致，且补丁窗口内的字节与预设配方哈希严格匹配。
+5. **集成测试**：运行自动化测试套件（`gauntlet/`）检验固件结构完整性。
 
-在开发过程中，作者把 V10 分支编译出的固件刷进测试机，相机当场陷入无限死循环重启（Boot Loop），硬件彻底瘫痪，最后只能走官方售后返厂换件。最要命的是：**这个固件在电脑上跑模拟测试和校验时是全绿通过的！** 记住：**电脑测试全通过 ≠ 刷进相机不会死。** — 试验。
+### 功能列表
 
-- **这里不提供现成的固件文件**，所有功能目前全属于实验性质。
-- 固件怎么刷、相机出不出事、变砖能不能救，**一切责任全部自负**。这个脚本只在电脑上修改文件，**不会**连接相机，也**不会**往你的存储卡里写东西。
-- **千万不要**拿来干活或拍摄不可重来的重要场合。
-- 想要一台老实干活的稳定相机，**请老老实实用官方原版固件**。
+状态图例：**✅ 已上机验证** · **⚠️ 仅离线验证** · **🧪 实验性 / 未完成** · **❌ 受阻 / 已放弃**
 
-目前已经有另一个独立的 Z8 改装项目遇到了完全一模一样的“刷机后死循环变砖”故障；故障对照表和排查分析见 [docs/upstream-issue-3.md](docs/upstream-issue-3.md)。
-
-在法律允许的最大范围内，作者和代码贡献者不对任何损失负责（包括但不限于相机报废、卡烧毁、数据丢失等），没有任何保证。详情见 [NOTICE.md](NOTICE.md) 和 [docs/risks.md](docs/risks.md)。
-
----
-
-### 这项目到底是干什么的？
-
-NijiN 是一个“本地固件打补丁工具”。它的工作流程是：输入你**自己下载的尼康 Z8 官方 C 3.11 升级文件**（大小必须是 99,051,117 字节，包含 5 个模块），在你的电脑本地生成一份包含指定改装功能的固件包。
-
-它的底层安全逻辑是：
-1. **核对指纹**：通过 SHA-256 哈希来认出官方文件各区域——仓库里只有哈希和地址偏移，**不包含任何官方固件的源码或字节**；
-2. **本地编译**：调用 C 语言和汇编源码，把我们要加的新功能编译出来；
-3. **精准手术**：只改动经过严格审查的几个补丁区域，以及一处共享加载代码；
-4. **死磕一致性复核**：生成完毕后自动对账——该动的地方必须与配方哈希 100% 一致，没说要动的地方哪怕一个字节都不许变；
-5. **严刑拷打测试**：跑完一套强制测试套件（`gauntlet/`），只要有一项报错就判定失败。
-
-**再说一遍：本工具不帮你下载固件，不连相机，不写存储卡，里面也没有任何内置的刷机程序。**
-
----
-
-### 固件自己准备（Bring Your Own Firmware）
-
-请自行前往 [尼康官网下载中心](https://downloadcenter.nikonimglib.com/en/download/fw/606.html) 下载官方固件升级包，并遵守尼康的用户协议。
-
-下好后把文件丢给工具处理即可。不能拿其他机型或版本的固件糊弄。本仓库**不提供任何解密密钥、不提供解密提取服务**；本项目的开源协议也**绝不授予你任何尼康官方固件的权利**。
-
----
-
-### 目前能做（或打算做）的功能
-
-**状态图标说明：**
-- ✅ **真机实测可用**
-- ⚠️ **仅在电脑上跑通了测试，从来没有上真机试过！**
-- ❌ **已知有严重 Bug / 做不出来 / 已放弃**
-- 🧪 **纯实验草稿，别抱期望**
-
-| 功能 | 说明 | 状态 | 详细备注 |
+| 功能 | 说明 | 状态 | 备注 |
 |---|---|---|---|
-| `precapture` — HE★ 预拍 | 连拍预拍的历史帧，直接按原汁原味的 HE★ RAW 保存 | ✅（仅限早期构建） | 早期旧版本真机拍出过可用的 HE★ NEF 照片；但**这块代码后来大改过，改后的版本属于 ⚠️ 从未上机** |
-| `precapture` — C15/C30 预拍时长 | 调整 C15 / C30 连拍预拍的缓冲时间和帧数上限 | ✅（C15 早期版本）/ ⚠️（C30 与帧数上限） | C30 限制 1 秒、环形缓冲区 20 帧的逻辑**只有电脑测试过** |
-| `precapture` — 画质菜单 RAW/JPG 三路联动 | 菜单设为 RAW、RAW+JPG、纯 JPG 时，预拍也按相同逻辑存图 | ⚠️ | 仅电脑验证过；真机菜单切了管不管用未知 |
-| `precapture` — 内嵌全尺寸预览图与回放 | 给 NEF 嵌进 8256×5504 预览图，能在相机自带相册里回放 | ⚠️ | 仅电脑验证过；真机能不能回放未知 |
-| `precapture` — 纯 RAW / 缩略图族 / 文件时间戳 | 不写 JPG、小缩略图尺寸固定、文件创建时间 = 真实拍摄时间 | ⚠️ | 仅电脑验证过 |
-| `precapture` — 无损压缩 / 普通 HE 预拍 | 预拍格式增加“无损压缩”或“普通 HE” | 🧪 | 无损压缩的条带长度是静态瞎猜的，完全没测过 |
-| `prores` — 开放 ProRes 全档位 | 提供 HQ / 422 / LT / Proxy 四档可选，随拍摄菜单库保存 | ⚠️ | 补丁字节与上游开源项目一致；但屏幕上**不会显示**具体是哪一档 |
-| `opengate` — OpenGate 3:2 视频录制 | 靠存储卡里的 `Z8OG.CFG` 激活 8256×5504 满血传感器录像 | 🧪 | 传感器读出窗口有没有老实按 3:2 走，完全未经证实 |
-| `menuh` — 新增专属配置菜单 | 界面多出一组专门的新菜单，能存取一个掉电不丢失的设置 | ⚠️ | 能看到菜单也能点进，但里面是空的；真机到底显不显示未上机试过 |
-| 剩余张数显示修正 | 让屏幕显示的剩余张数匹配真实的输出配置 | ⚠️ | 只改了屏幕读取数值的位置，没改底层生成器；换了配置可能还要乱 |
-| 镜头校正数据写入 | 强行帮 7 支已知镜头往 NEF 里写校正数据块 | 🧪 | 没在 ACR 或 NX Studio 测过认不认；遇到没记录的镜头就不写（防暴毙保护） |
-| D5 兼容占位元数据 | 写入某些修图软件死磕要求的空元数据块 | 🧪 | 1:1 复刻了空数据；修图软件吃不吃未知 |
-| 色深选择 | 根据设置输出 12-bit 或 14-bit | 🧪 | 存盘逻辑代码写了，但怎么连到机身菜单还没搞定 |
-| D3 “Max.” 预拍时长 | 预拍时长再加一档极限选项 | ❌ 无法交付 | 存盘取值逻辑没定下来，菜单里根本选不到这一项 |
-| 屏幕文字提示 (OSD) | 给新加的选项在屏幕上写文字说明 | ❌ 无法交付 | 尼康显示层里根本没留文字槽位，目前找不到不崩溃的写法 |
-| 0.5 EV 步进 ISO | 更细腻的半档 ISO 调节 | ❌ 无法交付 | 固件深处找不到对应响应逻辑；降级方案已被彻底否决 |
-| C60 / C120 高速预拍 | 60fps / 120fps 预拍支持 | ❌ 已砍 | 没打算做，主动放弃 |
+| `precapture` — HE★ 预拍 | 将预拍帧保存为真正的 HE★ RAW | ✅（早期构建） | 早期版本已在真机拍出 HE★ NEF；后续对此模块的改动属 ⚠️ |
+| `precapture` — C15/C30 预拍窗口 | C15/C30 连拍的缓存窗口、1 秒时长限制与帧数上限 | ✅ (C15) / ⚠️ (C30) | C30 的 1 秒限制与 20 帧环形缓冲上限仅做过离线验证 |
+| `precapture` — 画质菜单联动 | RAW / RAW+JPEG / JPEG 设置同时作用于预拍帧与正式拍摄帧 | ⚠️ | 已通过离线验证，菜单表现在真机上尚未确认 |
+| `precapture` — 全尺寸预览与机内回放 | NEF 内嵌 8256×5504 预览图，并写入原厂相册数据库以支持回放 | ⚠️ | 已通过离线验证，未做真机回放测试 |
+| `precapture` — 纯 RAW / 缩略图 / 时间戳 | 跳过 JPEG 写入、生成固定尺寸缩略图、文件时间设为实际拍摄时间 | ⚠️ | 仅通过离线验证 |
+| `precapture` — 无损 / HE 预拍档位 | 预拍支持选择无损压缩 RAW 或 HE 格式 | 🧪 | 无损格式的条带长度（strip length）目前为静态估算值，未经验证 |
+| `prores` — ProRes 画质选择 | 支持按拍摄菜单库分别保存 HQ / 422 / LT / Proxy 四档画质 | ⚠️ | 补丁字节与上游项目一致；机内图标不会随所选档位变化 |
+| `opengate` — OpenGate 3:2 录像 | 通过 `Z8OG.CFG` 启用 8256×5504 实验性视频录制 | 🧪 | 传感器实际读出区域是否跟随新分辨率变化尚未证实 |
+| `menuh` — 自定义菜单组 | 新增菜单组框架及一个支持保存/加载的设置项 | ⚠️ | 菜单组可见且可进入，但尚无实际功能条目；未上机测试 |
+| 剩余张数显示修正 | 根据实际输出配置修正剩余可拍张数显示 | ⚠️ | 仅修改了显示端的读取值，未改底层计算逻辑；切换其他配置可能需重新调整 |
+| 镜头校正数据块 | 为 7 支已知型号镜头写入 NEF 镜头校正信息 | 🧪 | 未在 ACR / NX Studio 中测试兼容性；遇到未知镜头则不写入（安全回退） |
+| D5 兼容元数据占位 | 写入部分第三方解析器所需的空元数据块 | 🧪 | 第三方软件的实际兼容性未测试 |
+| 位深选择 | 通过配置切换 12-bit / 14-bit 输出 | 🧪 | 底层消费逻辑已实现，但尚未对接机内菜单 |
+| D3 “Max.” 预拍时长 | 增加一档最大预拍时长选项 | ❌ 受阻 | 参数范围定义尚未解析完成，机内菜单无法选中 |
+| OSD 文本提示 | 为新增选项显示屏幕提示文字 | ❌ 受阻 | 显示描述符中没有预留文本槽位，未找到安全的实现方式 |
+| ISO 0.5 EV 步进 | 更精细的 ISO 调节步长 | ❌ 受阻 | 固件包内无法触达该参数的底层控制逻辑 |
+| C60/C120 预拍 | 高速连拍模式下的预拍功能 | ❌ 已放弃 | 无计划支持 |
 
-每条功能的具体核验细节见 [docs/features.md](docs/features.md)。
+各功能的详细实现与验证范围见 [docs/features.md](docs/features.md)。
 
----
+### 分支与版本状态
 
-### 分支版本说明
+| 版本线 | 分支 / 标签 | 说明 | 状态 |
+|---|---|---|---|
+| **V10** | `main` | 离线校验、集成测试与可复现构建全部通过。 | **❌ 请勿刷入** —— 导致测试机无限重启变砖的版本。 |
+| **V11 `bricking-edge`** | `bricking-edge`（分支与标签） | 故障排查与热修线：移除 V10 中 3 处嫌疑改动、4 个补丁窗口回退到上一构建。以 `03.11.p1` 包发布（`p0` = 历史冒烟／事故代）。详见 [docs/bricking-edge.md](docs/bricking-edge.md)。 | **⛔ V11.1 = 不安全（已知缺陷，调查中）——勿刷，请勿刷写。** 仅做过离线构建与字节级比对，2026-10-19 只以 toolkit 试验品身份放出；从未上机；V10 开机循环定谳前保持冻结。详见 [docs/risks.md](docs/risks.md#known-unsafe-v111-2026-10-19)。 |
 
-| 分支 / 标签 | 作用 | 当前状态 |
-|---|---|---|
-| **V10** (`main`) | 名义上的“稳定”主分支。电脑校验全绿、自动化测试全过、代码可完美复现。 | ⚠️ 电脑测试全绿；**❌ 绝对不要刷！作者的 Z8 就是刷了这版变砖返厂的！** |
-| **V11 `bricking-edge`** (`bricking-edge`) | 事故发生后的“取证/排雷修复”线。名字取自变砖事故：剔除了 V10 中涉嫌导致死机的 3 处修改，把 4 个补丁退回了旧版。详见 [docs/bricking-edge.md](docs/bricking-edge.md) | **⛔ V11.1 极度危险（调查中）**：详见 [docs/risks.md](docs/risks.md)。目前只作为电脑实验脚本放出，**从来没在真机上试过**；死机原因彻底搞清前无限期冻结。 |
+版本演进历史见 [docs/versions.md](docs/versions.md)，解除冻结所需的验收标准见 [docs/unfreeze-criteria.md](docs/unfreeze-criteria.md)。
 
-> **“bricking-edge”**（变砖先锋）这个名字是作者留下的黑色幽默：这分支之所以存在，就是因为一台价值两万多的 Z8 真的变砖了。详见 [docs/versions.md](docs/versions.md)。何时解冻的标准写在 [docs/unfreeze-criteria.md](docs/unfreeze-criteria.md)——**但哪怕指标全达标，它也不会自动解冻，刷不刷完全是你自己的赌博。**
+### 快速开始
 
----
-
-### 自己动手编译（Build）
-
-想快速上手？请看一页纸搞定教程：[docs/quickstart.md](docs/quickstart.md)。
-
-**环境要求**：Python 3.10+，装好依赖。如果想打包“预拍”功能，必须安装支持 AArch64 的 Clang 编译器（只要编译出的字节和人工校验的配方有 1 个 bit 对不上，构建就会立刻强制报错中断）。如果只编译 ProRes 解锁，不需要 C 编译器。
+1. 从 [Nikon 下载中心](https://downloadcenter.nikonimglib.com/en/download/fw/606.html) 下载官方 Z8 3.11 固件包（`Z_8_0311.bin`）。
+2. 安装 Python 3.10+。若需构建 `precapture` 功能，还需安装支持 AArch64 目标架构的 Clang（仅构建 `prores` 则不需要 C 编译器）。
 
 ```sh
-# 1. 下载源码并配环境
 git clone https://github.com/A2Sumie/NijiN.git
 cd NijiN
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 
-# 2. 检查你的官方固件对不对（纯只读检查，不改任何东西）
-python patch.py "/你的路径/Z_8_0311.bin" --features prores precapture --check
+# 1. 检查原厂固件兼容性
+python patch.py "/path/to/Z_8_0311.bin" --features prores precapture --check
 
-# 3. 编译打包补丁（输出到全新空目录）
-python patch.py "/你的路径/Z_8_0311.bin" --features prores precapture \
+# 2. 构建改装固件到新建的空目录
+python patch.py "/path/to/Z_8_0311.bin" --features prores precapture \
     --version 03.11 --tag p1 --output build/mybuild
 
-# 4. 独立二次校验生成的文件
-python verify.py "/你的路径/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
+# 3. 独立复核生成的固件
+python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
     --features prores precapture
+
+# 4. 运行自动化测试套件
+python tests/validate.py --stock "/path/to/Z_8_0311.bin" --report build/validate.json
+python tests/validate_features.py --stock "/path/to/Z_8_0311.bin" --report build/features.json
+python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.bin" --out build/gauntlet
 ```
 
-最后必须把所有自动化测试全跑通，才算成功打完包：
+完整的构建说明与校验原理解析见 [docs/quickstart.md](docs/quickstart.md)、[docs/build.md](docs/build.md) 与 [docs/verification.md](docs/verification.md)。
 
-```sh
-python tests/validate.py --stock "/你的路径/Z_8_0311.bin" --report build/validate.json
-python tests/validate_features.py --stock "/你的路径/Z_8_0311.bin" --report build/features.json
-python gauntlet/gauntlet.py run --kit build/mybuild --stock "/你的路径/Z_8_0311.bin" --out build/gauntlet
-```
+### 目录结构
 
-完整编译流程和上机前安全核验表请查阅 [docs/build.md](docs/build.md)。关于这些测试到底能防范什么、防范不了什么，看 [docs/verification.md](docs/verification.md)。
-
----
-
-### 本项目不收录任何侵权内容
-
-遵循黑客安全界和逆向项目的避嫌原则，**本仓库严禁上传以下任何内容**：
-- 尼康原版固件及解密后的字节码；
-- 固件里提取的字体、图标、文字文本；
-- 官方配置文件、商业闭源软件、官方说明书；
-- 相机实拍样张、机身屏幕截图；
-- 开发者个人隐私或本机文件路径。
-
-开发调试时生成在本地的相关数据**严禁推送到远程仓库**。详见 [CONTRIBUTING.md](CONTRIBUTING.md)；提交前请务必使用工具扫描：[tools/redline_scan.py](tools/redline_scan.py)。
-
----
-
-### 项目代码目录
-
-| 目录 / 文件 | 作用 |
+| 路径 | 内容 |
 |---|---|
-| `patch.py`、`verify.py`、`features.py`、`configure.py` | 打补丁主脚本、复核校验器、功能开关、配置文件生成 |
-| `z8prores/`、`z8precapture/`、`z8opengate/`、`z8menuh/` | 各个功能模块：补丁配方及源码（包含 C 源码、AArch64 汇编、链接器脚本等） |
-| `resources/` | 补丁定义规则：SHA-256 指纹区域、偏移地址、常量（只有哈希与偏移，零原厂字节） |
-| `tests/` | 电脑离线安全测试（不碰相机、不含固件） |
-| `gauntlet/` | 自动化高压测试集：七道防线、极限变异测试、补丁组合穷举 |
-| `tools/` | 仓库防泄密和合规扫描脚本 |
-| `recipes/` | 特定实验线的打包配方（当前放的是 `bricking-edge` 回退排险配方） |
-| `docs/` | 各种文档（快速入门、编译教程、功能解析、风险通告、救砖排查等） |
-| `assets/` | NijiN 自己的 LOGO 与图标 |
+| `patch.py`、`verify.py`、`features.py`、`configure.py` | 构建脚本、独立校验器、功能组合器、配置文件生成工具 |
+| `z8prores/`、`z8precapture/`、`z8opengate/`、`z8menuh/` | 各功能模块源码（补丁配方、C 与 AArch64 汇编代码、链接脚本） |
+| `resources/` | 补丁定位数据：SHA-256 指纹窗口、文件偏移量、入口地址与常量 |
+| `tests/` | 离线单元测试与功能验证脚本 |
+| `gauntlet/` | 自动化集成测试套件（准入检查、变异测试、功能组合测试与结构压力测试） |
+| `tools/` | 仓库维护工具与提交前合规扫描脚本（[tools/redline_scan.py](tools/redline_scan.py)） |
+| `recipes/` | 特定研究分支的构建配方 |
+| `docs/` | 项目文档 |
+| `assets/` | 本项目自有的 NijiN 文字标与图标 |
 
-*(注：源码注释里提及的内部笔记编号为内部档案，不对外公开发布。)*
+### 参与贡献与开源许可
 
----
+讨论、提问与互助：**QQ 群 `1108781835`**。
 
-### 讨论社区
+提交代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。严禁向仓库或交流群提交任何原厂固件二进制文件、内存转储（dump）、提取的受版权保护资源或个人隐私路径。
 
-交流、提问与技术讨论：**QQ 群 `1108781835`**。
-入群同样必须遵守 [CONTRIBUTING.md](CONTRIBUTING.md) 的安全红线：**严禁在群里传官方固件、不发内存 Dump 镜像、不发个人隐私数据**。
-
----
-
-### 开源协议与声明
-
-本项目自研代码遵守 [GPL-3.0-only](LICENSE) 开源协议。本项目的灵感和基础来自于 NikonFirmwarePatch（同样为 GPL-3.0 协议）；致谢与引用来源详见 [NOTICE.md](NOTICE.md)。
-
-**特别声明**：打补丁生成的输出固件**绝不代表**享有 GPL 开源许可。本项目与尼康公司（Nikon）没有任何雇佣、合作或隶属关系，亦从未获得尼康的官方支持与背书。
-
-另见：[risks.md](docs/risks.md#known-unsafe-v111-2026-10-19).
+本项目工具源码采用 [GPL-3.0-only](LICENSE) 协议开源，派生自 NikonFirmwarePatch（GPL-3.0-only）。完整的署名信息与许可边界说明见 [NOTICE.md](NOTICE.md)。本项目与 Nikon（尼康）无任何隶属或合作关系。

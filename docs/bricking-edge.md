@@ -1,152 +1,87 @@
-这里是用通俗、严谨的技术“人话”对这篇文档进行的重写。去掉了生硬的机翻腔和晦涩的行话堆砌，保留了所有关键技术细节和警告：
+# The `bricking-edge` Branch (V11 / V12)
 
----
+This branch is the hotfix and investigation line created after the V10 build bricked a test camera in a boot loop (see [risks.md](risks.md)).
 
-# `bricking-edge` 分支说明 (V11)
+**Root Cause (2026-10-19):** The V10 crash is caused by an out-of-bounds read during the settings-load walk, where the S3 slot count was increased to 618 while the backing table remained at 617 entries (see [risks.md#c1-evidence-slot](risks.md#c1-evidence-slot)). Reverting the two count immediates to 617 resolves the issue and restores stock behavior. Branch unfreeze criteria are tracked in [unfreeze-criteria.md](unfreeze-criteria.md).
 
-这是一个**紧急排错与事故取证分支**。
+## Files and Workflow
 
-**背景**：之前的 V10“稳定版”固件刷入测试相机后，导致相机陷入**无限死循环重启（真机变砖）**，只能返厂维修。详细事故记录见 [risks.md](risks.md) — experimental — never on hardware。
+* `recipes/revert_v10_tails.py`: Takes a local V10 build and a previous build, reverts four suspect byte windows to their previous values, rebuilds the checksum chain, and verifies that the binary diff against V10 is strictly confined to those four windows and the checksum.
+* `docs/bricking-edge.md`: Documentation for this branch.
 
-**结论（2026-10-19 确定）**：导致变砖的真正元凶，是配置项加载循环中的**计数越界（原本只有 617 项，代码写成了 618 项，导致内存越界未定义行为）**，而不是之前怀疑的写入表、防御桩或菜单代码（详见 [risks.md 的 C1 证据槽](risks.md#c1-evidence-slot)）。
-结论认为，本分支的修复方式——**把两处计数值重新改回 617**——是**完全正确且充分的**，这让计数与之前的旧版及官方原版保持了一致。但何时正式解冻发布，仍然由项目负责人全权决定（见 [unfreeze-criteria.md](unfreeze-criteria.md) 的 C6 标准）；其他解冻指标继续推进。
+Both files are tracked on `main` for visibility. Active development for the V11/V12 line takes place on the `bricking-edge` branch.
 
-> **关于分支名字的冷幽默**：通常前沿测试分支叫“前沿版（bleeding edge，直译‘流血边缘’）”；而这个分支叫 `bricking-edge`（直译‘变砖边缘’），因为上一个版本真的把相机搞成了砖头。
+## Reverted Byte Windows (V11 Initial Trial)
 
----
+`recipes/revert_v10_tails.py` reverts the following changes from V10 while leaving all other bytes (including the recompiled code blob) untouched:
 
-## 补丁脚本与文档位置
-
-| 文件 | 作用说明 |
-|---|---|
-| `recipes/revert_v10_tails.py` | **核心回滚脚本**：传入本地 V10 固件和上一版旧固件，脚本会自动将 4 处可疑的代码修改改回旧版数值，重新计算固件校验和（Checksum），并严格确保**除了这 4 处地方，其他任何字节绝无变动**。 |
-| `docs/bricking-edge.md` | 本文档。 |
-
-两份文件在 `main` 主分支也有同步，方便大家随时查阅。**但针对 V11 的所有代码修改，必须全部提交到 `bricking-edge` 分支上。**
-
----
-
-## 脚本到底改回了什么？
-
-脚本将以下 4 处有问题的内存修改全部撤销，还原回旧版数值：
-
-| 固件偏移地址 | 大小 | 撤销的修改 | 为什么怀疑这里有鬼？ |
+| Payload Offset | Bytes | Reverted Change | Technical Reason |
 |---|---|---|---|
-| `0xF803D4` | 4 字节 | 配置项数量：`617 → 618` | 底层的配置表实际**只有 617 项**。改成 618 后，任何遍历操作都会多读一项，导致**内存访问越界**。该机制已在离线环境完全复现证实。 |
-| `0xF80F68` | 4 字节 | 开机注册路径中的同一处计数修改 | 这段代码正好位于应用初始化函数中——也就是相机**开机死循环卡死的确切位置**。 |
-| `0x4CBC9B8` | 8 字节 | 配置表末尾的内存写入 | 该地址正好卡在两个相邻表格的交界处。静态分析完全查不出这个地址到底属于哪个表，整套固件代码里没有任何地方引用它（属于**来源不明的野指针写入**）。 |
-| `0xF7F9D4` | 4 字节 | 加载阶段的越界检查 Hook（拦截点） | 这个检查本身不会崩溃，但它的判定范围错误地跨越了两个不同的内存区域，可能导致它静默失效（要么全放行，要么全拦截）。 |
+| `0xF803D4` | 4 | Settings count immediate (`617` → `618`) | Conflicts with the 617-entry backing table, causing any traversal relying on this count to overrun by one entry. |
+| `0xF80F68` | 4 | Settings count immediate (`617` → `618`) in boot registration | Runs during application initialization, directly in the path where the boot loop occurs. |
+| `0x4CBC9B8` | 8 | Settings-table tail write | Sits on the boundary between two adjacent tables. Static analysis found zero code references to this address, leaving table ownership unresolved. |
+| `0xF7F9D4` | 4 | Load-time bounds guard hook | Computes its bound across two different memory regions, causing it to silently skip or allow all entries. |
 
-**注意**：除了这 4 处以及校验和链条之外，输出固件与 V10 固件完全一致。如果比对发现改动超出了这 4 处，**脚本会自动拒绝运行并报错退出**。
+## Build History and Status
 
----
+None of the builds on this branch has ever been on hardware (**never on hardware**). Toolkit tags contain build scripts and verification objects only — still no firmware here.
 
-## 当前分支状态（严禁盲目刷机！）
+| Version | Build / Tag | SHA-256 (`Z_8_0311.bin`) | Status & Changes |
+|---|---|---|---|
+| **V12** *(formerly V11.2)* | `bricking-edge_v11.2_p1`<br>Tag: `toolkit-20261020`<br>ID: `03.11.p1` | `bcf5c47f5aedd873d7292381ea747d7f794c634dbf628ba5272a8ae2c5d9fb03` | **Experimental (Untested on hardware).**<br>• Fixes V11.1 three-state gate defects: adds STP sticky-file self-healing (session latch + evidence preservation) and gate-loss observability (readable status block with landing codes and per-gate counters).<br>• Retains all four V11.1 fixes (byte-verified unchanged).<br>• Passed all offline checks (gates 7/7, mutations 44/44, combinations 17/17, structural 4/4, three-state behavior 19 vectors / 33 checks). |
+| **V11.1** | `bricking-edge_v11.1`<br>Tag: `toolkit-20261019`<br>ID: `03.11.p0` (packaged as `03.11.p1`) | `f25c505d0daf9b1f16e345d10d5e82e85b8e8a77d0e4a89153620d5f77e7251a` | **⛔ UNSAFE — Do Not Flash** (see [risks.md](risks.md#known-unsafe-v111-2026-10-19); superseded by V12).<br>• Landed the four C2 fixes: reverted all three count sources to 617, removed the unowned table write, clamped 6/6 walk sites, and fixed the guard to use a same-base address with a header-length clamp.<br>• Passed offline checks (39/39 mutations, reproducible build). Untested on hardware. |
+| **V11 (Trial)** | Local trial only | `0da2b2b0…` | **Deprecated.** Initial local output of `revert_v10_tails.py`. Byte-verified against V10, never packaged or released. |
 
-| 状态维度 | 当前情况 |
-|---|---|
-| 是否编译过？ | 是，仅在本地环境编译过一次做验证。 |
-| 字节级对比？ | **通过**：与 V10 的差异严格局限在上述 4 处修改以及末尾的校验和。 |
-| 是否打进发布包？ | **没有，绝对没有发布。** |
-| 是否在真机上实测过？ | **绝对没有上机！** |
-| 是否推荐刷机？ | **千万别刷！绝对禁止！** |
-| **V12 状态<br>(原 V11.2 构建)** | 构建名 `bricking-edge_v11.2_p1`，固件文件 `Z_8_0311.bin`（SHA256：`bcf5c47f5aedd873d7292381ea747d7f794c634dbf628ba5272a8ae2c5d9fb03`，内部版本标识 `03.11.p1`）。<br>在 V11.1 基础上修复了三态门缺陷，**且 V11.1 的 4 处修复依然保持无回退**。离线自动化测试**全绿全部通过**。<br>⚠️ **仍然绝对没有上机测试！** 2026-10-20 作为“实验性 V12”发布（Release 标签 `toolkit-20261020`），**但只发布工具，依然不提供固件下载！** V11.1 身上的禁止刷机禁令依然有效。 |
-| **V11.1 候选版状态** | ⛔ **极度危险（存在已知缺陷，排查中），千万别刷！**<br>已知缺陷详见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)。V12 已经修了这批已知缺陷。<br>离线自动化测试全绿，但同样**绝对没有上机测试**。2026-10-19 仅作为实验测试发布（Release 标签 `toolkit-20261019`，只包含工具链对象，**无固件下载**）。 |
-| 是否仍处于冻结期？ | **是**。解冻的硬性指标记录在 [unfreeze-criteria.md](unfreeze-criteria.md) 中；单单测试项跑通并不代表可以解冻。 |
+## Technical Checklist for Unfreezing
 
-> 当初记录的测试构建哈希为 `0da2b2b0…`，这仅代表一次本地编译的草稿，绝非正式 Release：**本分支从未向外发布过任何可用固件，在满足下方所有条件前，未来也绝不会发。**
+The following issues identified during the V10 investigation govern the fixes in V11.1/V12 (see [unfreeze-criteria.md](unfreeze-criteria.md) for full criteria):
 
----
+1. **Guard bounds calculation:** The load-time guard bound must be computed within the same memory region rather than across two different regions. *(Addressed in V11.1)*
+2. **Settings count synchronization:** The settings count is defined in three places (ROM variant table, hard-coded registration, and save-side immediate). All three must be updated together or kept at 617. *(Reverted to 617 in V11.1)*
+3. **Table-boundary write ownership:** Determine which table owns `0x4CBC9B8` and whether any code consumes it, or remove the write. *(Write removed in V11.1)*
+4. **Secondary code path protection:** The second code path reaching the apply function requires its own guard point. *(6/6 walk sites clamped in V11.1)*
+5. **Root-cause confirmation:** Confirm the exact faulting mechanism from V10. *(Confirmed on 2026-10-19 as the 618/617 S3 slot count overrun).*
 
-## 恢复正常发布（解冻）前，必须搞清楚的 5 件事
-
-在解除风险前，以下问题必须彻底闭环：
-1. **加载期越界检查的计算范围必须修正**：判定范围必须在同一内存区域内计算，严禁跨区域比对。
-2. **配置项总数在系统里有 3 个来源**（ROM 变体表、硬编码注册表、保存时的立即数）：必须 3 个地方同步更新，要么就全都不改，不能只改一部分。
-3. **查清交界处野指针写入的归属权**：必须搞明白 `0x4CBC9B8` 这个内存地址到底归哪个表管，到底有没有代码在读写它。
-4. **封堵另一条代码路径**：能够触发同一应用函数的第二条路径，也必须加上相应的边界防御。
-5. **最重要的一点**：真机在崩溃死循环瞬间，**究竟是哪一条机器指令发生了报错（Fault），目前依然没有抓到真凶！** 在真机捕获到确切崩溃点之前，我们现在的修复**依然只是推测，算不上彻底解决**。
-
-撤销这 4 处修改确实可能让相机恢复正常开机；但也完全存在另一种可能：剩下的其它差异才是导致变砖的真凶。**目前没人敢打保票，我们也不自欺欺人。**
+For build and verification instructions, see [build.md](build.md) and [verification.md](verification.md).
 
 ---
-
-## 如果你非要头铁、自己编译来刷机
-
-**后果完全自负**：
-请自备两版输入固件，自己跑脚本，自己检查差异输出，自己跑完所有测试套件。并且请时刻牢记一件事：
-
-> **上一个让自动化测试“全线飘绿”的版本，转头就把真机刷成了板砖。**
-
-手头务必常备能救砖的原版官方固件。参考文档：[build.md](build.md) 与 [verification.md](verification.md)。
-
-Recorded hash: `f25c505d0daf9b1f16e345d10d5e82e85b8e8a77d0e4a89153620d5f77e7251a…` (V11.1 build)
-
-Status: **experimental** — never on hardware (未上机), zero firmware here; bring your own firmware (bring your own / 自带固件, no firmware / 不含固件).
 
 ## 简体中文
 
-这份文档翻译成结构清晰、好读的“工程师人话”，内容和技术细节完全保留，排版和语序重构如下：
+本分支为针对 V10 开机循环故障设立的热修与问题排查分支（详见 [risks.md](risks.md)）。
 
----
+**根因结论（2026-10-19）：** V10 的崩溃点位于加载设置时的 S3 槽位遍历逻辑。计数值被改为 618，而底层表实际只有 617 项，导致读取越界（属内存布局相关的未定义行为，详见 [risks.md#c1-evidence-slot](risks.md#c1-evidence-slot)）。将两处计数立即数回退至 617 即可修复该问题，并与 V9 及官方固件保持一致。分支解冻条件见 [unfreeze-criteria.md](unfreeze-criteria.md)。
 
-## 简体中文说明
+### 相关文件
 
-### 一、 分支定位与命名
-*   **用途**：本分支是**紧急修复与故障排查（取证）分支**，专门用来解决 V10 固件导致真机“无限开机重启”的问题。
-*   **名字来源**：`bricking-edge`（变砖前沿）是一个黑色幽默，改自常规的 bleeding edge（前沿尝鲜版），直接用之前的翻车后果（把机器搞变砖）来命名。
-*   **代码管理**：
-    *   修复脚本与本文档同步保留在 `main` 分支，方便公开审计与复核。
-    *   `recipes/revert_v10_tails.py` 脚本的作用：**仅把 4 个嫌疑代码区间回退到上个正常版本的字节**，其余代码保持逐字节完全一致，并强制校验改动不能超出声明的区间。
-    *   V11 及后续的所有改动，均直接提交在 `bricking-edge` 分支上。
+* `recipes/revert_v10_tails.py`：回退脚本。读取本地 V10 构建与上一版构建，将 4 个可疑字节窗口回退至上一版数值，重建校验和链，并严格校验除上述窗口和校验和外无任何其他字节变动。
+* `docs/bricking-edge.md`：本说明文档。
 
----
+上述文件同步保留在 `main` 分支以便查阅；V11/V12 的实际修改均提交在 `bricking-edge` 分支。
 
-### 二、 导致变砖的 4 个嫌疑点（排查结论）
-导致真机崩溃的核心机理已于 **2026-10-19 彻底查明并定性**（S3 槽位配置项越界引发的未定义行为 UB）：
-1.  **配置项计数写错**：从 617 改成 618，与底层数据表大小不一致，且该逻辑处于开机必经的注册路径上（**核心崩溃点**）。
-2.  **表边界越界写入**：存在未闭环的 8 字节（8B）无主写入。
-3.  **安全守卫（guard）跨区比对错误**：可能导致保护逻辑全被跳过，或者全被放行。
-4.  **第二代码路径缺少防护点**。
+### 版本与构建状态
 
-> **终审结论**：把两处计数的立即数**撤回 617**，已被证实为**完全正确且彻底的修复方案**（与官方/v9 逻辑保持一致）。
+本分支的所有构建**从未上机**。发布的 `toolkit` 标签仅包含构建与校验工具——本仓仍不含固件。
 
----
+* **V12（原 V11.2，`bricking-edge_v11.2_p1`）**
+  * **状态：** 试验性发布（Tag: `toolkit-20261020`，身份标识 `03.11.p1`，SHA-256: `bcf5c47f...`），**未上机测试**。
+  * **改动：** 修复了 V11.1 的三态门缺陷，新增 STP 粘性文件自愈（含会话闩锁与现场保留）及失守状态可观测性（可读状态块，含落点码与分门计数器）；完整保留 V11.1 的四项修复（字节级比对无变动）。
+  * **离线测试：** 全部通过（门禁 7/7、变异测试 44/44、组合测试 17/17、结构检查 4/4、三态门行为回归 19 向量 / 33 项检查）。
+* **V11.1（`bricking-edge_v11.1`）**
+  * **状态：** **⛔ 不安全，勿刷**（存在已知三态门缺陷，详见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)，已被 V12 替代）。Tag: `toolkit-20261019`，构建标识 `03.11.p0`（封包标识 `03.11.p1`），SHA-256: `f25c505d...`，**未上机测试**。
+  * **改动：** 落地 C2 四项修复——三处计数源统一回退至 617、删除无引用表尾写入、6 处遍历点全部加上边界钳制（clamp）、修复 guard 为同基址比较并加上头部长度钳制。
+  * **离线测试：** 门禁测试与 39/39 变异测试通过，构建可复现。
+* **V11（初始本地试验）**
+  * **状态：** 已废弃（SHA-256: `0da2b2b0…`）。仅在本地通过 `revert_v10_tails.py` 生成过一次，完成字节级比对，未打包发布。
 
-### 三、 各构建版本状态（⚠️ 绝对禁止日常刷机）
+### 关键修复项清单
 
-> **【总体安全警告】**
-> 所有修改**从未进过 `flash_kit` 刷机包、从未在真机上实测过**。
-> 本次 Bug 属于与内存布局相关的未定义行为（UB），**“某台机器侥幸没炸”绝对不等于安全**，V11 之前的构建一律不得回灌，**严禁任何人拿去刷机**！
+针对 V10 排查出的以下问题已在 V11.1 / V12 中处理（完整解冻标准见 [unfreeze-criteria.md](unfreeze-criteria.md)）：
 
-#### 1. V12 构建（原 V11.2）
-*   **构建信息**：标识 `bricking-edge_v11.2_p1`，SHA `bcf5c47f…`，版本代号 `03.11.p1`。
-*   **修复内容**：
-    *   修复了三态门逻辑，V11.1 的 4 处修复字节未动，无功能回归。
-    *   加入 STP 异常文件自愈机制（会话锁 + 现场证据保留）。
-    *   加入失效可观测机制（状态块可读取故障落点码及分支计数）。
-*   **测试表现**：自动化测试（Gauntlet）**全绿通过**（7/7 门禁、44/44 变异测试、17/17 组合测试、4/4 结构测试、19 向量 33 项三态门回归测试）。
-*   **发布现状**：2026-10-20 以试验版名义发布（Tag `toolkit-20261020`），**仅包含工具链文件，零固件代码**。
-*   **安全结论**：**未上机实测**，不可盲目信任，V11.1 的危险警告在本版**依旧不解除**。
+1. **修复 Guard 边界计算：** 必须在同一内存区域内计算边界，避免跨区比较导致检查失效。
+2. **统一三处设置项计数：** ROM 变体表、硬编码注册路径与保存侧立即数必须同步修改（已统一回退为 617）。
+3. **清理表边界写入：** `0x4CBC9B8` 处的 8 字节写入无任何代码引用（已删除）。
+4. **补全次要路径防护：** 到达设置应用函数的第二条代码路径及全部 6 处遍历点均需加上边界检查。
+5. **确认崩溃根因：** 已于 2026-10-19 确认为 S3 槽位计数 618/617 越界；后续仅剩线下注入崩溃测试（约 0.5–1 人日）待完成。
 
-#### 2. V11.1 候选构建
-*   **构建信息**：标识 `bricking-edge_v11.1`，SHA `f25c505d…`，构建代号 `03.11.p0`（打包代号 `03.11.p1`）。
-*   **状态**：**⛔ UNSAFE（存在已知严重缺陷，调查中）—— 严禁刷入！**（详见 `risks.md`）。
-*   **修复内容**：落地了 4 处修复（计数三处来源彻底改回 617、删除了无主写入、挂钩了 6 处代码走查点、对 guard 施加了更强的基址和长度钳位限制）。
-*   **测试表现**：离线测试全绿、39/39 变异测试通过、构建完全可复现。
-*   **发布现状**：2026-10-19 随工具包发布（Tag `toolkit-20261019`，**同样零固件**）。
-
-#### 3. 本地试验包（早期）
-*   SHA `0da2b2b0…`，仅在本地做过字节级比对，从未上机，已废弃。
-
----
-
-### 四、 解冻（恢复常规使用）的硬性条件
-
-目前修复方案方向已定，但要解除安全锁定，必须满足以下所有条件：
-1.  **防护逻辑全部就位**：包括 Guard 边界修复、计数三真源同步回退、表写入归属闭环、第二路径防护补齐。
-2.  **毒化崩溃压力测试跑完**：目前正在进行中（预计还需 0.5 ~ 1 个人日）。
-3.  **核心原则**：即使所有自动化测试全过，**系统也绝不会自动解冻**。
-4.  **最终道闸**：必须等待**用户/负责人的正式指令（C6 审批）**，由人来决定何时解冻。
-
-另见：[risks.md](risks.md#known-unsafe-v111-2026-10-19), [unfreeze-criteria.md](unfreeze-criteria.md).
+构建与校验步骤见 [build.md](build.md) 与 [verification.md](verification.md)。

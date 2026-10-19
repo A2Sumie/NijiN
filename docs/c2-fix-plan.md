@@ -1,154 +1,112 @@
-这是一份用**清晰、直接的工程大白话**重写的版本。保留了所有关键技术细节、寄存器/地址和决策逻辑，去掉了原版晦涩的黑话和行话堆砌。
+# C2 Fix Plan — V11 Line
+
+**Status (2026-10-19)**: Implemented in **V11.1 candidate** (`he_star/build/bricking-edge_v11.1/`, `Z_8_0311.bin`, SHA `f25c505d…`, version `03.11.p0`). All four fixes are landed and verified offline. See `scratch/expeed7_v2/100_BUILD_LOG.md` (§ "V11.1 候选") for build logs. References: `126_BOOTLOOP_FORENSICS.md`, `123_T4_CHAIN.md`. Closes [open-items #2–5](open-items.md).
+
+### Summary: Plan vs. Landed
+
+| Fix | Original Plan | Landed Implementation |
+|---|---|---|
+| **1. Guard bound** | Compare within the same memory region: `bound = file_base + header_len` | Implemented via `end_off = (ptr − base) + size` vs `total = [x25, #0x10]`. Added base underflow check, header-length clamp `[0x80, 2MiB]`, and a `ret`-style skip path for multi-site reuse. |
+| **2. Count sources** | Sync all three count sources (grow all to 618, or shrink all to 617). | **Shrank to 617**. Reverted both hardcoded immediates to 617 to match the ROM table. Added static check G3.8 and mutation test M35. |
+| **3. Table-boundary write** | Delete the 8B write, or prove a consumer exists. | **Deleted**. Reverted to zeros after static scans, watchpoints, and table cross-checks confirmed zero consumers — the write either hit an alignment gap (harmless) or `rec0`'s pad field, corrupting the record. |
+| **4. Walk coverage** | Add bounds check to all 6 loop sites. | **6/6 sites hooked** (L2/LC → `_guard`, L1/LB → `_s28`, LS/L3 → `_s24`). Added xref check G3.6, mutation tests M38/M39, and unit tests — any site left unguarded stays a crash risk. |
 
 ---
 
-# V11 固件分支 C2 修复方案说明
+## Fix 1 — Guard Bound: Compare Within One Memory Region
 
-> **当前状态（2026-10-19）**：
-> 针对 v10 固件的 **4 项修复已全部在离线环境中完成并验证**，打包为 **V11.1 候选版本**（路径 `he_star/build/bricking-edge_v11.1/`，固件文件 `Z_8_0311.bin`，哈希 `f25c505d…`，版本标识 `03.11.p0`）。
-> 
-> **注意**：目前**尚未真机刷机，也未公开发布**。虽然离线验证满足了标准 C2，但解冻流程仍需负责人按规则签字闭环。
+* **Problem**: The bounds check stub (`0x40967B84`, hooked at `0xF7F9D4`) calculates `bound = x25 + header_len`, where `x25` (`0xA0480dc78`) is the 32-byte header copy. However, the item buffer `x3` points into the file-image buffer (base stored at `*(u64*)0xA0480dc70`). Comparing `item_end <= bound` compares pointers across two different heap allocations. Depending on heap layout, this silently skips all items or allows out-of-bounds reads.
+* **Fix**: Calculate the bound using the file-image base: `bound = *(u64*)0xA0480dc70 + header_len`, and clamp `header_len` to `[0x80, 2MiB]`. Keep register contracts (`w9/x9/x10/x16` scratch, `x30` preserved) and fail-safe behavior (skip out-of-range items) unchanged.
+* **Verification**:
+  1. Unit test: Verify `item_end <= bound` per item on both valid and truncated files.
+  2. Static check: Enforce that both comparison operands derive from the same base pointer.
+  3. Fault injection: Confirm out-of-bounds directory entries are skipped individually without dropping valid items.
+  4. Regression: Pass settings-file suite (R1/R2/R3) and verify binary diff is isolated to the stub.
 
----
+## Fix 2 — Settings Count: Synchronize All Three Sources
 
-### 快速总结：计划 vs 最终落地
+The settings item count is defined in three places:
 
-| 修复项 | 原定计划 | 最终实际落地 | 变化说明 |
+| Source | Location | Default (Variants 1–4) | V10 State |
 |---|---|---|---|
-| **Fix 1：边界防越界检查** | 统一基准地址：`上限 = 文件镜像基址 + Header长度` | 统一基准地址，**并追加了 Header 长度合法性校验（必须在 128B ~ 2MB 之间）**；提取公用桩函数供多处复用 | **比原计划更严格稳妥**（杜绝了 Header 数据本身损坏导致的误判） |
-| **Fix 4：所有遍历循环覆盖** | 给全部 6 处遍历代码加上边界拦截 | 6 处循环已全部挂接拦截桩，新增交叉引用门禁与自动化测试 | 按计划完成 |
-| **Fix 3：表间隙 8 字节神秘写入** | 方案 A（直接删除）或方案 B（证明有用再保留） | **采用方案 A：直接删除**。经过静态反汇编、动态断点和数据表交叉比对，证实没有任何代码在读写这 8 字节 | 按计划落地（选了最稳妥的方案 A） |
-| **Fix 2：配置项计数不一致** | 统一改成 618（扩容）或统一改成 617（缩容） | **统一缩回 617**，不乱改 ROM 表，新增一致性校验门禁 | 按计划落地（选了推荐的缩容方案） |
+| ROM variant table (R1 load path) | `0x44182f90..0x44182ff0` (S3 at `0x44182fe0`) | 472, 572, 586, **617** | **617** (unchanged) |
+| R2 boot registration hardcoded value | VA `0x410e0f04` (Variant 3) | S3 = **617** (COUNT1 1112 / COUNT2 184 / COUNT3 331 / COUNT4 79 / S2 11 / len 340346) | Changed to **618** |
+| Save-side immediate | `0xF803D4` | **617** | Changed to **618** |
+
+* **Problem**: V10 updated two sources to 618, while the ROM table and the underlying data arrays (`0x299xxxx`) remained at 617 entries. Loops relying on the 618 count overrun the array by one entry during boot (between R2 and R1) and during save operations.
+* **Fix**: 
+  * *Option A (Grow)*: Set all three to 618 and extend the underlying data arrays. Requires defining a valid 618th entry.
+  * *Option B (Shrink — Landed)*: Revert all three sources to 617. Rely on the Fix 1 guard to handle bounds.
+* **Verification**:
+  1. Static check: Assert all three count locations have identical values at build time.
+  2. Emulator: Verify table walks complete 617 iterations cleanly and the guard rejects a forged 618th item.
+  3. Regression: Pass settings suite and verify binary diff is isolated to the count addresses.
+
+## Fix 3 — Table-Boundary 8-Byte Write: Revert
+
+* **Problem**: V10 writes 8 bytes (`00 08 00 00 00 01 00 00`) to `0x4CBC9B8`. This address sits at the boundary between a 628×8B table (`0x4CBB618..0x4CBC9B8`) and a 32-byte record table (`0x4CBC9C0`). It is either unused alignment padding or it overwrites the first record's padding field. Static analysis across all five firmware segments found zero references to this table.
+* **Fix**:
+  * *Option A (Delete — Landed)*: Revert the 8 bytes to zeros.
+  * *Option B (Prove)*: Place watchpoints on `0x4CBC9B8` during save/load cycles. Keep the write only if an active consumer is identified. (Note: Watchpoints and structural cross-checks confirmed 0 hits; Option A was executed).
+* **Verification**:
+  1. Binary diff confirms the 8 bytes are reverted to zero with no unintended changes.
+  2. Build rule: Reject patches that write to unreferenced memory regions.
+  3. Regression: Pass settings save/load test suite.
+
+## Fix 4 — Loop Coverage: Guard All Six Walk Sites
+
+The settings apply functions (`0x410E1AA8` and `0x410E1790`) are called from six loops, five of which lacked bounds checks in V10:
+
+| Loop | Hook Site | Target Function | V10 Guard Status |
+|---|---|---|---|
+| L2 blob (S0/S1) | `0xF7F9D4` | `0x410E1AA8` | Guarded (buggy bound, see Fix 1) |
+| LC blob (bank) | `0xF7FBF8` | `0x410E1AA8` | **Unprotected** |
+| L1 scalar (S0/S1) | `0xF7F8D4` | `0x410E1790` | **Unprotected** |
+| LB scalar (bank) | `0xF7FB2C` | `0x410E1790` | **Unprotected** |
+| LS scalar (S2 record) | `0xF7FCA8` | `0x410E1790` | **Unprotected** |
+| L3 scalar (S3 bank) | `0xF7FE28` | `0x410E1790` | **Unprotected** |
+
+* **Fix**: Apply the corrected bounds guard from Fix 1 to all six sites. LC shares L2's register convention (`x3` = buffer, `w2` = size, `x25` = header copy, `x30` = LR) and reuses the same stub. The four scalar loops use adapted stubs matching their stride (`4B × count`).
+* **Verification**:
+  1. Static check: Xref scan must confirm every `bl 0x410E1AA8` and `bl 0x410E1790` call site is hooked.
+  2. Emulator & Fault Injection: Confirm forged oversized items are skipped in each of the six loops without affecting subsequent items.
+  3. Regression: Full settings suite pass, binary diff check, and boot-path smoke test ([unfreeze-criteria.md](unfreeze-criteria.md) C4).
+
+## Execution Order
+
+1. **Fix 1**: Fix the bounds calculation logic first.
+2. **Fix 4**: Deploy the corrected bounds check across all six loop sites.
+3. **Fix 3**: Remove the unreferenced 8-byte write.
+4. **Fix 2**: Revert the item counts back to 617.
 
 ---
-
-## Fix 1 —— 修复越界检查：不要跨内存区域比地址
-
-* **之前错在哪**：
-  原有的防越界拦截代码（位于 `0x40967B84`）算上限时算错了。它用 `x25` 寄存器里的地址加上 Header 长度当作上限，但 `x25` 指向的是系统**拷出来的 32 字节小头信息**；而真正遍历的数据项 `x3`，却躺在堆内存里的**原始文件镜像区**（基址在 `*(u64*)0xA0480dc70`）。
-  拿着 A 区域的地址去和 B 区域的地址比大小，谁大谁小完全看堆内存随机分配的结果——要么**所有数据都被误判为越界（啥都不加载）**，要么**越界了也完全拦不住（全部放行）**。
-* **怎么改的**：
-  把两边拉到同一个基准上比：统一用 `原始文件镜像基址 + Header长度` 作为上限。寄存器约定和行为保持不变（超出范围就跳过该项，保留默认值）。
-  *落地加固*：顺便加上了 Header 长度的合理性范围校验（128 字节 ～ 2MB），防止损坏的 Header 把上限算崩。
-* **验证与风险**：
-  风险极低。只要逻辑正确，只拦截非法数据，合法数据正常放行。已通过单元测试和各种长短文件的边界测试。
-
----
-
-## Fix 2 —— 配置项总数：三处来源必须统一，统一改回 617
-
-固件里有 **3 个地方** 在记录“配置项到底有多少条”：
-1. **ROM 变体表**（加载配置时读取）：写的是 **617**（v10 没有改动它）。
-2. **开机注册硬编码**（开机启动链）：原版是 617，**v10 手抖改成了 618**。
-3. **保存逻辑里的硬编码**：原版是 617，**v10 也手抖改成了 618**。
-
-* **之前错在哪**：
-  开机和保存逻辑以为有 618 项，但底层实际存储的数据表（`0x299xxxx` 数组）里**只有 617 项**！这就导致程序一定会去读第 618 项，造成**越界访问（Off-by-one 内存溢出）**。
-* **怎么选方案**：
-  * **方案 A（扩容成 618）**：三处都改成 618，并真正把底层数据表扩容。但没人知道第 618 项应该填什么数据，极易引入新 Bug。
-  * **方案 B（缩容回 617，推荐）**：三处全部改回 617，老老实实认账，配合 Fix 1 的边界保护，彻底杜绝越界。
-* **最终决定**：
-  **执行方案 B**。全部改回 617。放弃 v10 原本想搞但没做成的未知扩展，确保绝对稳定。
-
----
-
-## Fix 3 —— 表边界的 8 字节写入：查无此人，直接删掉
-
-v10 在地址 `0x4CBC9B8` 处强行写了 8 个字节（`00 08 00 00 00 01 00 00`）。这个位置正好夹在两张表中间：前面是一张 628 项的表，后面是一张每条 32 字节的记录表。
-这 8 个字节的位置非常危险：它要么刚好是两张表之间的内存对齐空隙（写了白写），要么**其实是第二张表第一条记录的对齐填充字段（写了会破坏数据）**。
-
-* **调查结果**：
-  1. **静态扫描**：翻遍了全部 5 个代码段的所有指令，没有任何一处引用了这个地址。
-  2. **动态断点**：在模拟器中对该地址设监控断点，从开机一直点到菜单操作，没有任何代码去读写它。
-  3. **数据比对**：两张表根本不对应（一张 624 条，另一张 286 条，重合极少），写入这里毫无意义。
-* **怎么处理**：
-  **直接删掉这段写入（方案 A）**，把那 8 字节改回原本的全 0。没有任何副作用，消除了暗病隐患。
-
----
-
-## Fix 4 —— 补齐所有遍历循环的检查：不能只防一处
-
-配置解析生效函数（`0x410E1AA8` / `0x410E1790`）其实在代码里被 **6 个不同的循环** 调用（2 个处理大块内存 blob，4 个处理单标量 scalar）。
-* **之前错在哪**：
-  v10 **只防了第 1 个循环（L2）**，而且边界还算错了（就是 Fix 1 修的问题）；**剩下的 5 个循环全在裸奔**，没有任何越界检查。
-* **怎么改的**：
-  既然 Fix 1 已经把边界检查桩函数写好了，现在把这个拦截检查推广到**全部 6 个循环**：
-  * 大块对象循环（L2、LC）：共用同一个防线桩。
-  * 标量循环（L1、LB、LS、L3）：按每次步进 4 字节的规则分别挂上对应的校验。
-* **验证与风险**：
-  增加了一组自动化门禁，只要反汇编发现任何一个调用点没挂拦截钩子，就拒绝编译。每个循环都针对“故意构造的超长文件”进行了测试，确保超长项能被精准丢弃、其余正常生效。
-
----
-
-## 四项修复的执行依赖顺序
-
-这 4 个修复不能乱序合入，必须按以下顺序推进：
-1. **先做 Fix 1**：把最底层的“文件边界到底怎么算”算准，这是后面所有防线的基础。
-2. **再做 Fix 4**：拿着 Fix 1 算准的逻辑，给全部 6 处循环全部套上金箍。
-3. **接着做 Fix 3**：调查那 8 个字节到底有没有用（最终确认无用，删掉）。
-4. **最后做 Fix 2**：根据 Fix 3 的结论顺理成章收尾——既然不扩充新数据，就把配置总数一致性回滚为 617。
-
-See also: [open-items.md](open-items.md), [unfreeze-criteria.md](unfreeze-criteria.md).
-
-Anchors: R2 hard-code `0x410e0f04`, ROM variant table `0x44182fe0`.
 
 ## 简体中文
 
-这份技术预案已翻译整理为逻辑清晰、通俗易懂的工程语言：
+**状态（2026-10-19）**：四项修复均已合入 **V11.1 候选版本**（`Z_8_0311.bin`，SHA `f25c505d…`）并通过离线验证。详细构建记录见 `100_BUILD_LOG.md`，底层分析参考 `126_BOOTLOOP_FORENSICS.md` 与 `123_T4_CHAIN.md`。用于关闭 [open-items #2–5](open-items.md)。
 
----
+**① 修正边界检查（Guard Bound）的跨区指针比较**（漏防即崩溃风险）
+* **问题**：现有边界检查桩代码将 `x25`（`0xA0480dc78` 处的 32 字节文件头副本）加上长度作为上限（`bound`），但实际被检查的数据指针 `x3` 位于文件镜像缓冲区（基址存于 `0xA0480dc70`）。这导致两个不同内存区域的指针直接比较，实际运行结果取决于堆内存分配位置，表现为“全部跳过”或“全部放行”。
+* **修复**：统一使用文件镜像基址计算上限：`bound = *(u64*)0xA0480dc70 + header_len`，并将 `header_len` 限制在合理范围 `[0x80, 2MiB]` 内。保持原有的寄存器约定和跳过越界项的容错逻辑不变。
+* **验证**：长短文件逐项单元测试；新增静态检查规则（强制比较两端同基址）；故障注入测试（验证越界项被单独跳过）；R1/R2/R3 设置回归测试与二进制差分检查。
 
-### 说明：这是预案，不是可执行代码
-**目前严禁写代码，也严禁触发构建。** 在这 4 项修复全部落到实处并通过离线验证之前，[unfreeze-criteria.md](unfreeze-criteria.md) 中的 **C2 条件依然判定为“未达成”**。所有排查依据均来自 `126_BOOTLOOP_FORENSICS.md` 和 `123_T4_CHAIN.md`，可核对本地日志。本方案用于关闭待办项 [open-items #2–5](open-items.md)。
+**② 统一三处设置项计数（Count）**
+* **问题**：设置项总数存在三个数据源：ROM 变体表 `0x44182fe0`（R1 载入用，值为 617）、R2 开机注册硬编码 `0x410e0f04`、以及保存路径立即数 `0xF803D4`。V10 版本仅将后两处改为了 618，而 ROM 表及底层数据数组（`0x299xxxx`）仍为 617 项，导致循环读取时发生单步越界。
+* **修复**：
+  * *方案 A（扩容）*：三处统一改为 618，并扩充底层数组（需明确第 618 项的数据结构定义）。
+  * *方案 B（回退 — 已落地）*：三处全部恢复为 617，依赖修复 ① 的边界检查拦截异常数据。
+* **验证**：构建时静态断言三处数值相等；模拟器验证 617 次循环无越界且能拦截伪造的第 618 项；回归测试通过。
 
----
+**③ 撤销表边界的 8 字节写入**
+* **问题**：V10 在 `0x4CBC9B8` 处写入了 8 字节数据，该地址夹在 628×8B 表末尾与 `0x4CBC9C0` 记录表开头之间，可能是对齐空隙，也可能覆盖了首条记录的字段。全固件静态扫描显示该表为 0 引用。
+* **修复**：
+  * *方案 A（删除 — 已落地）*：将该 8 字节回退清零。（注：经模拟器硬件断点监测及表结构交叉核对，确认无任何代码读取该地址，已执行删除）。
+  * *方案 B（取证）*：通过模拟器断点追踪读写操作，确认存在消费者后再保留写入。
+* **验证**：二进制差分确认仅回退该 8 字节；新增构建规则“禁止向无明确归属的内存表写入数据”。
 
-### ① 修复边界检查（Guard Bound）错误
-* **问题（现状）：** 比较时基地址跨区了。代码把 `x25`（头部副本指针 + 长度）当作边界，去检查处于 `[0xA0480dc70]`（真实文件镜像内存）里的条目。由于基地址根本对不上，真机运行时要么“全部误判跳过”，要么“全部误判放行”，边界保护完全失效。
-* **改法：** 让比较的两端对齐同一基地址。边界计算改为：`bound = *(u64*)0xA0480dc70 + 头长度`，或者直接将 `x25` 指向文件镜像缓冲。寄存器调用约定和原有的熔断（fail-safe）逻辑保持不变。
-* **验证与风险：** 
-  * 验证：单测长/短文件逐项检查、新增流水线卡点（比较两端基地址不一致直接拦截构建）、变异测试验证跳过逻辑、R1/R2/R3 设置项回归全绿、二进制（A/B）差分收敛。
-  * 风险低（此前已排除了该补丁导致崩溃的嫌疑）。**唯一残留风险：** 必须先校验“头长度”字段本身是否合法。
+**④ 补全其余 5 个循环的边界检查**
+* **问题**：调用设置应用函数（`0x410E1AA8` 和 `0x410E1790`）的循环共有 6 处。V10 仅在 L2（`0xF7F9D4`）挂载了检查，其余 5 处——LC（`0xF7FBF8`）、L1（`0xF7F8D4`）、LB（`0xF7FB2C`）、LS（`0xF7FCA8`）、L3（`0xF7FE28`）均无保护。
+* **修复**：修复 ① 完成后，将边界检查挂载到全部 6 个循环。LC 与 L2 寄存器约定相同，直接复用同一桩代码；其余 4 个标量循环按各自步长（`4B × count`）适配检查逻辑。
+* **验证**：新增交叉引用（xref）静态扫描，漏挂任何一处即拒绝构建；针对每个循环做超长项跳过测试；由于修改位于开机必经路径，需逐字节审查汇编并完成 C4 冒烟测试。
 
----
-
-### ② 统一三处条目计数（解决 617 与 618 冲突）
-* **问题（现状）：** 系统里有三处记录条目数量的地方对不上了：
-  1. ROM 变体表 `0x44182fe0`（R1 读取用）：**617 项**（未改动）；
-  2. 开机注册链 `0x410e0f04`（R2 阶段）：**618 项**（v10 版本改了）；
-  3. 保存逻辑 `0xF803D4`：**618 项**（v10 版本改了）。  
-  **严重的是：底层实际分配的列表空间依然只有 617 项。**
-* **两个解决方向：**
-  * **方案 A（扩容）：** 三处全改成 618，同时把底层列表（`0x299xxxx` 族）也扩充到 618 个槽位。*（缺点：必须先搞清楚第 618 项具体是什么，否则就是瞎猜乱改。）*
-  * **方案 B（缩容，推荐）：** 三处全部改回 617，靠修好的 ① 号边界检查在文件内做安全截断。*（风险最小。）*
-* **验证与建议：** 
-  * 验证：加静态检查卡点（三处不相等直接报错）、模拟器跑两种计数的路径、变异测试“计数不一致即拒绝”、回归测试全绿。
-  * **建议：除非在第 ③ 项中查明了归属，否则坚决走“方案 B”退回 617。**
-
----
-
-### ③ 查明表尾 8 字节（8B）写入的归属
-* **问题（现状）：** 内存 `0x4CBC9B8` 处发生了一次 8 字节的写入。这个地址夹在 628×8B 表尾和 32B 记录表头（`0x4CBC9C0`）之间。它**可能只是 harmless 的内存对齐填充**，但也**可能是后一张表第一条记录（rec0）的前垫数据（会导致后表被踩坏）**。全固件里没有任何代码读写这个地址，光看静态代码查不出真相。
-* **两种解法：**
-  * **删（安全解）：** 彻底删掉这次写入（回退为 0），永远不会踩内存。
-  * **证（彻底解）：** 模拟器设内存断点（watchpoint）+ 运行时跟踪 + 交叉核对 628 个槽位。只有抓到真有模块在读这 8 字节才允许写；如果确实没人用，改写到原本的卡路列表族（`0x299xxxx`）。
-* **验证：** 二进制差分严格限制在声明区间；新增规则：**“所有写入区间必须有明确归属模块，写无主内存直接打回”**。
-
----
-
-### ④ 补齐第二处循环及标量循环的 Hook
-* **问题（现状）：** 调用 `bl 0x410E1AA8` 的地方全固件有两处，目前只给 L2（`0xF7F9D4`）挂了保护，**漏掉了 LC（`0xF7FBF8`）**；另外还有四个走 `0x410E1790` 的标量循环（L1/LB/LS/L3）完全没有任何边界保护。
-* **改法：** LC 与 L2 的寄存器约定完全一致，等第 ① 项把 bound 改对之后，直接把 L2 的 Hook 模板复用到 LC 上。
-* **验证与风险：** 
-  * **高风险告警：** 这又是在开机必经路径上加 Hook（上一次死循环开不了机正是这里引起的）。每个 Hook 的机器码必须逐字节人工交叉审核，且必须经受住 C4 冒烟测试。
-  * 验证：反编译交叉引用（xref）扫描门禁（漏挂一处直接打回）、每个循环族做一条变异测试、设置回归绿、二进制差分收敛。
-
----
-
-### 推荐执行顺序
-1. **先做 ①（核心前提）：** 把边界判断逻辑修对，后面所有的防护都依赖这个正确的 bound。
-2. **再做 ④：** 用修好的 bound 规则把漏挂的 LC 循环 Hook 补上。
-3. **接着做 ③：** 决定那神秘的 8 字节是“直接删掉”还是“跑模拟器查证归属”（选“删掉”最稳，且不影响其他逻辑）。
-4. **最后做 ②：** 计数统一的方向跟着 ③ 走：
-   * 如果 ③ 证明确实有第 618 项的必要 $\rightarrow$ **走 A（全扩容至 618）**；
-   * 如果 ③ 选择了删除不确定写入 $\rightarrow$ **走 B（全回退至 617，最安全）**。
+**执行顺序**：①（修复计算逻辑）→ ④（铺开到所有循环）→ ③（清理无用写入）→ ②（回退计数至 617）。

@@ -1,64 +1,39 @@
 # Unfreeze criteria for the `bricking-edge` line
 
-The V11 line is frozen. This document writes down the bar it must clear
-before anyone even proposes unfreezing it. Meeting every criterion here
-does **not** unfreeze anything: **unfreezing is the owner's decision**, and
-this page only makes the threshold explicit so the decision is made against
-a written standard instead of a mood.
+The V11 (`bricking-edge`) branch is currently frozen. The line exists because a V10 build bricked a camera, and building or flashing anything from it is entirely your own risk. All criteria below must be met before the owner approves unfreezing it.
 
-Each criterion names the [open items](open-items.md) it closes.
+## Criteria
 
-## The criteria
-
-| # | Criterion | What counts as met | Closes |
+| # | Criterion | Requirements | Closes |
 |---|---|---|---|
-| C1 | **Root cause closed.** The V10 boot loop has an identified faulting instruction or path | A verdict recorded in [risks.md](risks.md) with its evidence grade, reproducible either on hardware or by static-plus-dynamic analysis that leaves no alternative in the delta. "Plausible story" is not a verdict. **Mechanically: the C1 evidence slot in [risks.md](risks.md#c1-evidence-slot) is filled field by field** — verdict, grade, record and code anchors, delta-exhaustion statement, reproduction status, what stays unproven | [open-items #1](open-items.md) |
-| C2 ✅ | **Fix designed and verified offline.** *Met 2026-10-19:* build `bricking-edge_v11.1` (`f25c505d…`), four fixes landed, unit tests 9/9, gates G3.5–G3.8, evidence in `100_BUILD_LOG.md §V11.1`.* Every known defect in the boot-reachable changes is corrected | Guard bound computed from the correct region; the settings count changed in all three sources of truth together; the table-boundary write either removed or its ownership proven; the second path to the apply function guarded. Each with before/after evidence, not just a rebuilt binary. The recipe-level plan is [c2-fix-plan.md](c2-fix-plan.md) | [open-items #2–5](open-items.md) |
-| C3 ✅ | **Offline all green, and reproducibly so.** *Met 2026-10-19:* gauntlet ALL GREEN (gates 7/7, mutations 39/39 incl. five new ones, combinations 17/17, structural 4/4), rebuild byte-identical, four repository checks green, recipe hashes locked.* The candidate passes the full battery | Full gauntlet run green (gates, mutation battery, combination matrix, structural torture), rebuild reproducible byte for byte, the repository's four checks green, recipe source hashes locked | [open-items #2–5](open-items.md) |
-| C4 | **One on-device smoke, or an explicit waiver.** Either the candidate boots and shoots on a test body under single-variable discipline, or the owner waives hardware smoke in writing | A smoke record (what was flashed, what was tried, what was observed) in the ledger — **or** a ledger entry from the owner explicitly accepting the risk of skipping it. Silence is not a waiver. The smoke's executable shape is [c4-smoke-plan.md](c4-smoke-plan.md) | [open-items #6](open-items.md) |
-| C5 | **The paper trail matches.** Docs, open items and the tracking log are updated before the change | Closed rows in [open-items.md](open-items.md) with evidence links; the state table in [bricking-edge.md](bricking-edge.md) rewritten; the [upstream tracking log](upstream-issue-3.md) reconciled if upstream found something | [open-items](open-items.md) |
-| C6 | **The owner decides.** An explicit instruction to unfreeze, recorded | A ledger entry. No process, checklist or green run unfreezes anything on its own | — |
+| C1 | **Root cause identified** | Pinpoint the exact instruction or code path causing the V10 boot loop. Must be reproduced on hardware, or proven via static and dynamic analysis that rules out all other changes in the diff. Complete all fields in the [C1 section of risks.md](risks.md#c1-evidence-slot) (verdict, evidence grade, code anchors, diff exhaustion, reproduction status, and remaining unknowns). | [open-items #1](open-items.md) |
+| C2 ✅ | **Fixes implemented and verified offline**<br>*(Met 2026-10-19: `bricking-edge_v11.1` / `f25c505d…`, 4 fixes landed, unit tests 9/9, gates G3.5–G3.8 passed; see `100_BUILD_LOG.md §V11.1`)* | Fix all known defects in boot-reachable code with before/after verification (see [c2-fix-plan.md](c2-fix-plan.md)):<br>- Calculate guard bounds from the correct memory region.<br>- Update the settings count across all three sources of truth.<br>- Remove the table-boundary write or prove its ownership.<br>- Add a guard to the second path calling the apply function. | [open-items #2–5](open-items.md) |
+| C3 ✅ | **Offline tests pass and build is reproducible**<br>*(Met 2026-10-19: gates 7/7, mutations 39/39, combinations 17/17, structural 4/4, byte-identical rebuild, repo checks 4/4, hashes locked)* | Pass the full test suite (gates, mutation tests, combination matrix, structural tests) and all four repository checks. Rebuilds must be byte-identical with locked recipe source hashes. | [open-items #2–5](open-items.md) |
+| C4 | **On-device smoke test (or written waiver)** | Boot and take a photo on a test device following [c4-smoke-plan.md](c4-smoke-plan.md) (changing one variable at a time), and log the results in the ledger. Alternatively, the owner may log a written waiver in the ledger to skip hardware testing.<br>*(Note: Emulator runs do not count, as they do not test flashing, the boot ROM, persistent settings, or the real startup sequence.)* | [open-items #6](open-items.md) |
+| C5 | **Documentation updated** | Close resolved items in [open-items.md](open-items.md) with evidence links, update the status table in [bricking-edge.md](bricking-edge.md), and sync the [upstream tracking log](upstream-issue-3.md) if upstream findings changed. | [open-items](open-items.md) |
+| C6 | **Owner sign-off** | Explicit approval to unfreeze recorded in the ledger by the owner. | — |
 
-## What does not count
+## Post-unfreeze testing rules
 
-- The emulator boots. A model reaching the photo menu says nothing about
-  flashing, the boot ROM, persistent settings or the real startup chain.
-- Another project could not reproduce its own incident. That is their
-  evidence, about their build.
-- The bytes are the same as some previous build. The previous builds are
-  exactly what bricked a camera.
-- Time passing, or the absence of new reports.
-
-## If the line is unfrozen
-
-The discipline does not relax:
-
-1. The first candidate is the V11 revert, never V10.
-2. One variable at a time, with the official package verified and ready to
-   reflash, per the generated pre-flash checklist.
-3. Stop at the first anomaly; do not push through it to "get more data".
-4. If anything recurs, refreeze first and investigate second.
+1. Start from the V11 revert build, not V10.
+2. Change one variable at a time. Keep a verified official firmware package ready for recovery and follow the generated pre-flash checklist.
+3. Stop immediately at the first anomaly.
+4. If the issue recurs, re-freeze the branch before investigating.
 
 ## 简体中文
 
-V11 线（`bricking-edge`）目前**冻结**。本文把"达到什么门槛才谈解冻"写清楚：
-**全部满足也不自动解冻——解冻是你的决定**，本文只让这个决定对着一份白纸黑字的
-门槛做，而不是对着感觉做。每条判据挂上 [open-items](open-items.md) 里它要销掉的项。
+V11（`bricking-edge`）分支目前处于冻结状态——这条线因一台相机被**刷砖**而生，构建与刷写风险自担。需满足以下全部条件，并由负责人最终确认后方可解冻：
 
-**六条门槛**：C1 **炸点定谳**——V10 开机循环有明确的出事指令或路径，判词进
-[risks.md](risks.md) 并带证据分级，要么真机复现、要么静态+动态分析把 delta 里的
-其它可能全部排除（"说得通的故事"不算定谳），销 #1；C2 **修复方案落地并离线验证**——
-guard bound 用正确区域算、计数三真源同改、表边界写删掉或证明归属、第二路径补防护点，
-每件要有前后证据而不是"重新编译了一遍"，销 #2–5；C3 **离线全绿且可复现**——全套
-gauntlet 绿、重建逐字节一致、仓内四查绿、配方源码哈希锁住，销 #2–5；C4 **一次上机
-冒烟或你明示豁免**——单变量纪律下真机开机拍照存台账，**或者**你在台账里明示承担
-跳过冒烟的风险（沉默不算豁免），销 #6；C5 **纸面对账**——open-items 逐项销账挂证据、
-[bricking-edge.md](bricking-edge.md) 状态表改写、上游 [tracking log](upstream-issue-3.md)
-有变先对齐；C6 **你下令解冻**并记台账——任何流程、清单、全绿都不构成解冻本身。
+- **C1 定位根本原因**：明确导致 V10 开机循环的具体指令或代码路径。需通过真机复现，或通过静态+动态分析排除 diff 中的所有其他可能。按要求填完 [risks.md](risks.md#c1-evidence-slot) 中的 C1 证据字段（结论、证据等级、代码位置、排除说明、复现状态及未知项）。（销项：[open-items #1](open-items.md)）
+- **C2 ✅ 完成修复并离线验证**（已于 2026-10-19 完成，见 `100_BUILD_LOG.md §V11.1`）：修复启动路径上的所有已知缺陷（详见 [c2-fix-plan.md](c2-fix-plan.md)），并提供修复前后的对比验证：用正确的内存区域计算 guard 边界；同步修改三处配置项计数；移除表边界写入或证明其归属；为调用 apply 函数的第二路径补充防护。（销项：[open-items #2–5](open-items.md)）
+- **C3 ✅ 离线测试全绿且构建可复现**（已于 2026-10-19 完成）：通过全部测试套件（门禁 7/7、变异测试 39/39、组合测试 17/17、结构测试 4/4）及仓库四项检查，锁定配方源码哈希，且重复构建产物逐字节一致。（销项：[open-items #2–5](open-items.md)）
+- **C4 真机冒烟测试（或书面豁免）**：按 [c4-smoke-plan.md](c4-smoke-plan.md) 在测试机上遵循单变量原则完成开机与拍照测试，并将结果记入台账；或由负责人在台账中明确记录豁免真机测试。*注：模拟器开机不能替代真机测试（不涉及刷写、Boot ROM、持久化设置及真实上电流程）。*（销项：[open-items #6](open-items.md)）
+- **C5 更新文档**：在 [open-items.md](open-items.md) 中关闭已解决项并附上证据链接，更新 [bricking-edge.md](bricking-edge.md) 状态表，如有上游进展需同步更新 [upstream-issue-3.md](upstream-issue-3.md)。
+- **C6 负责人审批**：负责人在台账中明确记录解冻指令。
 
-**不算数的**：模拟器能开机（不测刷写/boot ROM/保留设置/真实上电链）；别的项目没能
-复现它自己的事故（那是他们的构建、他们的证据）；字节和以前某版一样（以前那几版
-正是刷砖的那几版）；时间过去了、没人再报障。
+**解冻后的测试要求**：
 
-**若解冻**，纪律不松：第一个候选是 V11 回退包而不是 V10；单变量、官方包核好待刷、
-按生成的上机前检查单走；首个异常即停，不为"多拿数据"硬闯；复发就先重新冻结再查。
+1. 首个测试版本必须基于 V11 回退包，禁止使用 V10。
+2. 每次只改一个变量。刷机前备好经校验的官方恢复固件，并按生成的刷机前检查单执行。
+3. 遇到任何异常立即停止测试。
+4. 若问题复发，先重新冻结分支，再排查原因。
