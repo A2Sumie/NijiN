@@ -494,21 +494,60 @@ __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".popsection\n");
 /* v10 (122 §4 硬前置 1): NCSET012 load guard. The walk's item count comes from firmware-side
  * structures while old files carry fewer slots (position-encoded format, no per-item id) — an
- * unguarded walk reads past the segment. Site: eg 0xF7F9D4 (bl 0x410E1AA8 = the per-item apply).
- * The stub applies the item only when [buf, buf+size) lies inside the file (x25 = header, +0x10 =
- * total length); otherwise it returns 0 and the item keeps its default. Registers touched:
- * w9/x9/x10 (redefined at 0x410df9e8/0x410df9a0) and x16 (IP scratch, dies at the apply call). */
+ * unguarded walk reads past the segment. v11.1 (c2-fix-plan Fix 1 + Fix 4): the bound now shares
+ * one base with the compared item. Both comparison operands are file-image-base relative:
+ *   item end offset = (item pointer - file-image base) + size   and   file length = [x25,#0x10]
+ * so the compare is within one region (the file image at *(u64*)0xA0480dc70), unlike the v10
+ * stub which added the length to the 32B header copy at x25 and compared across two regions
+ * ("skip everything or allow everything", 126 §2). A pointer below the file-image base
+ * subtracts into a huge unsigned offset and is skipped; the header length itself is bounds-checked
+ * for plausibility before use (>= 0x80, <= 2 MiB) so a corrupt header cannot inflate the bound.
+ * Fail-safe unchanged: out-of-range item -> return 0, the item keeps its default. Return is `ret`
+ * (x30 = the hook site + 4), which makes the same stub reusable at every same-convention site.
+ * Registers touched: w9/x9/x10 (redefined at 0x410df9e8/0x410df9a0) and x16 (IP scratch, dies at
+ * the apply call); w0 carries the "applied" bit back (0 = skipped). */
+#define NCSET_GUARD_PROLOGUE                       \
+    "movz x16, #0xdc70\n\t"                        \
+    "movk x16, #0x480, lsl #16\n\t"                \
+    "movk x16, #0xa, lsl #32\n\t"                  \
+    "ldr x9, [x16]\n\t"                            \
+    "ldr w10, [x25, #0x10]\n\t"                    \
+    "cmp w10, #0x80\n\tb.lo 1f\n\t"                \
+    "cmp w10, #0x200, lsl #12\n\tb.hi 1f\n\t"
+#define NCSET_GUARD_TAIL(APPLY)                    \
+    "cmp x9, x10\n\tb.hi 1f\n\t"                   \
+    "movz x16, #" #APPLY "\n\t"                    \
+    "movk x16, #0x410e, lsl #16\n\tbr x16\n"       \
+    "1:\n\tmov w0, wzr\n\tret\n"
+/* L2 (eg 0xF7F9D4) + LC (eg 0xF7FBF8): blob walks, same convention (x3 = item buffer,
+ * w2 = size, x25 = header copy, x30 = return). Item end offset = x3 - base + w2. */
 __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".global precapture_ncset_guard\n.type precapture_ncset_guard,%function\n"
         "precapture_ncset_guard:\n\t"
-        "ldr w9, [x25, #0x10]\n\t"
-        "add x9, x25, x9\n\t"
-        "add x10, x3, x2\n\t"
-        "cmp x10, x9\n\t"
-        "b.hi 1f\n\t"
-        "movz x16, #0x1aa8\n\tmovk x16, #0x410e, lsl #16\n\tbr x16\n"
-        "1:\n\tmov w0, wzr\n\t"
-        "movz x16, #0xf9d8\n\tmovk x16, #0x410d, lsl #16\n\tbr x16\n"
+        NCSET_GUARD_PROLOGUE
+        "sub x9, x3, x9\n\t"
+        "add x9, x9, x2\n\t"
+        NCSET_GUARD_TAIL(0x1aa8)
+        ".popsection\n");
+/* L1 (0xF7F8D4) + LB (0xF7FB2C): scalar walks, 4B/step, index in x28, cursor in x23. */
+__asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
+        ".global precapture_ncset_guard_s28\n.type precapture_ncset_guard_s28,%function\n"
+        "precapture_ncset_guard_s28:\n\t"
+        NCSET_GUARD_PROLOGUE
+        "sub x9, x23, x9\n\t"
+        "add x9, x9, x28, lsl #2\n\t"
+        "add x9, x9, #4\n\t"
+        NCSET_GUARD_TAIL(0x1790)
+        ".popsection\n");
+/* LS (0xF7FD14) + L3 (0xF7FE28): scalar walks, 4B/step, index in x24, cursor in x23. */
+__asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
+        ".global precapture_ncset_guard_s24\n.type precapture_ncset_guard_s24,%function\n"
+        "precapture_ncset_guard_s24:\n\t"
+        NCSET_GUARD_PROLOGUE
+        "sub x9, x23, x9\n\t"
+        "add x9, x9, x24, lsl #2\n\t"
+        "add x9, x9, #4\n\t"
+        NCSET_GUARD_TAIL(0x1790)
         ".popsection\n");
 __asm__(".pushsection .text.precapture_stub,\"ax\",%progbits\n"
         ".global precapture_y_size_entry\n.type precapture_y_size_entry,%function\n"

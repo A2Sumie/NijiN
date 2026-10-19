@@ -44,16 +44,15 @@ def compile_code(compiler='clang'):
                      code_sha256=sha(code), code_bytes=len(code), sections=sections)
 
 
-def edits(code):
-    profile = json.loads((RESOURCES / 'precapture.json').read_text())
-    entries = {k: int(v, 16) for k, v in profile['entries'].items()}
+def values(code, entries):
+    """Single source of truth for every reviewed payload window (shared with work/lock_v111.py)."""
 
     def bl(at, to):
         d = to-at
         require(d % 4 == 0 and -(1 << 27) <= d < (1 << 27), 'Branch target out of range')
         return struct.pack('<I', 0x94000000 | ((d // 4) & 0x3ffffff))
 
-    values = {
+    return {
         0xe0fe90: bl(0x40f6fe90, entries['precapture_history_entry']),
         0xd4915c: bytes.fromhex('e00317aa') + bl(0x40ea9160, entries['precapture_tdec_release']) + bytes.fromhex('1f2003d5'),
         0xd43638: bl(0x40ea3638, entries['precapture_write_file']),
@@ -82,19 +81,32 @@ def edits(code):
         0xEB5860: bl(0x41015860, entries['precapture_bank_set']),
         # merged: extra windows (HE* budget + C30 1s capacity clamp; 103勘误: 0x4CD59D8=C120 不钳)
         0xD52564: struct.pack('<I', 0x14000000 | (((entries['precapture_grade_entry']-0x40EB2564)//4) & 0x3ffffff)),  # v9: per-grade +0x2ac
-        # v10 (122_NCSET_REAL): card serialization of menuh item 0x0800 + old-file load guard
-        0x4CBC9B8: struct.pack('<II', 0x00000800, 0x00000100),        # T4[628] tail: id 0x0800, S3 slot tag
-        0xF803D4: struct.pack('<I', 0x52804d46),                          # card S3 slot count 617 -> 618 (save side)
-        0xF80F68: struct.pack('<I', 0x52804d40),                          # card S3 slot count 617 -> 618 (load side)
-        0xF7F9D4: bl(0x410df9d4, entries['precapture_ncset_guard']),  # per-item apply -> bounds guard
+        # v11.1 (c2-fix-plan Fix 1 + Fix 4): the corrected same-base bounds guard at every walk site.
+        # v10's T4 tail write (0x4CBC9B8) and the two 617->618 count immediates (0xF803D4/0xF80F68)
+        # are deliberately absent: Fix 3 proved no consumer of the table boundary (static triad +
+        # watchpoint + 628-slot cross-check) -> the write is deleted; Fix 2 follows with option B
+        # (all three count sources stay at the ROM variant value 617).
+        0xF7F9D4: bl(0x410df9d4, entries['precapture_ncset_guard']),        # L2 blob walk -> guard
+        0xF7FBF8: bl(0x410dfbf8, entries['precapture_ncset_guard']),        # LC blob walk -> guard (same convention)
+        0xF7F8D4: bl(0x410df8d4, entries['precapture_ncset_guard_s28']),    # L1 scalar walk -> guard
+        0xF7FB2C: bl(0x410dfb2c, entries['precapture_ncset_guard_s28']),    # LB scalar walk -> guard
+        0xF7FD14: bl(0x410dfd14, entries['precapture_ncset_guard_s24']),    # LS scalar walk -> guard
+        0xF7FE28: bl(0x410dfe28, entries['precapture_ncset_guard_s24']),    # L3 scalar walk -> guard
 
-        0x4CD59D4: struct.pack('<I', 20),
+        # NOTE: no 0x4CD59D4 capacity-table row — v7 retired the firmware-side C30 clamp
+        # (lock_v7.py drops the row; RING_CAP is the single truth, enforced via CFG frames).
         LOADER: bytes.fromhex('080080d2e812a8f2'),
     }
+
+
+def edits(code):
+    profile = json.loads((RESOURCES / 'precapture.json').read_text())
+    entries = {k: int(v, 16) for k, v in profile['entries'].items()}
+    vals = values(code, entries)
     result = []
     for row in profile['patches']:
         at = int(row['offset'], 16)
-        raw = values[at]
+        raw = vals[at]
         require(len(raw) == row['bytes'] and sha(raw) == row['new_sha256'], 'Generated pre-capture edit differs')
         result.append(dict(offset=at, new=raw, purpose=row['purpose']))
     return result

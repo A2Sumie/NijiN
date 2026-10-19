@@ -1,23 +1,25 @@
 {
-  "id": "z8-c311-precapture-v3",
+  "id": "z8-c311-precapture-v4",
   "payload_bytes": 81807711,
-  "code_bytes": 35053,
-  "code_sha256": "fb53a54994b10f5db35ce53e1389b42292cbdb1829e0410b547bed7de2a4036e",
+  "code_bytes": 35229,
+  "code_sha256": "8fb68da617ffb522782dc3a4fc072b42cc8a6a78fc9e4f0659c42fafdbc2bdb4",
   "entries": {
     "precapture_bank_get": "0x40962018",
     "precapture_bank_set": "0x40962054",
     "precapture_current_entry": "0x409604cc",
+    "precapture_grade_entry": "0x40967b50",
     "precapture_history_entry": "0x40960000",
     "precapture_main_rc": "0x40961ed0",
     "precapture_main_step": "0x40961830",
+    "precapture_ncset_guard": "0x40967b84",
+    "precapture_ncset_guard_s24": "0x40967c18",
+    "precapture_ncset_guard_s28": "0x40967bcc",
     "precapture_tdec_release": "0x40960504",
     "precapture_write_file": "0x4096208c",
     "precapture_y_alloc": "0x4096156c",
-    "precapture_y_alloc_entry": "0x40967bbc",
+    "precapture_y_alloc_entry": "0x40967c6c",
     "precapture_y_size": "0x409613a4",
-    "precapture_y_size_entry": "0x40967bb4",
-    "precapture_grade_entry": "0x40967b50",
-    "precapture_ncset_guard": "0x40967b84"
+    "precapture_y_size_entry": "0x40967c64"
   },
   "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
   "compiler_flags": [
@@ -266,214 +268,260 @@
   ],
   "patches": [
     {
-      "offset": "0xe0fe90",
-      "bytes": 4,
-      "purpose": "history submission hook",
-      "old_sha256": "27af073012fac2bb86b9e7dacd89756c34d6cd000b285d80bca1116705a7528c",
-      "new_sha256": "49175a4f2703a2406dfa7f50d75b8b80e5e0809bf3e3019041029212c028bd29"
-    },
-    {
-      "offset": "0xd4915c",
-      "bytes": 12,
-      "purpose": "retain compressed frames and apply menu quality",
-      "old_sha256": "95109b212f615942ee0df7b74ed5f197426d467e48d761af60ec4142b02f0b35",
-      "new_sha256": "cc0b4d7af7ba8c8a25b971a6e5e6a3ffbb3cf1118333281ea0f4942852dc657c"
-    },
-    {
-      "offset": "0xd43638",
-      "bytes": 4,
-      "purpose": "register and write NEF with stock writer",
-      "old_sha256": "ac25b5a993ee70328996e6c4981cce939b6bfec6a2e4e6e8504fd8c9920b2f95",
-      "new_sha256": "087b1f1d8efd84fd16fd0f7e9bffc196f7ff7edd520fa7b66225520d558fc714"
-    },
-    {
-      "offset": "0xd4eb60",
-      "bytes": 4,
-      "purpose": "RAW-only preview quality",
-      "old_sha256": "33fed37b30517aeec754863a31016ac367fb2934fe6489976294ccc3da654bbc",
-      "new_sha256": "7937e3692df801de8dad057bc743c5d1f133a66972b7dd87ac17d96d6b8f485d"
-    },
-    {
-      "offset": "0xe0ff38",
-      "bytes": 4,
-      "purpose": "full-press and post-release frame submission",
-      "old_sha256": "83957af20d60d0e60522f4fa7bd82e7769aa59eaac1f144d333ee70251cf94c7",
-      "new_sha256": "e1ec3991030c428fd6a0b0157b4e301bdc92750a2aca04e286abb1c3694a2058"
-    },
-    {
-      "offset": "0xee8e1c",
-      "bytes": 4,
-      "purpose": "capacity for separate NEF preview",
-      "old_sha256": "0c75d9ea2e49d4ca6a42410494a353bbab87cc2baa4d0d73f7ebe79ed1edf1f0",
-      "new_sha256": "095d72ed4a2e3c1ffd08460b5e70c70b824eb8925ebb7c6723d5b59da35a0561"
-    },
-    {
-      "offset": "0xd49fac",
-      "bytes": 4,
-      "purpose": "allocate and lay out separate NEF preview",
-      "old_sha256": "97dba574f77f0b493a416a9a11d49878808d1143cae14bc48b0936ecc55141b0",
-      "new_sha256": "f9e1c8ae1b36bfbdd45f2515c7e3c373a85784eab8e5dbf47fec23d4de549c3b"
-    },
-    {
-      "offset": "0xd4eeec",
-      "bytes": 4,
-      "purpose": "encode separate NEF preview, pipeline 0",
-      "old_sha256": "ea90a6be6c2e651e73138ffbb5ccc1ae971c373669ab2a772eb9dafe89d625d5",
-      "new_sha256": "e1bcd57677120173310e0509b41811a21750f504ae39433ef1fc9197a8fa41d8"
-    },
-    {
-      "offset": "0xd4ef10",
-      "bytes": 4,
-      "purpose": "encode separate NEF preview, pipeline 1",
-      "old_sha256": "cc0029408ed88a750ff669546d54fb80155c4552695a925098cfb925e0987b45",
-      "new_sha256": "1ef3623af22c779b229b949a0da1fcd823f649ddb5c01639dbd72e4df99615b3"
-    },
-    {
-      "offset": "0x4d2ffc0",
-      "bytes": 4,
-      "purpose": "C30 frame record capacity",
-      "old_sha256": "5e1d4844aceee4a6302de2518f38ccd7ebf93d13f779a99369c20f845b3ca9f9",
-      "new_sha256": "b0d576cb7d9fc0a562d0c3f77e86bb25f22f86784413a52018d1233360aee2fc"
-    },
-    {
-      "offset": "0x4d2ffcc",
-      "bytes": 4,
-      "purpose": "C15 frame record capacity",
-      "old_sha256": "5e1d4844aceee4a6302de2518f38ccd7ebf93d13f779a99369c20f845b3ca9f9",
-      "new_sha256": "b0d576cb7d9fc0a562d0c3f77e86bb25f22f86784413a52018d1233360aee2fc"
-    },
-    {
-      "offset": "0x800000",
-      "bytes": 35053,
-      "purpose": "compiled capture code and constants",
-      "old_sha256": "b0dd30b277dcc46ac2065db6f951bb0af9df3e75758a1c8ac18a0c1adb64a6e6",
-      "new_sha256": "fb53a54994b10f5db35ce53e1389b42292cbdb1829e0410b547bed7de2a4036e"
-    },
-    {
-      "offset": "0x1024d8c",
-      "bytes": 8,
-      "purpose": "extend text copy to 0x40970000",
-      "old_sha256": "bda28137c2144d68e201a3cd3b59a3c006df0ece63bb4c270da16ab9505f5405",
-      "new_sha256": "358811743bb777fe9243250116eefd2d9ce5d1f7fa157fb3701afc6f57cb0e89"
-    },
-    {
-      "offset": "0xd52564",
-      "bytes": 4,
-      "purpose": "HE* encode budget: +0x2ac=4 (marker 14)",
-      "new_sha256": "d30590c5276bc7bfa09fee75ac68980d8de6c910c69a2226bf9f1d9848fcea72",
-      "old_sha256": "1ca70e097d55c387af35487e6b20566e82322e8b29252a72f347c306ee9d36fd"
-    },
-    {
-      "offset": "0xeb56d0",
-      "bytes": 4,
-      "purpose": "v6: card settings 0x120B packing hook",
-      "old_sha256": "0ca758c5dfdf24442c1150301c7132309fa4ff0cfa1bb29a1b5a862a62b228cc",
-      "new_sha256": "68534263a4d6c70f6d15c2a726feeb2e1719f54c9c132f48927f58c2652fd402"
-    },
-    {
-      "offset": "0xeb5860",
-      "bytes": 4,
-      "purpose": "v6: card settings 0x120B packing hook",
-      "old_sha256": "709d2f87409d56582a8bd1d8ebd68d9d22206156ec39e6d513092ed4a0084b88",
-      "new_sha256": "d7935ff717ca90da808d25e662ae62ea011b98279617f30242e2ceb155355ac8"
-    },
-    {
-      "offset": "0xe3a4c4",
-      "bytes": 4,
-      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
-      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
-      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
-    },
-    {
-      "offset": "0xe3a4e8",
-      "bytes": 4,
-      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
-      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
-      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
-    },
-    {
-      "offset": "0xe3a50c",
-      "bytes": 4,
-      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
-      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
-      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
-    },
-    {
-      "offset": "0xe3a530",
-      "bytes": 4,
-      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
-      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
-      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
-    },
-    {
-      "offset": "0xe3a4cc",
-      "bytes": 8,
-      "purpose": "v7/117: D3-MAX case base -> injected table row",
-      "old_sha256": "6098a55fe067915f82f9d894b9b0896d348264cb35c8635b952fecd6b8b5d6b5",
-      "new_sha256": "e21c5f89c0b76c120c6b0c5ebf59cec81e721855c54dd310863fad2e1a268cb1"
-    },
-    {
-      "offset": "0xe3a538",
-      "bytes": 8,
-      "purpose": "v7/117: D3-MAX case base -> injected table row",
-      "old_sha256": "d598cc7ac5af746a4f98bd2c769f5a8feb54bee365f01f18dc1dee8c142c8456",
-      "new_sha256": "cfdca247722f3de6b914810b49000ca0595ef61f19775cb1b3183583a7417f3c"
-    },
-    {
-      "offset": "0xe3a4f0",
-      "bytes": 8,
-      "purpose": "v7/117: D3-MAX case base -> injected table row",
-      "old_sha256": "2a45c4cab16bf78e3e495983e5771407db3c6fdccf24af0e2ac4b7a26f270cc9",
-      "new_sha256": "1db56c44fec22d775db02e4068c71f17b6dec25937b71894973bb51a89007a0d"
-    },
-    {
-      "offset": "0xe3a514",
-      "bytes": 8,
-      "purpose": "v7/117: D3-MAX case base -> injected table row",
-      "old_sha256": "cf6166f142bb471e7c4f3e60398d3fee68c7a55e96192bea959fad637b867c6d",
-      "new_sha256": "5e594d88506052738991c2be242fa46e60d47e2181b8421edac0724f4972d40f"
-    },
-    {
       "offset": "0x71e5d4",
       "bytes": 4,
       "purpose": "v7/111: remaining-count hook -> cave",
       "old_sha256": "0728bd28083a27342e9402a519746a69f22161ac16178bb9fbb778a71b80a36e",
-      "new_sha256": "afdef7a788c0ed1387a99a5b50b3ae3e98209d188c590ff35e71b67fe21c8101"
+      "new_sha256": "afdef7a788c0ed1387a99a5b50b3ae3e98209d188c590ff35e71b67fe21c8101",
+      "owner": "stock remaining-count call site (owner = shot counter, 111)"
     },
     {
       "offset": "0x7f8000",
       "bytes": 64,
       "purpose": "v7/111: counter scale cave (15 instrs + ctrl byte)",
       "old_sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
-      "new_sha256": "5c9cdcbd6a317d07c0111d82531027f9d944656ece8ad073702d226c80ce7545"
+      "new_sha256": "5c9cdcbd6a317d07c0111d82531027f9d944656ece8ad073702d226c80ce7545",
+      "owner": "cave 0x7F8000 (loader-covered zeros; owner = counter scale cave, 111)"
     },
     {
-      "offset": "0x4cbc9b8",
+      "offset": "0x800000",
+      "bytes": 35229,
+      "purpose": "compiled capture code and constants",
+      "old_sha256": "348a04142ee9531094d5a570e69c762012cc0f0f96af67ce60085b3348e99037",
+      "new_sha256": "8fb68da617ffb522782dc3a4fc072b42cc8a6a78fc9e4f0659c42fafdbc2bdb4",
+      "owner": "compiled capture code blob (owned by the z8precapture recipe; entries pinned below)"
+    },
+    {
+      "offset": "0xd43638",
+      "bytes": 4,
+      "purpose": "register and write NEF with stock writer",
+      "old_sha256": "ac25b5a993ee70328996e6c4981cce939b6bfec6a2e4e6e8504fd8c9920b2f95",
+      "new_sha256": "087b1f1d8efd84fd16fd0f7e9bffc196f7ff7edd520fa7b66225520d558fc714",
+      "owner": "stock NEF registration/write call site (owner = stock NEF writer path)"
+    },
+    {
+      "offset": "0xd4915c",
+      "bytes": 12,
+      "purpose": "retain compressed frames and apply menu quality",
+      "old_sha256": "95109b212f615942ee0df7b74ed5f197426d467e48d761af60ec4142b02f0b35",
+      "new_sha256": "cc0b4d7af7ba8c8a25b971a6e5e6a3ffbb3cf1118333281ea0f4942852dc657c",
+      "owner": "stock compressed-frame retention site (owner = frame retention / menu quality path)"
+    },
+    {
+      "offset": "0xd49fac",
+      "bytes": 4,
+      "purpose": "allocate and lay out separate NEF preview",
+      "old_sha256": "97dba574f77f0b493a416a9a11d49878808d1143cae14bc48b0936ecc55141b0",
+      "new_sha256": "1fe5fda712099a15f860047457afebe34146d2ac12b25571e32425d5534c1945",
+      "owner": "stock Y allocation call site (owner = NEF layout allocation path)"
+    },
+    {
+      "offset": "0xd4eb60",
+      "bytes": 4,
+      "purpose": "RAW-only preview quality",
+      "old_sha256": "33fed37b30517aeec754863a31016ac367fb2934fe6489976294ccc3da654bbc",
+      "new_sha256": "7937e3692df801de8dad057bc743c5d1f133a66972b7dd87ac17d96d6b8f485d",
+      "owner": "stock preview-quality decision site (owner = preview quality path)"
+    },
+    {
+      "offset": "0xd4eeec",
+      "bytes": 4,
+      "purpose": "encode separate NEF preview, pipeline 0",
+      "old_sha256": "ea90a6be6c2e651e73138ffbb5ccc1ae971c373669ab2a772eb9dafe89d625d5",
+      "new_sha256": "e1bcd57677120173310e0509b41811a21750f504ae39433ef1fc9197a8fa41d8",
+      "owner": "stock preview encode call site, pipeline 0 (owner = preview encode path)"
+    },
+    {
+      "offset": "0xd4ef10",
+      "bytes": 4,
+      "purpose": "encode separate NEF preview, pipeline 1",
+      "old_sha256": "cc0029408ed88a750ff669546d54fb80155c4552695a925098cfb925e0987b45",
+      "new_sha256": "1ef3623af22c779b229b949a0da1fcd823f649ddb5c01639dbd72e4df99615b3",
+      "owner": "stock preview encode call site, pipeline 1 (owner = preview encode path)"
+    },
+    {
+      "offset": "0xd52564",
+      "bytes": 4,
+      "purpose": "HE* encode budget: +0x2ac=4 (marker 14)",
+      "new_sha256": "d30590c5276bc7bfa09fee75ac68980d8de6c910c69a2226bf9f1d9848fcea72",
+      "old_sha256": "1ca70e097d55c387af35487e6b20566e82322e8b29252a72f347c306ee9d36fd",
+      "owner": "stock kind->+0x2ac mapping site (owner = grade dispatch, 90 §2)"
+    },
+    {
+      "offset": "0xe0fe90",
+      "bytes": 4,
+      "purpose": "history submission hook",
+      "old_sha256": "27af073012fac2bb86b9e7dacd89756c34d6cd000b285d80bca1116705a7528c",
+      "new_sha256": "49175a4f2703a2406dfa7f50d75b8b80e5e0809bf3e3019041029212c028bd29",
+      "owner": "stock history submission call site (owner = capture history path)"
+    },
+    {
+      "offset": "0xe0ff38",
+      "bytes": 4,
+      "purpose": "full-press and post-release frame submission",
+      "old_sha256": "83957af20d60d0e60522f4fa7bd82e7769aa59eaac1f144d333ee70251cf94c7",
+      "new_sha256": "e1ec3991030c428fd6a0b0157b4e301bdc92750a2aca04e286abb1c3694a2058",
+      "owner": "stock frame submission call site (owner = full-press/post-release submission path)"
+    },
+    {
+      "offset": "0xe3a4c4",
+      "bytes": 4,
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1",
+      "owner": "stock D3-MAX boundary compare site (owner = D3 dispatch, 117)"
+    },
+    {
+      "offset": "0xe3a4cc",
       "bytes": 8,
-      "purpose": "v10/122: T4 tail entry id 0x0800 (card serialization of menuh item)",
-      "new_sha256": "d642fab67354407e720ec2ce737cb639d0621df6d4fa69e32c9f22ce7f79216e",
-      "old_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "6098a55fe067915f82f9d894b9b0896d348264cb35c8635b952fecd6b8b5d6b5",
+      "new_sha256": "e21c5f89c0b76c120c6b0c5ebf59cec81e721855c54dd310863fad2e1a268cb1",
+      "owner": "stock D3-MAX case-base immediate (owner = D3 dispatch -> injected table, 117)"
     },
     {
-      "offset": "0xf803d4",
+      "offset": "0xe3a4e8",
       "bytes": 4,
-      "purpose": "v10/122: card S3 slot count 617->618 (save side)",
-      "new_sha256": "9c5dd12df02effd9b3e35d5f744261aed411bcc8a03e56507e4d8aeacee14b3f",
-      "old_sha256": "c01ead1b59ca9392be0fd45dca6e698d40abe6acae6edd91a1ee96cfc59ada17"
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1",
+      "owner": "stock D3-MAX boundary compare site (owner = D3 dispatch, 117)"
     },
     {
-      "offset": "0xf80f68",
+      "offset": "0xe3a4f0",
+      "bytes": 8,
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "2a45c4cab16bf78e3e495983e5771407db3c6fdccf24af0e2ac4b7a26f270cc9",
+      "new_sha256": "1db56c44fec22d775db02e4068c71f17b6dec25937b71894973bb51a89007a0d",
+      "owner": "stock D3-MAX case-base immediate (owner = D3 dispatch -> injected table, 117)"
+    },
+    {
+      "offset": "0xe3a50c",
       "bytes": 4,
-      "purpose": "v10/122: card S3 slot count 617->618 (load side)",
-      "new_sha256": "2341bc0d4d014ef3474531b312eace9e1e70625b2111f59f7ca6f3ad3cae7619",
-      "old_sha256": "f09032e0f47fd699f1159876c3548d98010cf0ba046fa957a2ad4ce79c3a613e"
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1",
+      "owner": "stock D3-MAX boundary compare site (owner = D3 dispatch, 117)"
+    },
+    {
+      "offset": "0xe3a514",
+      "bytes": 8,
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "cf6166f142bb471e7c4f3e60398d3fee68c7a55e96192bea959fad637b867c6d",
+      "new_sha256": "5e594d88506052738991c2be242fa46e60d47e2181b8421edac0724f4972d40f",
+      "owner": "stock D3-MAX case-base immediate (owner = D3 dispatch -> injected table, 117)"
+    },
+    {
+      "offset": "0xe3a530",
+      "bytes": 4,
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1",
+      "owner": "stock D3-MAX boundary compare site (owner = D3 dispatch, 117)"
+    },
+    {
+      "offset": "0xe3a538",
+      "bytes": 8,
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "d598cc7ac5af746a4f98bd2c769f5a8feb54bee365f01f18dc1dee8c142c8456",
+      "new_sha256": "cfdca247722f3de6b914810b49000ca0595ef61f19775cb1b3183583a7417f3c",
+      "owner": "stock D3-MAX case-base immediate (owner = D3 dispatch -> injected table, 117)"
+    },
+    {
+      "offset": "0xeb56d0",
+      "bytes": 4,
+      "purpose": "v6: card settings 0x120B packing hook",
+      "old_sha256": "0ca758c5dfdf24442c1150301c7132309fa4ff0cfa1bb29a1b5a862a62b228cc",
+      "new_sha256": "68534263a4d6c70f6d15c2a726feeb2e1719f54c9c132f48927f58c2652fd402",
+      "owner": "stock DS get/set call site (owner = bank copy path, 112 P1)"
+    },
+    {
+      "offset": "0xeb5860",
+      "bytes": 4,
+      "purpose": "v6: card settings 0x120B packing hook",
+      "old_sha256": "709d2f87409d56582a8bd1d8ebd68d9d22206156ec39e6d513092ed4a0084b88",
+      "new_sha256": "d7935ff717ca90da808d25e662ae62ea011b98279617f30242e2ceb155355ac8",
+      "owner": "stock DS get/set call site (owner = bank copy path, 112 P1)"
+    },
+    {
+      "offset": "0xee8e1c",
+      "bytes": 4,
+      "purpose": "capacity for separate NEF preview",
+      "old_sha256": "0c75d9ea2e49d4ca6a42410494a353bbab87cc2baa4d0d73f7ebe79ed1edf1f0",
+      "new_sha256": "5aa95185434586689516d5feaa7e43e33849f8ff9afdb2a2c2a25e4740e8211e",
+      "owner": "stock NEF preview capacity site (owner = preview capacity path)"
+    },
+    {
+      "offset": "0xf7f8d4",
+      "bytes": 4,
+      "new_sha256": "de9fcc9f10ea981f663048294b1e7eeef3581065f9aa0f5511550c77ce52967d",
+      "old_sha256": "e550dd5ddbccec46a06d07c0d23e96eb3d6185f4a19757b8357b54fb4180cf37",
+      "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
+      "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
     },
     {
       "offset": "0xf7f9d4",
       "bytes": 4,
-      "purpose": "v10/122: per-item apply -> bounds guard",
+      "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
       "new_sha256": "c01f75503f3298ea28438cd6dd0a2cc558cccc089836da30b5b351ad190d757d",
-      "old_sha256": "e06e656908c88f9bf209314ea07719fcabade642c597a23f64fd9ed4ca916632"
+      "old_sha256": "e06e656908c88f9bf209314ea07719fcabade642c597a23f64fd9ed4ca916632",
+      "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
+    },
+    {
+      "offset": "0xf7fb2c",
+      "bytes": 4,
+      "new_sha256": "dc9b0f1ff1a01689248799bbd41058e2da0f31099fa93aec2f5971067396081c",
+      "old_sha256": "442277500b4202d621f216f9dd8998b6c652fba1124133bc915d7a52ffd6d15d",
+      "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
+      "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
+    },
+    {
+      "offset": "0xf7fbf8",
+      "bytes": 4,
+      "new_sha256": "a29756f9f82fb1da4138e3eb177ae87bde3d4f97e961f436e770a9c0269458cf",
+      "old_sha256": "b1785985933ac562284e9fc5aa770bbef23b8073c27eb0eaba9c2bfbd4335bef",
+      "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
+      "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
+    },
+    {
+      "offset": "0xf7fd14",
+      "bytes": 4,
+      "new_sha256": "a1b11a2d212c9fd5f329c5f2244e17553534e122208369df9908af899d7489ed",
+      "old_sha256": "3fd2713e7bc6b41f69f4c12cd0618408b453bbdb71306fc530d2cd0446890a84",
+      "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
+      "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
+    },
+    {
+      "offset": "0xf7fe28",
+      "bytes": 4,
+      "new_sha256": "688d542bc84e2aa2918a8d1f770d2047f765611e2d570d01d798c417a1d51b0e",
+      "old_sha256": "6b980bcae000da65e24dbba16e6f49da4034fbdc408008d774060234c169ab04",
+      "purpose": "v11.1/c2: load walk per-item apply -> same-base bounds guard",
+      "owner": "NCSET load-walk per-item apply site; owner = firmware load walk (VA 0x410DF358) bl -> apply 0x410E1AA8/0x410E1790, hook keeps the call-site+4 return contract (x30 untouched)"
+    },
+    {
+      "offset": "0x1024d8c",
+      "bytes": 8,
+      "purpose": "extend text copy to 0x40970000",
+      "old_sha256": "bda28137c2144d68e201a3cd3b59a3c006df0ece63bb4c270da16ab9505f5405",
+      "new_sha256": "358811743bb777fe9243250116eefd2d9ce5d1f7fa157fb3701afc6f57cb0e89",
+      "owner": "shared text-copy loader window (owner = loader copy extent, 111 §6.5)"
+    },
+    {
+      "offset": "0x4d2ffc0",
+      "bytes": 4,
+      "purpose": "C30 frame record capacity",
+      "old_sha256": "5e1d4844aceee4a6302de2518f38ccd7ebf93d13f779a99369c20f845b3ca9f9",
+      "new_sha256": "b0d576cb7d9fc0a562d0c3f77e86bb25f22f86784413a52018d1233360aee2fc",
+      "owner": "stock E-division request words (owner = allocation request table)"
+    },
+    {
+      "offset": "0x4d2ffcc",
+      "bytes": 4,
+      "purpose": "C15 frame record capacity",
+      "old_sha256": "5e1d4844aceee4a6302de2518f38ccd7ebf93d13f779a99369c20f845b3ca9f9",
+      "new_sha256": "b0d576cb7d9fc0a562d0c3f77e86bb25f22f86784413a52018d1233360aee2fc",
+      "owner": "stock E-division request words (owner = allocation request table)"
     }
   ],
   "loader_input_sha256": [
@@ -481,9 +529,9 @@
     "b1a236384039ff913578cca24bf8cf646780acfa87170ec379cc7ba001c8ecd2"
   ],
   "source_sha256": {
-    "firmware.c": "9d5b216224bc16b6b7b03f5e98277cd0cd6b764bfbdbb87e699922a12aa47860",
+    "firmware.c": "c47ffa4831ca8253fe8ebe0b0665f49e9d437a76d0ab42fcd0c3dc6f3eaad1dd",
     "crc32_table.inc": "fe021e684d78717732adddb6c9dde91f6fc6918f18cb0aeccfb349db5511a515",
-    "patcher.py": "089b8a3aa2164a0dd85e8bcb11f8374852f516a6c9ad766a9ccb47f12918f4ef"
+    "patcher.py": "32c8dcf9596a5fa1008d177a140caf2d90148313eb880b8d54a53e32ae995a2f"
   },
   "merged": {
     "payload": "0x1b3e000",

@@ -39,7 +39,7 @@ never reused.
 ```sh
 cd /path/to/NijiN
 TAG=toolkit-$(date +%Y%m%d)
-git tag -a "$TAG" -m "NijiN toolkit $(date +%F): objects fb53a549…/36e56939… match the pinned recipes; four checks and release reconciliation green"
+git tag -a "$TAG" -m "NijiN toolkit $(date +%F): objects 8fb68da6…/36e56939… match the pinned recipes; four checks and release reconciliation green"
 git push origin "refs/tags/$TAG"
 
 gh release create "$TAG" --verify-tag \

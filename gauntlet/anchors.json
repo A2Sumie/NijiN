@@ -96,6 +96,7 @@
   "136_CRASH_VERDICT.md §0 as filled (crash-forensics workstream, local evidence)": "465a8885bbfc2bea7eea3375be7021e37e14fe09e66fc33d3a34813839ca9f2e"
  },
  "candidate_records": {
-  "bricking-edge_v11.1 Z_8_0311.bin (local build, not released)": "f25c505d0daf9b1f16e345d10d5e82e85b8e8a77d0e4a89153620d5f77e7251a"
+  "bricking-edge_v11.1 Z_8_0311.bin (local build, not released)": "f25c505d0daf9b1f16e345d10d5e82e85b8e8a77d0e4a89153620d5f77e7251a",
+  "pre-V11.1 precapture code object (2026-10-19 packaging drill)": "fb53a54994b10f5db35ce53e1389b42292cbdb1829e0410b547bed7de2a4036e"
  }
 }

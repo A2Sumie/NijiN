@@ -69,8 +69,10 @@ to attach to a release.
 The flow above was rehearsed end to end without publishing anything. With
 the reviewed compiler (`Apple clang 21.0.0 (clang-2100.3.34.2)`) both code
 objects compiled from the sources in this repository matched the recipe
-pins byte for byte (`precapture` 35,053 bytes `fb53a549…`, `opengate`
-4,040 bytes `36e56939…`), the manifest and sums were generated from
+pins byte for byte (then-current objects: `precapture` 35,053 bytes
+`fb53a549…`, `opengate` 4,040 bytes `36e56939…`; V11.1 later replaced the
+pre-capture object with 35,229 bytes `8fb68da6…`, pinned in `resources/`),
+the manifest and sums were generated from
 `resources/`, and `tools/redline_scan.py --release` passed the staging
 directory. It refused, as it must, a one-byte tampering of an object, a
 smuggled `.bin`, and a manifest with the source hashes stripped. No release
@@ -93,6 +95,6 @@ has been published.
   里给出 [NOTICE.md](../NOTICE.md) 链接。
 - **演练记录（2026-10-19）**：全流程已彩排，未发布任何东西。用审阅编译器
   （`Apple clang 21.0.0 (clang-2100.3.34.2)`）从本仓源码编译的两个代码对象与配方
-  钉死值逐字节一致（precapture 35,053 字节 `fb53a549…`、opengate 4,040 字节
-  `36e56939…`）；清单与校验和由 `resources/` 生成；`--release` 扫描放行，并对
+  钉死值逐字节一致（当时对象：precapture 35,053 字节 `fb53a549…`、opengate 4,040 字节
+  `36e56939…`；V11.1 后预拍对象换为 35,229 字节 `8fb68da6…`，现钉死在 `resources/`）；清单与校验和由 `resources/` 生成；`--release` 扫描放行，并对
   单字节篡改、夹带 `.bin`、剥掉源码哈希的清单三种情况全部拒绝。
