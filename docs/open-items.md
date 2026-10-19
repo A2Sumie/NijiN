@@ -14,10 +14,10 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
 | 1 | The exact faulting instruction of the V10 boot loop | **Verdict reached 2026-10-19** (136 §0): S3 slot count 618/617 overrun in the settings-load walk, first overrun load at `0x410DFDF8` — layout-related UB. C1 slot filled in [risks.md](risks.md#c1-evidence-slot); dynamic re-reproduction (poisoned layout, ~0.5–1 person-day) still in flight | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
-| 2 | Load-time guard bound computed across two regions | Fix designed, not landed; guard is inert or all-permissive until then | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
-| 3 | Settings count has three sources of truth; only two were updated | Must be changed together or not at all | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
-| 4 | Ownership of the table-boundary write (`0x4CBC9B8`) | Unresolved statically: zero code references to that table | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
-| 5 | Second code path reaching the same apply function | No guard point there yet | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 2 | Load-time guard bound computed across two regions | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: same-base compare plus a header-length clamp — **stronger than planned**; unit tests 9/9 including the v10 negative control | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 3 | Settings count has three sources of truth; only two were updated | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: all three sources back to 617 (shrink option); three-source gate G3.8 + mutation M35 | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 4 | Ownership of the table-boundary write (`0x4CBC9B8`) | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: the write is **deleted** after three proofs of no consumer; ownership gate G3.7 + mutation M36 | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 5 | Second code path reaching the same apply function | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: 6/6 walk sites hooked (L2/LC, L1/LB, LS/L3); xref-coverage gate G3.6 + mutations M38/M39 | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
 
 ## Unverified on hardware
 

@@ -1,10 +1,30 @@
 # C2 fix plan — the four fixes the V11 line needs
 
-**Plan only.** Nothing here is code, nothing is built, and criterion C2 of
-[unfreeze-criteria.md](unfreeze-criteria.md) stays **unmet** until each fix
-below is actually landed and verified offline. This page exists so the
-work is specified at recipe level before anyone touches bytes: anchors,
-change, verification criteria, risk — per fix.
+> **Status 2026-10-19 (thread `v111-an`)**: all four fixes are now **landed offline** as the
+> **V11.1 candidate** (`he_star/build/bricking-edge_v11.1/`, `Z_8_0311.bin` sha
+> `f25c505d…`, identity 03.11.p0). Per-fix verdicts and the 预案 vs 落地 table live in
+> `scratch/expeed7_v2/100_BUILD_LOG.md` § "V11.1 候选". Short version: Fix 1 landed (same-base
+> bound + header-length plausibility clamp), Fix 4 landed (all six walk sites clamped, xref
+> coverage gate), Fix 3 = **deleted** (option A — no consumer could be named: static triad 0,
+> watchpoint 0, 628-slot cross-check shows T4 is not the card list), Fix 2 = **option B**
+> (all three count sources back to 617). Not flashed, not released; C2's on-paper status is
+> for the owner to close per [unfreeze-criteria.md](unfreeze-criteria.md) — nothing here
+> unfreezes the line.
+
+> **STATUS: LANDED (2026-10-19, build `bricking-edge_v11.1`, `f25c505d…`).**
+> All four fixes are implemented and offline-verified; criterion C2 is
+> **met**. Landed forms differ from the plan in four ways, named below.
+> The plan text is kept as written — it is the standard the landing was
+> checked against.
+
+**Plan vs landed** (details in the crash workstream's `100_BUILD_LOG.md §V11.1`):
+
+| Fix | Plan said | Landed | Delta |
+|---|---|---|---|
+| 1 guard bound | same-base compare, `bound = file-image base + header length` | same-base compare via `end_off = (ptr − base) + size` vs `total=[x25,#0x10]`, base underflow counted out-of-range, **plus a header-length plausibility clamp `[0x80, 2MiB]`** and a `ret`-style skip path so one stub serves several sites | **stronger than plan** (the plan's residual "header length must be validated" is closed) |
+| 4 walk coverage | clamp every walk site, xref gate | 6/6 sites hooked (L2/LC → `_guard`, L1/LB → `_s28`, LS/L3 → `_s24`), new xref-coverage gate G3.6, mutations M38/M39, per-family unit tests | as planned |
+| 3 table-boundary write | delete, or prove an owner first | **deleted** after three proofs (static: 0 references across three scan families; watchpoint: 0 hits through boot+menu on both aliases; 628-slot cross-check: the two tables are not isomorphic — 624 vs 286 entries, 40 overlapping) | as planned, option A |
+| 2 count sources | grow all three or shrink all three; shrink recommended | **shrank** (both immediates back to 617, ROM table untouched → all three agree), new gate G3.8, mutation M35 | as planned, recommended direction |
 
 Every anchor below is cited from the crash-forensics records
 (`126_BOOTLOOP_FORENSICS.md`, `123_T4_CHAIN.md`) and is checkable against

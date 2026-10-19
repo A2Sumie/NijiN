@@ -117,6 +117,28 @@ Rules for filling this slot:
   delta window unexcluded is a hypothesis, and hypotheses live in
   [upstream-issue-3.md](upstream-issue-3.md), not here.
 
+## Fix landed: V11.1 candidate (2026-10-19)
+
+The four fixes of [c2-fix-plan.md](c2-fix-plan.md) are landed in build
+`bricking-edge_v11.1` (`f25c505d…`, identity `03.11.p0`, rebuilt from a
+fresh official input; reproducible). What that means for this page's
+incident: the count sources are back to 617 — **the mechanism the verdict
+identified is gone** — the unowned table write is deleted, and all six
+walk sites carry the corrected clamp (same-base compare plus a
+header-length plausibility clamp, stronger than planned).
+
+Offline record: unit tests 9/9 (including the v10 cross-region negative
+control, which reproduces the defect and shows the fixed stub is
+layout-independent), content gates G3.5–G3.8, settings regression R1–R3,
+mutation battery 39/39, combination matrix 17/17, structural torture 4/4,
+A/B diffs confined to the declared windows, rebuild byte-identical.
+
+Residuals, stated as they are: the clamp bounds **file-internal** ranges,
+so a segment-internal overrun still applies the in-file value (stock-like,
+not memory-unsafe); the six hooks are all in boot-reachable paths; and
+**none of this has been on a camera** — criterion C4 stays a prerequisite.
+The build is a candidate: not in a flash kit, not installed, not released.
+
 ## Risk classes
 
 | Risk | Reality |
