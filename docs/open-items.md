@@ -23,7 +23,7 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
-| 6 | Every feature except the early-build HE★ / C15 evidence | Offline only; never installed | [features.md](features.md), [verification.md](verification.md) |
+| 6 | Every feature except the early-build HE★ / C15 evidence | Offline only; never installed | [features.md](features.md), [verification.md](verification.md), [c4-smoke-plan.md](c4-smoke-plan.md) |
 | 7 | Same-version update acceptance (`03.11.p0`) | Untested; a higher number is the fallback | [versions.md](versions.md) |
 | 8 | Lossless strip-length field | Static estimate, low confidence | [features.md](features.md) |
 | 9 | Lens-correction block acceptance in Adobe/NX Studio | Not tested; templates cover 7 lenses | [features.md](features.md) |
