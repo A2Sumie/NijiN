@@ -17,7 +17,7 @@ The ground rule for this table: an offline green status only confirms that the o
 
 ## `precapture` — RAW pre-capture
 
-Build with `--features precapture`. Produces the pre-capture module plus `Z8PRE*.CFG` configuration files. Needs Clang.
+Build with `--features precapture`. Produces the pre-capture module plus `Z8PRE*.CFG` configuration files. Needs Clang. The shooting guide — preparation, steps and limitations — is [raw-precapture.md](raw-precapture.md).
 
 | Feature | Control | Status | Verification depth |
 |---|---|---|---|
