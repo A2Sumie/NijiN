@@ -1,3 +1,6 @@
+**⚠️ V11.1 = UNSAFE — known issues, see [docs/risks.md](docs/risks.md). Do not flash.**
+**⚠️ V11.1 = 不安全——已知问题见 [docs/risks.md](docs/risks.md)，勿刷。**
+
 **WIP. Owner's Z8 bricked! Use at your own risk.**
 **施工中。作者的 Z8 已经刷砖！风险自担。**
 
@@ -23,6 +26,7 @@ package locally and verify it byte by byte.
 
 ## English
 
+**⚠️ V11.1 = UNSAFE — known issues, see [docs/risks.md](docs/risks.md). Do not flash.**
 **WIP. Owner's Z8 bricked! Use at your own risk.**
 
 ### Read this first
@@ -110,7 +114,7 @@ checked against, is in [docs/features.md](docs/features.md).
 | Line | Branch / tag | Meaning | Status |
 |---|---|---|---|
 | **V10** | `main` | The current stable line. Every offline check passes: byte-level verification, the full gauntlet battery, reproducible rebuilds. | ⚠️ offline green; **❌ do not flash** — the V10 build is the one that caused the boot loop described above |
-| **V11 `bricking-edge`** | `bricking-edge` (branch and tag) | The hotfix / forensics line, named after the V10 incident. It strips the three suspect V10 changes and reverts four patch windows to the previous build. See [docs/bricking-edge.md](docs/bricking-edge.md). The experimental line ships as **`03.11.p1` packages** (`p0` = the historical smoke/incident generation) | 🧪 built and byte-verified offline as a trial only; deliberately never released; frozen until the boot-loop cause is settled |
+| **V11 `bricking-edge`** | `bricking-edge` (branch and tag) | The hotfix / forensics line, named after the V10 incident. It strips the three suspect V10 changes and reverts four patch windows to the previous build. See [docs/bricking-edge.md](docs/bricking-edge.md). The experimental line ships as **`03.11.p1` packages** (`p0` = the historical smoke/incident generation) | **⛔ V11.1 = UNSAFE（已知缺陷，调查中 / known defects, under investigation）** — see [docs/risks.md](docs/risks.md#known-unsafe-v111-2026-10-19). V11.1 was built and byte-verified offline and published 2026-10-19 as a toolkit trial only; never on hardware; the line stays frozen until the boot-loop cause is settled |
 
 The name `bricking-edge` is dark humour kept on purpose: the line exists
 because a camera was bricked. See [docs/versions.md](docs/versions.md). The
@@ -205,6 +209,7 @@ with or endorsed by Nikon.
 
 ## 简体中文
 
+**⚠️ V11.1 = 不安全——已知问题见 [docs/risks.md](docs/risks.md)，勿刷。**
 **施工中。作者的 Z8 已经刷砖！风险自担。**
 
 ### 先读这一段
@@ -276,7 +281,7 @@ NijiN 以**你自备的官方 Nikon Z8 C 3.11 更新包**（99,051,117 字节、
 | 线 | 分支 / 标签 | 含义 | 状态 |
 |---|---|---|---|
 | **V10** | `main` | 当前稳定线。离线验证全绿：字节级复核、全套 gauntlet、可复现重建 | ⚠️ 离线绿；**❌ 请勿刷写**——上文的开机循环事故就是 V10 构建造成的 |
-| **V11 `bricking-edge`** | `bricking-edge`（分支与标签） | 热修／取证线，因事故得名：剥掉 V10 三处嫌疑改动、四个补丁窗回退到上一构建。见 [docs/bricking-edge.md](docs/bricking-edge.md) | 🧪 只做过离线构建与字节级比对的试验包，从未放出；事故定谳前冻结 |
+| **V11 `bricking-edge`** | `bricking-edge`（分支与标签） | 热修／取证线，因事故得名：剥掉 V10 三处嫌疑改动、四个补丁窗回退到上一构建。见 [docs/bricking-edge.md](docs/bricking-edge.md) | **⛔ V11.1 = 不安全（已知缺陷，调查中）**——见 [docs/risks.md](docs/risks.md#known-unsafe-v111-2026-10-19)。V11.1 已做离线构建与字节级比对，2026-10-19 仅以 toolkit 试验品身份放出；从未上机；事故定谳前冻结 |
 
 `bricking-edge` 这个名字是故意留下的黑色幽默：这条线存在的原因，就是有一台
 相机被刷成了砖。见 [docs/versions.md](docs/versions.md)。解冻前要跨过的门槛写在

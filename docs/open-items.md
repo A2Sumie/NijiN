@@ -11,6 +11,12 @@ The written bar these items must clear is
 criterion there. The fix plans for rows 2–5 are written up at recipe level
 in [c2-fix-plan.md](c2-fix-plan.md).
 
+**2026-10-19 status note:** V11.1 itself is marked **⛔ UNSAFE (known
+defects, under investigation)** — a known pre-capture defect family
+(silent non-retention, STP sticky file) is documented in
+[risks.md](risks.md#known-unsafe-v111-2026-10-19). The four fixed rows
+below do **not** make V11.1 safe to flash.
+
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
 | 1 | The exact faulting instruction of the V10 boot loop | **Verdict reached 2026-10-19** (136 §0): S3 slot count 618/617 overrun in the settings-load walk, first overrun load at `0x410DFDF8` — layout-related UB. C1 slot filled in [risks.md](risks.md#c1-evidence-slot); dynamic re-reproduction (poisoned layout, ~0.5–1 person-day) still in flight | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
@@ -44,7 +50,7 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
-| 17 | The toolkit package | **Published 2026-10-19 as an experimental trial** (tag `toolkit-20261019`): V11.1 candidate objects, never on hardware, crash fix is an offline verdict | [release-packaging.md](release-packaging.md), [releasing.md](releasing.md) |
+| 17 | The toolkit package | **Published 2026-10-19 as an experimental trial** (tag `toolkit-20261019`): V11.1 candidate objects, never on hardware, crash fix is an offline verdict. **Marked ⛔ UNSAFE 2026-10-19** (known defect family; see [risks.md](risks.md#known-unsafe-v111-2026-10-19)) — the release notes carry a dated addendum saying so | [release-packaging.md](release-packaging.md), [releasing.md](releasing.md) |
 | 18 | Upstream Issue #3 | Still open, no root cause there either; tracked | [upstream-issue-3.md](upstream-issue-3.md) |
 
 ## Next batch (November): three triggers
@@ -62,8 +68,11 @@ listed above. Nothing here starts itself.
 
 本页是本项目**未完成事项的正式清单**：只做索引、不发明新事实，每行链接到拥有该
 口径的文档。三组：**V11 线相关五件**（#1 炸点已于 2026-10-19 定谳、C1 槽已填；guard bound、计数三真源、
-表边界归属、第二循环补点待落地；解冻等用户）；**未上机验证的七件**（除早期构建 HE★/C15
+表边界归属、第二循环补点已随 V11.1 修复、待上机；解冻等用户）；**未上机验证的七件**（除早期构建 HE★/C15
 外全部只离线、同号受理未实测、无损 strip 长度、镜头块/占位块/位深接线/菜单组徽标
 未验）；**判不可交付的四件**（ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120），连理由
 一起留着看。另加发布侧两件：toolkit 已按发布令**以试验品身份发布**（tag `toolkit-20261019`，V11.1 候选、从未上机）、上游 Issue #3 仍在监护。
+**⚠️ 2026-10-19：V11.1 本身已标记 ⛔ UNSAFE（已知缺陷，调查中）**——已知预拍缺陷家族
+（三态静默失效、含 STP 粘性文件）见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)；
+上面四条"已修复"**不等于 V11.1 可刷**，toolkit 发布物的说明已加同日补记。
 **11 月批次三件的触发条件**见上文 "Next batch (November)"：C4 冒烟（机器回来+官方固件正常→按 c4-smoke-plan 走）｜解冻（C4 成立后，**C6=仅你下令**）｜发布（**仅你给"发"字**→按 releasing.md runbook）。三件都由触发条件启动，没有一件会自己开始。

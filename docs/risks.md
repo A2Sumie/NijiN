@@ -14,6 +14,87 @@ was sent for service.
 If you need a working camera, run official firmware. Nothing here is worth
 a dead camera.
 
+## Known unsafe: V11.1 (2026-10-19)
+
+**⚠️ V11.1 = UNSAFE — known issues, see this section. Do not flash.**
+**⚠️ V11.1 = 不安全——已知问题见本节，勿刷。**
+
+Marked 2026-10-19. V11.1 is not a hypothetical risk class: it carries a
+**known defect family**, written up here at exactly the strength the
+evidence records carry it — no hardware result is claimed below.
+
+### The known defect family: silent pre-capture non-retention (预拍三态静默失效)
+
+The pre-capture retention path (`precapture_tdec_release`, called on every
+HSFC Tdec release) keeps its result only when a family of card-side gates
+passes. When any one gate fails, the result is a **silent non-retention**
+(keep=0): no error, no indicator, the pre-capture history is simply not
+kept. Three gates, pin-level on the V11.1 blob:
+
+| Gate | Condition that silently kills retention |
+|---|---|
+| ① dual-config gate | both cards carry a valid `Z8PRE.CFG`, or neither does (`a==b` ⇒ fail) |
+| ② STP sticky gate | `Z8PRESTP.BIN` exists on the card ⇒ fail; that file is **never retried or deleted** |
+| ③ fail-closed config gate | any mismatch in magic v4 / flags / grade / CRC / reserved bytes ⇒ that card counts as unconfigured and falls back to ① |
+
+Two consequences that are part of the defect, not separate items:
+
+- **The failure is silent.** A camera that has stopped retaining pre-capture
+  looks normal in every other respect.
+- **There is no camera-side sticky bit.** Every gate input is card-file
+  state plus the session clock (the 120 s freshness window resets on power
+  cycle), so a failure that survives formatting / rewriting / card swaps can
+  only be persistent **card-side** state (STP residue, dual config, invalid
+  config). The gates run only in the HSFC P2 (Tdec release) context.
+
+Anchors and grade: the gate-level verdict is grade A (disassembly of the
+shipped V11.1 blob plus captured semantics); the card-side six-step
+reproduction is **still outstanding**, and its observation boundary is
+recorded with it (the canned menu flow never reaches P2; invoking
+file-system functions from the heartbeat context re-enters a fault). To be
+explicit about what this section does *not* say: it does not say V11.1
+bricks a camera. What is established is a known silent functional defect
+plus a card-side reproduction that is not closed yet. Internal source
+records: `141_GEMUC_C2_VERDICT.md` §0/§1/§3 and
+`138_DETECTION_VALIDATION.md` §4.3/§8.
+
+### Detection blind spots: gated, not gone
+
+The offline detection blind spots found next to this family are now closed
+by gates (`138_DETECTION_VALIDATION.md` §8): multi-source consistency
+(G3.9), stub-level behaviour regression (G3.10), memory-envelope assertion
+(G4.6); the mutation battery intercepts 44/44 and the gauntlet runs green.
+Read that as "the tooling can now catch these classes", never as "V11.1 is
+safe":
+
+- the card-side class (gate ② above) has **no offline face by design** — the
+  emulator card-state sequence (G-EMU-C) and the on-device checklist item
+  (G7) are the required observations, and the six-step card-side run is
+  still waiting on the capture drive;
+- **a green gauntlet is not a boot test**, and it is not a pre-capture test
+  either.
+
+### 中文要点（简体中文，与上文对等）
+
+- **V11.1 = 不安全**（2026-10-19 标记）。已知缺陷家族＝**预拍三态静默失效**：预拍
+  保留路径（`precapture_tdec_release`，每次 HSFC Tdec 释放调用）只有卡侧门族全过
+  才保留；任一门不满足即 **keep=0 静默不保留**（无报错、无提示）：① **a!=b 双配置
+  门**（两张卡同时有有效 `Z8PRE.CFG` 或同时没有 ⇒ 失效）② **STP 粘性门**（卡上有
+  `Z8PRESTP.BIN` ⇒ 失效，且该文件 never retried or deleted）③ **配置 fail-closed
+  门**（magic v4/flags/grade/CRC/保留区任一不符 ⇒ 该卡视为无配置，落回 ①）。
+- **失败是静默的**：预拍不再保留时，相机其余一切看起来正常。**相机侧无持久位**——
+  三门输入全是卡文件状态 + 会话内时钟（FRESH_US=120 s，重启即新）；若"格式化/重写/
+  换卡均不恢复"成立，只能是卡侧状态持续不满足（STP 残留／双配置／配置无效）。三门
+  只在 HSFC P2（Tdec 释放）上下文执行。
+- **判词口径**：门位＝A 级（v11.1 实物反汇编逐指令 + 语义实录）；卡侧六步实录**尚
+  未闭合**，观测面边界一并入册（canned 菜单流程不触 P2；心跳上下文调 FS 类函数会重入
+  故障）。**本节不说 V11.1 会刷砖**——已证的是"已知静默功能缺陷 + 卡侧实录未闭合"。
+  记录源：`141_GEMUC_C2_VERDICT.md` §0/§1/§3、`138_DETECTION_VALIDATION.md` §4.3/§8。
+- **检出盲区已补门**（G3.9 多源一致 / G3.10 桩级行为 / G4.6 内存包络；变异 44/44
+  拦截、gauntlet 全绿）＝工具能拦住这些类，**不等于 V11.1 安全**：卡侧类（门②）离线
+  无面，G-EMU-C 观察配置 + G7 上机强制项才是判据，六步卡侧实录仍在等拍摄驱动；
+  **离线全绿 ≠ 上机安全，也不是预拍测试**。
+
 ## Incident record: V10 boot loop (2026-10)
 
 What happened, in full, because it is the most important fact in this
@@ -137,7 +218,12 @@ Residuals, stated as they are: the clamp bounds **file-internal** ranges,
 so a segment-internal overrun still applies the in-file value (stock-like,
 not memory-unsafe); the six hooks are all in boot-reachable paths; and
 **none of this has been on a camera** — criterion C4 stays a prerequisite.
-The build is a candidate: not in a flash kit, not installed, not released.
+The build is a candidate: not in a flash kit, not installed, never on
+hardware. Its toolkit objects were published 2026-10-19 as a trial, and the
+build is meanwhile marked **⛔ UNSAFE (known defects, under investigation)**
+for the separate pre-capture defect family documented in
+[Known unsafe: V11.1](#known-unsafe-v111-2026-10-19) — the four fixes above
+do not cover it.
 
 ## Risk classes
 
@@ -194,6 +280,9 @@ from this repository. See [NOTICE.md](../NOTICE.md) and the disclaimer in
 
 - **一句话：改固件的最坏结果是相机永远开不了机，且该最坏情况在开发中已经
   真实发生过一次**（V10 构建，离线全绿，测试机陷入开机循环，软件救机无效，送修）。
+- **⚠️ V11.1 = 不安全（2026-10-19 标记）**：已知缺陷家族＝预拍三态静默失效（含
+  STP 粘性文件）等，判词与口径见本页 [Known unsafe: V11.1](#known-unsafe-v111-2026-10-19)
+  节（含中文要点），勿刷。
 - 事故经过、离线取证结论（618/617 遍历越界为已证机理；T4 表尾写归属未闭环；
   guard 跨区比较虽不致崩溃但可能导致全跳过或全放行；实机炸点已于 2026-10-19 定谳=S3 槽计数 618/617 越界、布局相关 UB）以及由此固化的纪律，
   全部详实记录在本页英文部分，不作省略。**C1 证据槽已备好留空**（[risks.md#c1-evidence-slot](risks.md#c1-evidence-slot)）：
