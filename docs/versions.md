@@ -47,7 +47,8 @@ verified at the time.
 Rules: cut a tag from the branch the line lives on; put the verification
 state in the message; if a tag turns out wrong, publish a new tag rather
 than moving the old one; release assets are governed by
-[release-packaging.md](release-packaging.md), not by the tag name.
+[release-packaging.md](release-packaging.md) and published per
+[releasing.md](releasing.md), not by the tag name.
 
 ## Package identity and version numbers
 

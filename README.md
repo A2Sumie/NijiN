@@ -174,7 +174,7 @@ them local. See [CONTRIBUTING.md](CONTRIBUTING.md); the pre-push scanner is
 | `gauntlet/` | The mandatory test battery: seven gates, mutation battery, combination matrix, structural torture |
 | `tools/` | Repository hygiene checks and the red-line scanner |
 | `recipes/` | Build recipes for research lines (this branch: the `bricking-edge` revert recipe) |
-| `docs/` | Build, features, verification, risks, version policy and the upstream symptom comparison |
+| `docs/` | Build, features, verification, risks, version policy, release runbook, open items and the upstream symptom comparison |
 | `assets/` | The NijiN wordmark and icon, created for this project |
 
 Source comments may cite note numbers from the development log; those notes
@@ -329,7 +329,7 @@ python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.b
 | `gauntlet/` | 强制测试电池：七道门、变异电池、组合穷举、结构酷刑 |
 | `tools/` | 仓库卫生检查与红线扫描器 |
 | `recipes/` | 研究线的构建配方（本分支：`bricking-edge` 回退配方） |
-| `docs/` | 构建、功能、验证、风险、版本口径与上游病症对照 |
+| `docs/` | 构建、功能、验证、风险、版本口径、发布流程、未完成清单与上游病症对照 |
 | `assets/` | 本项目自有的 NijiN 文字标与图标 |
 
 源码注释中引用的开发笔记编号属于内部记录，不随本仓对外分发。
