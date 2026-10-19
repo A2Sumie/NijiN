@@ -1,103 +1,104 @@
-# Release lines and version policy
+这份文档用人话重写如下。核心意思、参数和警告完全保留，但去掉了晦涩生硬的机翻腔和黑话，让你一目了然：
 
-## The two lines
+---
 
-| Line | Branch | Tag | What it is | Honest state |
+# 版本分支与版本号规则
+
+## 两个核心分支
+
+| 分支 / 产物 | Git 分支 | Git 标签 | 它是干嘛的 | 真实状态（说大白话） |
 |---|---|---|---|---|
-| **V10** | `main` | — | The current stable line: `prores` + `precapture` + `opengate` + `menuh`, with the settings save/load fixes of the last iteration | Offline green (all gates, twice). **On hardware: caused a boot loop.** Do not flash |
-| **V11 `bricking-edge`** | `bricking-edge` | `bricking-edge` | The hotfix / forensics line: V10 with the three suspect changes stripped and four patch windows reverted to the previous build's bytes | Built and compared byte for byte as a trial. Never released into a build kit. **Frozen** until the boot-loop cause is settled |
+| **V10** | `main` | 无 | 当前的主线版本：包含 ProRes、预录、OpenGate、菜单优化，以及上一版的设置保存修复。 | **电脑本地测试全绿（跑了两遍全过）。但一刷进真机就无限重启（死循环变砖）。绝对不要刷！** | — experimental。
+| **V11 `bricking-edge`** | `bricking-edge` | `bricking-edge` | 紧急排错 / 抢救分支：把 V10 里有嫌疑的 3 处改动拔掉，4 处补丁还原回上一版的原始字节。 | 仅在本地进行了逐字节对比测试，从未打包发布。**目前已被彻底冻结**，直到查明无限重启的原因。 |
 
-In this project, "stable" means **offline stable**: the build is reproducible
-and every byte is accounted for. It has never meant "safe on hardware", and
-following the incident, this distinction is stated explicitly.
+> **特别说明：**
+> 在本项目中，“稳定版（stable）”**仅仅指“离线稳定”**——即代码在本地能完美复现、测试全部通过、每个字节都在掌控中。它**从来不代表“刷进真机安全”**。经历了这次变砖事故后，我们把这点明确说透，不要产生误解。
 
-## Why `bricking-edge`
+## 为什么叫 `bricking-edge`（变砖前沿）？
 
-The name is deliberate dark humour. Where convention uses "bleeding edge",
-this line exists because a camera was bricked, so it is named directly after
-what it actually did. Renaming it to something reassuring would obscure the
-one fact a reader most needs to know.
+这个名字是地狱笑话。通常业界管最新测试版叫“刀锋版 / 尝鲜版（bleeding-edge）”，而这个分支之所以存在，是因为它**真把相机给搞变砖（brick）了**。我们用真实发生的事给它命名。要是给它起个听起来很安全的名字，反而会掩盖大家最需要知道的事实：**它曾经搞坏过机器**。
 
-## Branch and tag layout
+## 分支与标签结构
 
 ```text
-main          V10 stable line — the default branch
-bricking-edge V11 hotfix / forensics line (branch)
-bricking-edge tag on that branch — a fixed marker of the trial state
+main          V10 稳定线 —— 默认主分支
+bricking-edge V11 抢救/排错线 —— 调试分支
+bricking-edge 标签 —— 打在该分支上，用来标记排错时的代码状态
 ```
 
-Any unreleased work under investigation belongs on `bricking-edge`, not
-on `main`. `main` advances only with reviewed, offline-verified changes.
-The V11 recipe and status page are carried on `main` too, so the line is
-readable and reviewable everywhere; changes to the V11 line itself land on
-`bricking-edge`. Unfreezing the line has its own written bar in
-[unfreeze-criteria.md](unfreeze-criteria.md) and remains the owner's
-decision.
+- 任何还在调查中、未经验证的代码，**只能提交到 `bricking-edge`**，绝对不能直接合进 `main`。
+- `main` 分支只能合入经过完整代码审查、离线测试验证通过的改动。
+- 为了方便查阅，V11 的构建方法和状态说明在 `main` 上也有一份；但 V11 自身代码的改动必须留在 `bricking-edge`。
+- 解冻该分支有严格的标准（详见 [unfreeze-criteria.md](unfreeze-criteria.md)），最终由项目所有者决定是否解冻。
 
-## Tag naming
+## 标签（Tag）命名规则
 
-Tags are annotated, never moved and never reused. A tag name records what
-kind of marker it is; the tag message records the commit and what was
-verified at the time.
+所有标签必须带有注释信息（Annotated tags），**打上之后严禁移动，严禁复用**。标签名记录它的类型，标签里的附注信息记录对应的提交（Commit）以及当时通过了哪些验证。
 
-| Pattern | Meaning | State |
+| 标签格式 | 含义 | 当前状态 |
 |---|---|---|
-| `bricking-edge` | Fixed marker of the V11 trial state, on the `bricking-edge` branch | Exists |
-| `vN` (for example `v10`) | Stable-line marker: the commit that line is named after, only cut when its full gauntlet run is green | None published yet |
-| `toolkit-YYYYMMDD` | A toolkit package release, following [release-packaging.md](release-packaging.md) | None published yet; the first toolkit is prepared locally and **not** published |
+| `bricking-edge` | 标记 V11 排错实验时的代码状态，位于 `bricking-edge` 分支上 | 已存在 |
+| `vN` (例如 `v10`) | 稳定线里程碑：只有当整套严苛测试（Gauntlet）全部亮绿灯时才会打 | 目前尚未发布任何此类标签 |
+| `toolkit-YYYYMMDD` | 制作好的工具包发布版本（参见 [release-packaging.md](release-packaging.md)） | 尚未公开发布（首个工具包仅在本地测试，**未公开**） |
 
-Rules: cut a tag from the branch the line lives on; put the verification
-state in the message; if a tag turns out wrong, publish a new tag rather
-than moving the old one; release assets are governed by
-[release-packaging.md](release-packaging.md) and published per
-[releasing.md](releasing.md), not by the tag name.
+**规范原则：**
+- 标签必须从其归属的分支上打。
+- 必须在标签附注里写明当时的测试验证状态。
+- 如果标签打错了，**不要移动原标签，而是新发布一个标签**。
+- 发布文件遵循 [release-packaging.md](release-packaging.md) 和 [releasing.md](releasing.md) 的规定，不要直接把标签名当作最终发布资产名。
 
-## Package identity and version numbers
+## 固件标识与版本号规则
 
-| Knob | Rule |
+| 参数/规则 | 说明 |
 |---|---|
-| `--version NN.NN` | The version written into the package. Example used in docs: `03.11` |
-| `--tag` | Lowercase letter plus a digit, default `p0`. The stamped identity becomes `NN.NN.xN`. **For the experimental line use `p1`** |
-| Identity consistency | Runtime slot, trailer and public version text must agree; the gauntlet fails the build if they do not |
-| Forbidden value | `04.01` is a placeholder and is treated as a defect by the test battery |
+| `--version NN.NN` | 写进固件包里的版本号。文档示例中用的是：`03.11` |
+| `--tag` | 小写字母加一位数字，默认是 `p0`。打包后的完整标识会变成 `NN.NN.xN`。**如果是实验线，请用 `p1`** |
+| 标识一致性校验 | 运行时位置（Runtime slot）、文件尾（Trailer）和对外显示的文本三处的版本号必须完全一致；只要对不上，自动化测试就会直接报错中断打包 |
+| 违禁版本号 | `04.01` 是占位符，打包测试套件一旦检测到它就会判定为 Bug 并报错 |
 
-Policy notes, including deviations from upstream:
+**关于版本号政策（与上游项目的不同之处）：**
+- **本项目的本地修改**：我们允许输出的固件版本号**大于或等于**输入的版本号（上游代码强制要求必须严格“大于”）。修改依据是：我们观察到真机确实接受过版本号没有递增的固件包。但这**不保证**兼容性。
+- **Tag 代数区分**：
+  - **`p0`**：代表引发变砖事故的那一代历史产物。
+  - **`p1`**：代表当前的 V11.1 实验代 —— 任何基于 V11.1 内容打包的固件，都要带上 `--tag p1`，生成的完整标识为 `03.11.p1`。
+  - 以后如果有新代数，数字依次递增。历史上写成 `p0` 的记录保持原样，作为历史档案留存。
+- `03.11.p0` 这种命名是故意区别于原厂固件标签的，防止大家误以为是官方固件。至于“相机是否允许刷入一个和机内当前版本号完全相同的固件”，**目前尚未实机测试过**；如果相机拒绝升级，请手动加大 `--version` 的数字重新打包。
+- **改版本号只是改个名字，不会给你带来任何新功能，也不会提升兼容性。**
 
-- This fork accepts an output version **equal to or higher than** the input
-  version, whereas upstream required it to be strictly higher (`LOCAL DEVIATION`
-  markers in `features.py` and `verify.py`). Rationale: a real camera was observed
-  accepting a lower-numbered package. This is not a compatibility guarantee.
-- Tag generations: **`p0` is the historical smoke and incident generation**;
-  **`p1` is the V11.1 experimental generation — build anything from V11.1
-  content with `--tag p1`, yielding identity `03.11.p1`**. Later generations
-  take the next digit. Build records written before this split cite `p0`
-  and stay as written; they are history.
-- The `03.11.p0` identity deliberately differs from the stock tag so the
-  package is not mistaken for stock. Whether a camera accepts an update
-  carrying the same version number it already runs remains **untested**; if it
-  refuses, rebuild with a higher `--version`.
-- A changed version number adds neither functionality nor compatibility.
+## 升级 / 降级的大实话
 
-## Upgrade / downgrade reality
-
-- There is no downgrade path and no recovery guarantee.
-- Build every package from a fresh official input, never from a previous
-  build output.
-- The official C 3.11 package and its checksum are your only rollback:
-  `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96`.
-
+- **本项目不提供降级途径，也无法保证变砖后能救回来。**
+- 每次打包，**必须拿官方原版固件作为底包**，绝对不要拿已经修改过的固件包二次打包。
+- 官方原厂 C 3.11 固件包及其校验码，是你唯一的救命稻草和退路：  
+  `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96`
 ## 简体中文
 
-- 两条分支线：**V10**（`main`，当前稳定线）与 **V11 `bricking-edge`**（分支及同名标签，
-  热修／取证线；剥离了三处存疑改动，回退了四个补丁窗口）。
-- 本项目中的“稳定”仅指**离线稳定**（构建可复现、所有字节均可归因），并不代表上机安全；
-  V10 曾导致真机开机循环，README 与本文对此均不作回避。
-- `bricking-edge` 是特意保留的黑色幽默：该分支因刷砖而生，直接以其实际后果命名。
-  改成好听的名字，只会掩盖读者最该知道的事实。
-- 版本号规则：`--version NN.NN` + `--tag`（默认 `p0`），最终标识形如 `NN.NN.xN`；禁止 `04.01`。
-- **V12 = 已发布的试验性世代**——内部构建记录称 V11.2（V11.1 之上的三态门修复）的公开名；发布面一律写 **V12**，史实记录保留原名加注。
-- **tag 世代**：`p0` = 历史冒烟/事故代；**`p1` = V11.1 试验品代——凡基于 V11.1 内容构建一律用 `--tag p1`，身份即 `03.11.p1`**；后续世代顺延。本次划分之前写成 `p0` 的构建记录保持原样，属史实。
-  本分支将上游“必须高于输入号”放宽为“≥”（源码标注 `LOCAL DEVIATION`），依据是真机
-  曾接受过低版本固件，但这**并不是兼容性承诺**；设备是否接受相同版本号尚未实测，若被拒绝，使用更高的 `--version` 重新构建即可。
-- 不提供降级路径与恢复保证；每次必须基于全新官方原始包构建，切勿基于此前的构建产物；
-  唯一的回退锚点是官方 03.11 及其 sha256。
+给你重写了一版大白话，去掉了生硬的公文腔，保留了全部技术细节和安全警告：
+
+---
+
+### 分支与版本说明
+
+- **分支只有两条：**
+  - **V10（`main` 分支）：** 目前的“稳定版”。
+  - **V11 `bricking-edge` 分支：** 专门用来救急修 Bug 和排查事故的线。这版删了 3 个可疑的改动，并撤销了之前的 4 次补丁。
+- **别迷信“稳定”俩字：**
+  本项目说的稳定，**仅仅指“编译不出错、每次打出的包代码都对得上”**，绝不等于“刷进机器很安全”。说白了，V10 之前就让真机陷入过无限重启（开机循环），这点我们绝不隐瞒。
+- **为什么叫 `bricking-edge`（变砖前沿）？**
+  这是个故意留的黑色幽默——这分支本来就是机器刷成砖后才搞出来的，直接拿最惨的后果命名。起个好听的名字纯属忽悠人，不如直接把风险甩在明面上。
+
+### 打包与版本号规则
+
+- **版本号格式：** `--version 主版本号` + `--tag 标识`（默认是 `p0`），拼出来形如 `NN.NN.xN`。**严禁使用 `04.01`**。
+- **V12 到底是什么：**
+  内部开发记录里的 **V11.2**（在 V11.1 基础上修了三态门问题），对外发布时**一律叫 V12**。你对外宣发写 **V12** 就行，旧的内部档案如果写了 V11.2，加个备注保持原样。
+- **Tag 代次规矩：**
+  - `p0`：早期的冒烟测试和事故版本；
+  - **`p1`：V11.1 的试验版本**。凡是基于 V11.1 编译的，**必须带上 `--tag p1`**，打出来的版本号就是 `03.11.p1`；以后的新版本按 `p2`、`p3` 往下排。之前已经标成 `p0` 的旧记录不用改，留作历史记录。
+  - **版本号放宽限制：** 原厂要求版本号必须“高于”旧版本，我们在源码里偷偷改成了“大于等于”（代码里标了 `LOCAL DEVIATION`）。虽然之前真机确实刷进去过旧固件，但这**不等于官方打包票能用**；如果机器拒收同版本号固件，直接把 `--version` 改高一点重新打包即可。
+
+### 救砖与底线原则
+
+- **概不负责救砖，也没有降级通道。**
+- **每次打包，底子必须是干净的官方原版固件**，绝对不要在之前改过的包上“叠罗汉”。
+- 真搞砸了，你**唯一能指望的回退退路，就是刷回官方原版 03.11 固件**（请务必核对 sha256 校验和）。

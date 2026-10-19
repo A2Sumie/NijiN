@@ -1,124 +1,168 @@
-# C4 smoke plan — the one on-device run the V11 line owes
+这里是一份**口语化、接地气、同时完全保留原技术约束和规则**的重写版本：
 
-**Plan only.** Criterion C4 of [unfreeze-criteria.md](unfreeze-criteria.md)
-needs either one on-device smoke of the fixed build or an explicit written
-waiver from the owner. This document is the smoke's executable shape. It is
-**not** a waiver: the waiver must come from the owner, in the ledger, by
-name. Closes [open-items #6](open-items.md).
+---
 
-Purpose: **verify the fix**, not rescue anything. The discipline style
-follows the rescue playbook's rules (single variable, criteria before the
-step, stop at the first anomaly) but every step here asks "does the fixed
-build behave", never "how do I get data out of a broken camera".
+# C4 真机冒烟测试方案 —— V11 分支必须补上的这一仗
 
-## Preconditions (all of them, before the first flash)
+**【先声明：本文只是一份执行方案】**  
+按照 [解冻准则 C4](unfreeze-criteria.md) 的规定，固件要想解冻，必须二选一：**要么拿修复版在真机上完整跑一遍冒烟测试，要么由负责人（Owner）出具明确的书面豁免。** 本文档是测试的具体操作流程，**它本身绝不是豁免**。豁免必须由负责人在台账（ledger）里白纸黑字、实名签字才算数。本文档用于关闭 [待办事项 #6](open-items.md)。
 
-| # | Precondition | Why |
+**测试目的：只验证“修好了没有”，不搞任何数据抢救。**  
+测试纪律严格遵循抢救手册的要求（只改一个变量、动手前先定标准、一出毛病立刻停手）。但请搞清楚：这里的每一步都是在看“修好的固件能不能正常跑”，而不是去琢磨“怎么把坏相机里的照片导出来”。
+
+---
+
+## 刷机前必须全部满足的条件（缺一不可）
+
+| 编号 | 准入条件 | 为什么必须这样 |
 |---|---|---|
-| P1 | The camera is back from service and runs official firmware normally | A smoke against a damaged body proves nothing |
-| P2 | The official C 3.11 package is on hand and verified: 99,051,117 bytes, SHA-256 `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96` | It is the only rollback |
-| P3 | The candidate build passed C1–C3: verdict filled, fixes landed, full gauntlet green, rebuild reproducible | Smoke is not a debugging session |
-| P4 | A dedicated, empty test card; settings backed up; a full battery; uninterrupted time | Single variables need quiet conditions |
-| P5 | No `Z8PRE*.CFG`, no `Z8OG.CFG` on the card at step S1 | The no-config boot is the control |
-| P6 | The candidate is the V11 revert line — **never V10** | [unfreeze-criteria.md](unfreeze-criteria.md) post-unfreeze rule 1 |
+| **P1** | 相机已从官方售后修好取回，且运行官方固件完全正常 | 拿一台本身就有暗病的机器测，测了也是白测 |
+| **P2** | 手头有校验过的官方 C 3.11 固件包：大小必须是 99,051,117 字节，SHA-256 为 `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96` | 这是出事后唯一的退路（回滚包） |
+| **P3** | 待测固件已通过 C1~C3 标准（结论已填、修复已合入、测试全绿、构建完全可复现） | 冒烟测试是验完成品的，不是让你拿真机现场 debug 的 |
+| **P4** | 准备一张专用的空卡；相机设置已备份；电池充满；确保有不受打扰的时间 | 控制单一变量需要一个绝对干净、不受干扰的环境 |
+| **P5** | 在进行 S1 步时，卡里绝对不能放 `Z8PRE*.CFG` 或 `Z8OG.CFG` 配置文件 | “无配置启动”是我们的基准对照组 |
+| **P6** | 待测固件必须是 V11 回滚分支 —— **绝对不能碰 V10** | 这是解冻准则里的第一条铁律 |
 
-## Main sequence (one variable per step)
+---
 
-Judgement for every step, in one word: **boot**. Then the listed checks.
-A step only starts when the previous step's criteria are all met.
+## 正式测试步骤（每一步只变动一个变量）
 
-| Step | Action (the only variable) | Criteria = all must hold | If not |
+每一步的核心判定标准就两个字：**开机**。然后再做列出的其他检查。  
+**必须在上一步的标准全部达标后，才能进入下一步。**
+
+| 步骤 | 操作（本步唯一的变量） | 通过标准（必须全部满足） | 只要不符合 |
 |---|---|---|---|
-| S0 | Official firmware, empty card | Boots to the shooting display; one photo writes and plays back | Body or card problem — stop, this is not a firmware question |
-| S1 | Flash the candidate build, card still empty | Powers on within normal time, **no restart loop**; shooting display reachable; MENU opens and closes; one photo writes and plays back | **ABORT**, go to "first anomaly" |
-| S2 | Boot with the camera's settings file on the card (save/load path) | Boots exactly like S1; settings load without error; no lost or reset items | ABORT |
-| S3 | One config file, minimal (`Z8PRE` safe tier) | Boots like S2; the feature enables; one capture works | ABORT |
-| S4 | Remove the config file again | Back to S2 behaviour exactly | ABORT |
-| S5 | Power cycle ×3 | Boots every time, same behaviour | ABORT |
-| S6 | Card swap (insert/remove, powered off), including the card with the config | Boots; the feature can be enabled again after the swap — the symptom class from the upstream report | ABORT |
+| **S0** | 官方原厂固件，插空卡 | 能正常开机进拍摄界面；能拍一张并正常回放 | 说明是相机或卡本身坏了 —— **立刻停手**，这不是固件的问题 |
+| **S1** | 刷入待测固件，依然是空卡 | 正常时间内开机，**绝对没有无限重启**；能进拍摄界面；能正常打开/关闭菜单；能拍一张并正常回放 | **立刻中止**，进入“首遇异常”流程 |
+| **S2** | 把相机设置文件放回卡里，开机（测试配置读写功能） | 表现与 S1 完全一致；设置加载无报错；配置项没有丢失或被重置 | **立刻中止** |
+| **S3** | 放入一个最小化配置文件（`Z8PRE` 安全档位） | 表现与 S2 一致；对应功能可正常启用；能正常拍摄一张 | **立刻中止** |
+| **S4** | 再次删掉/拔出配置文件 | 行为表现完全回到 S2 的状态 | **立刻中止** |
+| **S5** | 连续正常开关机 3 次 | 每次都能顺利开机，表现一致 | **立刻中止** |
+| **S6** | 关机状态下插拔存储卡（包括插回带配置文件的卡） | 能开机；插拔后功能仍能重新正常启用（针对上游反馈的问题类型） | **立刻中止** |
 
-S1 is the step the whole plan exists for: **does the fixed build boot**. If
-S1 aborts, nothing below is attempted.
+**S1 是整个计划最核心的一步：新固件到底能不能正常开机。** 如果 S1 失败中止了，后面的步骤连碰都不要碰。
 
-## First anomaly = stop
+---
 
-An anomaly is: a restart loop, a black screen, a menu that freezes, a write
-error, a behaviour that differs from the step's criteria, or anything you
-cannot explain. On the first one:
+## 只要出现异常，立刻停手
 
-1. **Stop.** Do not repeat "to confirm", do not continue "to gather data".
-2. Do not power-cycle in a loop. One controlled attempt at most.
-3. Roll back: reflash the verified official C 3.11 package, remove all
-   config files from the card.
-4. Record the step, the observed behaviour and the time in the ledger
-   (template below), then walk away from the camera.
+**什么是异常？**  
+包括：无限重启、黑屏、菜单卡死、写入报错、任何与上述标准不符的行为，或者任何你解释不通的诡异现象。**只要出现第一个异常：**
 
-If the camera does not boot at all: the rollback path is the service path.
-See [risks.md](risks.md) — this has happened before.
+1. **立刻停手。** 绝对不要为了“确认一下”再试一次，也绝对不要为了“多采点数据”硬着头皮继续往下跑。
+2. **严禁反复开关机。** 最多只允许做一次受控的断电重启。
+3. **立刻回滚：** 刷回上面校验过的官方 C 3.11 固件，清空卡里所有的配置文件。
+4. **记录并离开：** 在台账里如实记下是在哪一步、出了什么现象、时间点（按下方模板填），然后**放下相机，直接走人**。
 
-## Record template (one line per step, into the ledger)
+*注：如果相机彻底黑了连机都开不了，那唯一的回滚路线就是再送官方售后。去看看 [risks.md](risks.md) —— 这事儿之前不是没发生过。*
+
+---
+
+## 测试记录模板（每一步在台账中单列一行）
 
 ```text
-[smoke] date/time | build identity + output sha256 | step S? | variable |
-expected | observed | verdict PASS/FAIL/ABORT | evidence (file names + hashes) |
-next action
+[smoke] 日期/时间 | 构建标识 + 产物 SHA256 | 步骤编号 S? | 改变的变量 | 预期表现 | 实际表现 | 结论 PASS/FAIL/ABORT | 证据（文件名及哈希） | 下一步动作
 ```
 
-Filled examples of the verdict words: `PASS` (criteria all met),
-`FAIL` (criteria missed, anomaly), `ABORT` (stop rule fired). An unfilled
-step is not a pass.
+结论填写说明：
+- `PASS`（标准全部达标）
+- `FAIL`（未达标，出现异常）
+- `ABORT`（触发了终止规则，强行中断）  
+*注意：留空未填的步骤，一律不算通过。*
 
-## 禁做清单 / Do not
+---
 
-- Do not smoke with V10. Ever.
-- Do not skip S0: without the control, "boots" means nothing.
-- Do not change two things between steps (no "both config files at once").
-- Do not leave the step's criteria to be decided after seeing the result —
-  they are written above; changing them mid-run invalidates the run.
-- Do not treat "it booted twice" as qualification: this is one smoke, and
-  [features.md](features.md) keeps every unverified item unverified.
+## 禁做清单（高压线）
 
-## Risk gate and waiver
+- **绝对不要拿 V10 固件做冒烟测试。永远不要。**
+- **不要跳过 S0：** 没有官方固件的对照测试，“能开机”三个字毫无参考价值。
+- **不要在一步里同时改动两个变量**（比如“一次性塞进去两个配置文件”）。
+- **不要在看到结果之后，再反过来修改评判标准：** 标准在上面已经白纸黑字写死，中途改标准整场测试作废。
+- **不要把“侥幸开机成功了两次”当成功能全体验收合格：** 这只是一次冒烟测试而已，[features.md](features.md) 里没验证过的东西依然全部属于未验证状态。
 
-The risky steps are none of them: the run is designed to stop early. The
-risk is inherent — this is modified firmware on a real camera.
+---
 
-If the owner decides to skip the hardware smoke entirely, that is the C4
-waiver, and it must exist as a ledger entry that says, in the owner's
-words, that the risk of skipping the smoke is accepted. **A plan is not a
-waiver; silence is not a waiver.** Without either a smoke record or that
-entry, C4 stays unmet and the line stays frozen.
+## 风险门禁与豁免说明
+
+按理说，这里面的每一步都设计了“遇错即停”，方案本身并不激进。但风险是客观存在的 —— 毕竟这是在真机上刷修改过的第三方固件。
+
+如果负责人决定彻底跳过真机冒烟测试，那就是走 **C4 豁免**。但这必须在台账上白纸黑字记上一笔，由负责人亲笔说明“愿意承担跳过冒烟测试的风险”。**执行方案不等于豁免；负责人装聋作哑没吭声，更不等于豁免。**  
+只要既没有真机冒烟测试的通过记录，也没有负责人的实名豁免记录，C4 就不算满足，V11 分支就必须继续死死冻结。
 
 ## 简体中文
 
-**这是预案，不是豁免。** [unfreeze-criteria.md](unfreeze-criteria.md) 的 C4
-要么一次上机冒烟记录、要么**你本人在台账里明示豁免**；本文只把冒烟写成可执行步骤。
-销 [open-items #6](open-items.md)。目的=**验证修复**，不是救机。
+这份文档原本的行文极度紧凑（电报风/速记体）。下面将其重写为**结构清晰、逻辑明确、符合工程规范的“人话”版本**，所有原意、哈希值、步骤及硬性约束均严格保留：
 
-**前置（全齐才开刷）**：P1 相机送修回来、官方固件正常｜P2 官方 C 3.11 包在手且核过
-（99,051,117 字节、sha256 `d67413c2…`）＝唯一回退｜P3 候选已过 C1–C3（判词填、修复落地、
-gauntlet 全绿、重建可复现）｜P4 专用空测试卡＋设置已备份＋满电＋不被打断的时间｜
-P5 S1 时卡上无任何 `Z8PRE*.CFG`/`Z8OG.CFG`｜P6 候选必须是 **V11 回退线，永远不是 V10**。
+---
 
-**主序列（一步一变量）**：S0 官方固件＋空卡（开机→拍照→写卡→回放）→ **S1 刷候选、
-卡仍空**（正常时间开机、**不重启循环**、取景可达、菜单开合、拍照写卡回放）→ S2 放设置
-文件开机（载入无错、无项丢失/复位）→ S3 放一个最小配置（safe 档）→ S4 删配置回退行为
-→ S5 三次冷启动 → S6 换卡（含带配置的卡，即上游报告的症状类）。**S1 是整份预案存在的
-理由：修复后的包到底开不开得了机；S1 中止则下面全不做。**
+# 真机冒烟测试执行预案（Z8 固件）
 
-**首异常即停**：重启循环/黑屏/菜单卡死/写卡报错/与判据不符/说不清的行为，任一发生——
-①**停**，不"再试一次确认"、不"多拿点数据"；②不反复断电重启，最多一次受控尝试；
-③回退：重刷核过的官方 C 3.11、清空卡上配置文件；④按模板把步骤/现象/时间记进台账，
-然后离开相机。开不了机=走送修线（见 [risks.md](risks.md)，这发生过）。
+### 核心申明
+**这是测试执行预案，不是免测申请。**  
+要满足 [unfreeze-criteria.md](unfreeze-criteria.md) 中的 C4 解冻标准，你只有两种选择：**要么完成一次真实的真机冒烟并留存记录，要么你本人在台账中明确签字豁免。**  
+本文档仅用于将冒烟测试细化为可执行的步骤，用于核销 [open-items #6](open-items.md)。  
+**核心目的：验证 Bug 是否已被修复**，本流程不用于砖机救援。
 
-**记录模板**（每步一行入台账）：`[smoke] 日期时间 | 构建身份+输出 sha256 | 步 S? |
-变量 | 判据 | 实测 | PASS/FAIL/ABORT | 证据（文件名+哈希） | 下一步`。空行不算过。
+---
 
-**禁做**：不冒烟 V10；不跳 S0（无对照组，"开机"没有意义）；不一步改两件事；
-判据不在看到结果后才定（会废掉整轮）；"开过两次机"不算合格——这就是一次冒烟，
-[features.md](features.md) 里未验证的项继续按未验证挂着。
+### 一、 测试前置条件（必须全部满足，缺一不可开刷）
+* **P1. 相机状态正常**：相机已从官方售后送修返回，当前运行官方固件且功能正常。
+* **P2. 官方底包就绪（唯一救命稻草）**：手头必须备有经过完整性校验的官方 C 3.11 固件包（大小必须精确为 `99,051,117` 字节，SHA-256 必须为 `d67413c2…`）。
+* **P3. 候选固件达标**：待测的固件候选包已通过 C1～C3 标准（测试用例填齐、修复代码已合入、自动化测试全绿、构建结果可确定性复现）。
+* **P4. 环境与工具就绪**：专用的空白测试卡一张、相机当前设置已提前备份、电池满电、确保有一段完全不会被打扰的测试时间。
+* **P5. 测试卡清洁**：在执行 S1 步时，卡内**严禁**存在任何 `Z8PRE*.CFG` 或 `Z8OG.CFG` 配置文件。
+* **P6. 分支正确**：测试对象必须来自 **V11 回退分支**，**绝对不能是 V10**。
 
-**风险闸门与豁免**：本序列的高风险步是"没有高风险步"（设计目标=尽早停）；风险本身
-来自"改装固件上真机"。若你决定整段跳过硬件冒烟，那就是 C4 豁免——**必须在台账里留下
-你本人明示承担跳过风险的条目**。**预案不是豁免，沉默不是豁免**；冒烟记录与豁免条目
-二者皆无，C4 维持未达成、线维持冻结。
+---
+
+### 二、 测试主序列（核心原则：一次只改一个变量）
+
+* **S0. 基准对照**：官方固件 + 空卡  
+  * 操作：开机 → 拍照 → 数据写卡 → 回放照片。（确认基准功能完全正常）
+* **S1. 候选固件纯净启动（核心关卡）**：刷入候选固件 + 保持空卡  
+  * 判据：正常时间内完成开机、**绝对不出现反复重启**、取景器画面正常、菜单开合顺畅、拍照写卡与回放正常。  
+  * **注意：S1 是整份预案存在的唯一理由。如果修复后的固件连正常开机都做不到，测试立即中止，后续步骤全部取消。**
+* **S2. 恢复设置测试**：放入相机设置备份文件后开机  
+  * 判据：配置正常载入无报错，各项设置无缺失、无意外被重置。
+* **S3. 最小配置测试**：放入单个最小化安全配置（safe 档）并验证运行。
+* **S4. 回退机制测试**：删除配置文件，验证系统是否能正常回退到默认行为。
+* **S5. 冷启动稳定性**：连续执行三次完全断电的冷启动，确保每次均可稳定开机。
+* **S6. 异常卡与换卡测试**：更换存储卡（放入带有导致上游报错症状的配置文件的卡），验证边界行为。
+
+---
+
+### 三、 异常处置：首个异常即刻停机（Fail-Stop）
+只要出现以下任一现象（重启循环、黑屏、菜单卡死、写卡报错、实测与判据不符、任何不可解释的诡异行为）：
+
+1. **立即停止**：坚决不要抱有“我再试一次确认下”或“抓点日志/多拿点数据”的侥幸心理。
+2. **严禁反复断电开机**：除了一次必要的受控排查外，禁止不断开关机。
+3. **立刻回退**：立即重新刷入校验过的官方 C 3.11 固件，清空卡上的所有配置文件。
+4. **留存记录并离场**：按照下方模板将当前步骤、现象、时间记录至台账，然后**立刻放下相机，不要继续折腾**。
+5. **最坏情况处理**：如果此时机器已无法开机，直接走售后返厂流程（参考 [risks.md](risks.md)，此前发生过此情况）。
+
+---
+
+### 四、 台账记录模板（每做一步记录一行，空行视为未通过）
+```text
+[smoke] 记录时间 | 构建标识 + 输出包 sha256 | 测试步骤 S? | 本步变量 | 预期判据 | 实测结果 | PASS/FAIL/ABORT | 证据文件(文件名+哈希) | 下一步操作
+```
+
+---
+
+### 五、 绝对禁令（红线）
+* **严禁**拿 V10 分支做冒烟测试。
+* **严禁**跳过 S0 步骤（没有官方基准对照，后续所谓的“能开机”毫无评判意义）。
+* **严禁**在一个测试步骤中同时更改两个变量。
+* **严禁**看到实测结果后再临时去编造/修改判据（这会导致整轮测试失效作废）。
+* **严禁**认为“开过两次机就算测过了”——这只能算一次冒烟通过，[features.md](features.md) 里尚未验证的特性，必须继续保持“未验证”状态。
+
+---
+
+### 六、 风险闸门与豁免规则
+本套流程在设计上力求“杜绝高风险操作”（核心思路是一旦不对立刻止损）。但最大的风险恰恰来自**“将修改过的非官方固件刷入真机”**本身。
+
+如果你最终决定完全跳过真机冒烟测试：
+* 这在流程上属于 **C4 豁免**。
+* **你必须在台账里白纸黑字写下豁免记录，明确声明由你本人承担跳过测试的所有风险。**
+* **预案不等于豁免，保持沉默更不等于豁免。**  
+* 如果台账中**既没有冒烟通过记录，也没有你的明示豁免条目**，则判定 C4 条件未达成，代码分支将**继续保持冻结**。

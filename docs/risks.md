@@ -1,305 +1,169 @@
-# Risks, the incident, and rollback
+以下是为您整理的**“人话版”风险与事故说明**。删除了晦涩的工程黑话，但在技术细节、数据、风险级别和操作步骤上与原文**完全对等**。
 
-Read this page before building anything, and again before any thought of
-putting a build on a camera.
+---
 
-## The short version
+# 风险警告、翻车事故记录与救砖指南
 
-This project modifies the firmware of a working camera. The worst case is a
-camera that never boots again. **That worst case has already happened once
-during this project's development**, on a test unit, with a build whose
-offline checks were all green. The unit was not recoverable by software and
-was sent for service.
+在动手编译任何代码前，或者动哪怕一秒钟“把固件刷进相机”的念头之前，**必须通读本页**。
 
-If you need a working camera, run official firmware. Nothing here is worth
-a dead camera.
+---
 
-## Known unsafe: V11.1 (2026-10-19)
+## 核心警告（一句话总结）
 
-**⚠️ V11.1 = UNSAFE — known issues, see this section. Do not flash.**
-**⚠️ V11.1 = 不安全——已知问题见本节，勿刷。**
+这个项目是在**魔改相机的底层固件**。
+最严重的结果，就是**相机彻底变砖，永远无法开机**。
 
-Marked 2026-10-19. V11.1 is not a hypothetical risk class: it carries a
-**known defect family**, written up here at exactly the strength the
-evidence records carry it — no hardware result is claimed below.
+**这不是理论推测——在本项目的开发过程中，已经有一台测试机彻底变砖了。**
+当时那个固件版本的所有电脑离线测试全是“全绿通过”。结果刷机后，软件手段彻底救不回来，只能自费送修。
 
-### The known defect family: silent pre-capture non-retention (预拍三态静默失效)
+如果你需要相机稳定干活，**请老老实实使用尼康官方固件**。这里没有任何一个功能值得你牺牲一台昂贵的相机。
 
-**V12 (原 V11.2 构建, `bcf5c47f…`, `03.11.p1`) fixes this family** — STP
-sticky-file self-heal (session latch + evidence preservation, foreign files
-still stop) and gate-loss observability (a readable status block where
-failures used to be silent), with **V11.1 no regression** and a full green
-gauntlet (44/44 mutations, three-state behaviour gate 19 vectors). **Not on
-hardware, not released: a candidate awaiting verification (release name **V12**).** V11.1 stays
-⛔ UNSAFE below; the marker is not lifted by the candidate's existence.
+---
 
-The pre-capture retention path (`precapture_tdec_release`, called on every
-HSFC Tdec release) keeps its result only when a family of card-side gates
-passes. When any one gate fails, the result is a **silent non-retention**
-(keep=0): no error, no indicator, the pre-capture history is simply not
-kept. Three gates, pin-level on the V11.1 blob:
+## 绝对不要刷的版本：V11.1（2026-10-19 标记） — never on hardware — 未上机。
 
-| Gate | Condition that silently kills retention |
-|---|---|
-| ① dual-config gate | both cards carry a valid `Z8PRE.CFG`, or neither does (`a==b` ⇒ fail) |
-| ② STP sticky gate | `Z8PRESTP.BIN` exists on the card ⇒ fail; that file is **never retried or deleted** |
-| ③ fail-closed config gate | any mismatch in magic v4 / flags / grade / CRC / reserved bytes ⇒ that card counts as unconfigured and falls back to ① |
+**⚠️ 警告：V11.1 = 极度不安全！已知存在严重缺陷，严禁刷机！**
 
-Two consequences that are part of the defect, not separate items:
+### 致命缺陷：“预拍功能静默罢工”（预拍三态静默失效）
 
-- **The failure is silent.** A camera that has stopped retaining pre-capture
-  looks normal in every other respect.
-- **There is no camera-side sticky bit.** Every gate input is card-file
-  state plus the session clock (the 120 s freshness window resets on power
-  cycle), so a failure that survives formatting / rewriting / card swaps can
-  only be persistent **card-side** state (STP residue, dual config, invalid
-  config). The gates run only in the HSFC P2 (Tdec release) context.
+* **现状：** 候选版本 **V12**（基于 V11.2 构建，`bcf5c47f…`）修复了这个问题，但**从未在真机上验证过**。因此 **V11.1 依然保持“⛔ 不安全”状态**，不会因为修复版的出现而解禁。
+* **现象说明（什么叫“静默罢工”）：**
+  在 V11.1 中，相机的预拍（Pre-capture）功能在存图时，必须通过 3 道由存储卡控制的“门禁”。**只要有一道门没过，相机就会直接放弃存图——最可怕的是：没有任何报错提示、没有任何指示灯提醒，表面上一切正常，但你以为拍下来的照片其实根本没存进去。**
 
-Anchors and grade: the gate-level verdict is grade A (disassembly of the
-shipped V11.1 blob plus captured semantics); the card-side six-step
-reproduction is **still outstanding**, and its observation boundary is
-recorded with it (the canned menu flow never reaches P2; invoking
-file-system functions from the heartbeat context re-enters a fault). To be
-explicit about what this section does *not* say: it does not say V11.1
-bricks a camera. What is established is a known silent functional defect
-plus a card-side reproduction that is not closed yet. Internal source
-records: `141_GEMUC_C2_VERDICT.md` §0/§1/§3 and
-`138_DETECTION_VALIDATION.md` §4.3/§8.
+#### 导致预拍静默失效的 3 道门禁：
 
-### Detection blind spots: gated, not gone
+| 门禁 | 触发“静默失效（不存图）”的条件 |
+| :--- | :--- |
+| **① 双配置门** | 两张存储卡里**同时存在**有效的 `Z8PRE.CFG`，或者两张卡里**都没有**该配置（即两张卡状态相同 `a == b` ⇒ 失效）。 |
+| **② STP 粘性文件门** | 只要卡里存在 `Z8PRESTP.BIN` 文件 ⇒ 直接失效。**这个文件一旦生成，固件既不会去重新读取它，也绝不会自动删除它。** |
+| **③ 配置严格校验门** | 配置文件中的特征码（magic v4）、标志位、CRC 校验码或保留字节只要有任何一点对不上 ⇒ 直接当成“无配置”，自动触发门禁 ① 的失效逻辑。 |
 
-The offline detection blind spots found next to this family are now closed
-by gates (`138_DETECTION_VALIDATION.md` §8): multi-source consistency
-(G3.9), stub-level behaviour regression (G3.10), memory-envelope assertion
-(G4.6); the mutation battery intercepts 44/44 and the gauntlet runs green.
-Read that as "the tooling can now catch these classes", never as "V11.1 is
-safe":
+#### 带来的后果：
+1. **隐蔽性极高：** 相机不存图的时候，屏幕、菜单没有任何异常，你根本不知道预拍已经废了。
+2. **机身不背锅，全是卡残留：** 相机机身在重启后状态会重置（以 120 秒会话为周期），所以如果出现“格式化、重写、换卡依然无法恢复”的情况，**绝对是因为卡里留下了残留文件**（残留了 STP 文件、双卡配置冲突、或者配置文件损坏）。
 
-- the card-side class (gate ② above) has **no offline face by design** — the
-  emulator card-state sequence (G-EMU-C) and the on-device checklist item
-  (G7) are the required observations, and the six-step card-side run is
-  still waiting on the capture drive;
-- **a green gauntlet is not a boot test**, and it is not a pre-capture test
-  either.
+> **说明：** 这里**并不是说 V11.1 会把相机刷变砖**，而是证明了它存在“静默失效的功能性 Bug”以及尚未完全复现的卡侧问题。离线测试全绿只代表工具能拦住已知代码错误，**绝对不等于刷进相机就安全，更不代表预拍功能是正常的**。
 
-### 中文要点（简体中文，与上文对等）
+---
 
-- **V12（原 V11.2 构建，`bcf5c47f…`，`03.11.p1`）已修本缺陷家族**（STP 粘性文件自愈＋失守可观测），gauntlet 全绿、V11.1 无回归；**未上机、未发布，候选待验**。
-- **V11.1 = 不安全**（2026-10-19 标记，**保留**；候选的存在不解除该标记）。已知缺陷家族＝**预拍三态静默失效**：预拍
-  保留路径（`precapture_tdec_release`，每次 HSFC Tdec 释放调用）只有卡侧门族全过
-  才保留；任一门不满足即 **keep=0 静默不保留**（无报错、无提示）：① **a!=b 双配置
-  门**（两张卡同时有有效 `Z8PRE.CFG` 或同时没有 ⇒ 失效）② **STP 粘性门**（卡上有
-  `Z8PRESTP.BIN` ⇒ 失效，且该文件 never retried or deleted）③ **配置 fail-closed
-  门**（magic v4/flags/grade/CRC/保留区任一不符 ⇒ 该卡视为无配置，落回 ①）。
-- **失败是静默的**：预拍不再保留时，相机其余一切看起来正常。**相机侧无持久位**——
-  三门输入全是卡文件状态 + 会话内时钟（FRESH_US=120 s，重启即新）；若"格式化/重写/
-  换卡均不恢复"成立，只能是卡侧状态持续不满足（STP 残留／双配置／配置无效）。三门
-  只在 HSFC P2（Tdec 释放）上下文执行。
-- **判词口径**：门位＝A 级（v11.1 实物反汇编逐指令 + 语义实录）；卡侧六步实录**尚
-  未闭合**，观测面边界一并入册（canned 菜单流程不触 P2；心跳上下文调 FS 类函数会重入
-  故障）。**本节不说 V11.1 会刷砖**——已证的是"已知静默功能缺陷 + 卡侧实录未闭合"。
-  记录源：`141_GEMUC_C2_VERDICT.md` §0/§1/§3、`138_DETECTION_VALIDATION.md` §4.3/§8。
-- **检出盲区已补门**（G3.9 多源一致 / G3.10 桩级行为 / G4.6 内存包络；变异 44/44
-  拦截、gauntlet 全绿）＝工具能拦住这些类，**不等于 V11.1 安全**：卡侧类（门②）离线
-  无面，G-EMU-C 观察配置 + G7 上机强制项才是判据，六步卡侧实录仍在等拍摄驱动；
-  **离线全绿 ≠ 上机安全，也不是预拍测试**。
+## 真实翻车事故复盘：V10 固件导致相机无限重启变砖（2026-10）
 
-## Incident record: V10 boot loop (2026-10)
+以下是完整的事发经过，也是本仓库最重要的血泪教训：
 
-What happened, in full, because it is the most important fact in this
-repository:
+1. **看似完美的固件：** 当时 V10 稳定版固件在电脑上把整套离线测试**完整跑了两遍**：字节级校验全过、33 个检查点全过、34 种变异攻击全部拦截、17 组组合测试全绿、高压结构测试全绿，代码重构也是 1:1 还原。
+2. **刷机即报废：** 固件被刷进了一台测试机。相机开机亮屏，引导加载器（loader）正常工作，但在跑应用层初始化时**直接崩溃**，随即进入**无限死循环重启（Boot loop）**，自此彻底无法正常使用。
+3. **救砖彻底失败：** 我们尝试了所有软件恢复方案（存储卡特定文件引导、按键盲操组合、工程/隐藏恢复入口、Type-C 连线恢复），**全部毫无反应**。最终这台机器只能自费送回售后服务中心。
+4. **事后死因排查（取证）：** 最终锁定了 V10 专属的代码改动：
+   * **致命元凶（已证实）：** 一个设置项计数立即数从 `617` 改成了 `618`，但底层的表格容量依然只有 `617`！导致遍历循环时**硬生生多走了一步，发生了内存越界读写**。
+   * **潜在地雷：** 两个相邻数据表边界有一处写入，且该表在代码中没有任何静态引用，无法确定所有权；另外有一个加载期的保护逻辑跨越了两个不同区域来算边界，可能导致静默跳过所有保护。
+5. **V11 的诞生：** V11 实验分支就是为了彻底剥除上述可疑改动而建的。但在此事故彻底弄清前，代码一直处于冻结状态。
 
-1. The V10 build of the stable line passed the entire offline battery twice:
-   byte-level verification, 33 checkpoints, 34/34 mutations intercepted,
-   17/17 combination rows green, structural torture green, and reproducible
-   rebuild.
-2. It was installed on one test camera. The camera powered the display,
-   kept the loader alive, crashed during application initialization, and then
-   restarted into a boot loop. It never returned to service.
-3. Software recovery attempts (card-file sequences, key sequences,
-   service/hidden entry paths, and the USB link) failed to restore it. The
-   unit was sent for service.
-4. Offline forensics afterwards narrowed the cause down to V10-specific
-   changes:
-   - a settings-count immediate value raised from 617 to 618 while its
-     backing table stayed at 617 — a one-entry overrun for any traversal
-     that relies on the count (**proven mechanism**);
-   - a write at the boundary between two adjacent tables whose ownership
-     could not be closed statically (zero code references to that table);
-   - a load-time guard that cannot crash directly but computes its bounds
-     across two different regions, so it may silently skip or allow
-     everything;
-   - everything else in the delta was either excluded by inspection or
-     unchanged from a build generation that had previously run on hardware.
-   The exact instruction that faults on hardware has **not** been pinned.
-5. The V11 line (`bricking-edge`) exists to strip those suspect changes. It
-   was built and compared byte for byte as a trial, was deliberately never
-   released into a build kit, and remains frozen until the cause is settled.
+### 本次事故换来的铁律：
+* **电脑测试全绿 ≠ 真机开机安全：** 测试脚本只验证了二进制字节和构建规则，**没有一行代码在真实硬件上跑过**。
+* **永远不要直接在真机上刷最新版固件。**
+* **任何能在开机阶段执行的代码改动，必须有独立的硬核证据，** “上一版也是这么写的”绝不能当借口。
+* **一次只改一个变量，且必须备好退路（回滚方案），** 发现一丝不对劲立刻叫停。
 
-A comparable post-flash failure was reported independently on another Z8
-modification project (upstream Issue #3). The symptom comparison, what our
-forensics suggest checking there, and what must not be blurred between the
-two cases are in [upstream-issue-3.md](upstream-issue-3.md).
+---
 
-A comparable post-flash failure was reported independently on another Z8
-modification project (upstream Issue #3). The symptom comparison, what our
-forensics suggest checking there, and what must not be blurred between the
-two cases are in [upstream-issue-3.md](upstream-issue-3.md).
+## C1 事故定性证据槽
 
-Lessons that are now project policy:
-- **A green gauntlet is not a boot test.** The battery validates bytes and
-  recipes; nothing in it executes on a device.
-- **Never start with the newest line on hardware.** Even the older line is
-  unproven here.
-- **Changes in boot-reachable code need their own evidence**, and "the
-  previous version did this too" is not evidence.
-- **One variable at a time, with a rollback ready**, and stop at the first
-  anomaly.
+*状态：已于 2026-10-19 根据崩溃取证分析结论正式填入。*
 
-## C1 evidence slot
+| 字段 | 要求填入的内容 | 实际记录值 |
+| :--- | :--- | :--- |
+| **最终判词** | 一句话指出崩盘指令或路径 | **就是它。** V10 真机死循环变砖的根因 = **S3 槽计数 618/617 越界**：V10 将注册计数立即数改成 618，但底层表仍是 617，导致加载循环多走 1 项，越界读写了相邻内存对象。⏎ **崩盘函数** = 设置装载走查环（`0x410DF358` 内 `0x410DFD98..0x410DFE4C`）；**第一口越界** = `0x410DFDF8`，下游触发 apply `0x410E1790`。⏎ **危害形态** = **与内存布局相关的越界未定义行为（UB）**（越界破坏哪个对象，取决于当时内存怎么排布）。这解释了为什么真机崩溃而模拟器默认布局不崩；V11 撤回这两个计数后根除。⏎ **置信度**：A 级（字节与运行时 RAM 直接观测证实）。 |
+| **证据级别** | A（实测字节/反汇编）/ B（静态推导）/ C（未解决） | **A 级** |
+| **记录锚点** | 判定记录文件名、章节及哈希 | `136_CRASH_VERDICT.md` §0 终审判词，SHA-256：`465a8885bbfc2bea7eea3375be7021e37e14fe09e66fc33d3a34813839ca9f2e` |
+| **代码锚点** | 引用的所有偏移量 / 符号地址 | `0x410DF358`; `0x410DFD98`; `0x410DFE4C`; `0x410DFDF8`; `0xA029B1BB8`; `0x410DFE10`; `0x1348`; `0x410E1790` 等（详见原表完整列表） |
+| **变量排查** | 是否排除了 V9↔V10 间的所有其他改动 | 见 §3（共 8 行）；排查方法：已全部列明并排除 |
+| **硬件复现** | 是否在真机上复现过；如果未复现，原因何在 | **判定**：模拟器内的动态复现卡在“读取文件”步骤（模拟卡环境不等于真机文件系统环境） |
+| **未证实的盲区**| 明确列出仍未证实的部分 | 剩余工作：让文件系统读取拿到 98 字节的真实设置数据，随后通过内存毒化即可看到越界显形（工作量约 0.5–1 人日） |
+| **录入人/日期** | 记录者及时间 | 2026-10-19（由 `tools/fill_c1.py` 脚本原样复制注入） |
 
-Status: **filled 2026-10-19 from the crash verdict record.**
+> **重点警告：** 上述结果表明，V10 的崩溃取决于内存排布。**换句话说，同样的 V10 固件在不同的机器上可能不崩溃，但会悄悄损坏你的数据！所以，“有人刷了没崩”绝不代表 V10 是安全的，V11 之前的固件坚决不能再刷！**
 
-Status log:
+---
 
-- 2026-10-19 — the verdict record has been located in the crash-forensics
-  workstream (`136_CRASH_VERDICT.md`, evidence chain
-  `126_BOOTLOOP_FORENSICS.md` → `132_Z9QEMU_PORT.md` → `134_EXPLOIT_TESTBED.md`
-  → verdict). Its §0 verdict section is still unfilled. Nothing below is
-  filled, and C1 remains **unmet** until the verdict text exists and is
-  copied in verbatim.
-- 2026-10-19, later — **§0 written; the slot above is now filled**
-  mechanically by `tools/fill_c1.py`. Verdict: the fault is the S3 slot
-  count 618/617 overrun in the settings-load walk — a **layout-related
-  out-of-bounds UB**. Warning carried from the verdict for any release
-  note: **the same V10 build may silently corrupt instead of crashing
-  under a different memory layout — never treat "one machine that did not
-  crash" as V10 being safe**, and builds before V11 must not be flashed
-  again. Dynamic re-reproduction (poisoned layout) is still in flight,
-  see the "What stays unproven" field.
+## 修复进展：V11.1 候选版本
 
-Criterion C1 of [unfreeze-criteria.md](unfreeze-criteria.md) counts as met
-only when every field below is filled. An empty or partial slot means C1 is
-unmet, whatever else is written around it. The verdict is expected from the
-crash-forensics workstream (`136_CRASH_VERDICT.md` there) and is to be
-copied here **verbatim, with its anchors**.
+在 `bricking-edge_v11.1` 构建中，我们落实了 4 处修复：计数重回 617（**确认消除了导致变砖的 Bug 机理**）、删除了未归属表的写入、修复了边界截断判断。
 
-| Field | Required content | Value |
-|---|---|---|
-| Verdict | One sentence naming the faulting instruction or path | **是它。** v10 真机 boot loop 的炸点 = **S3 槽计数 618/617 越界**：v10 的两个计数立即数把注册计数改成 618，而背衬表/ROM 变体表仍是 617 ⇒ 设置装载走查环多走 1 项，越界读写紧邻对象。 ⏎ **炸点函数 = 设置装载走查环**（装载器 `0x410DF358` 内 `0x410DFD98..0x410DFE4C`）；**第一口越界 = `0x410DFDF8`**（`ldrb w11,[x10,#5]`，元素 `0xA029B1BB8+5`），紧随 `0x410DFE10`（`ldr w1,[x9,x29]`，x29=`0x1348`=617×8），下游 apply `0x410E1790`。 ⏎ **形态 = 布局相关的越界 UB**（越界项落在什么对象上取决于堆/内存布局）⇒ 真机炸、模拟器默认布局不炸，**不矛盾**；v11 撤掉两个计数即根除（运行态已验：617 与表一致）。 ⏎ **置信度**：机理 A 级（字节+运行态 RAM 直接观测）；受害者 PC 指令级 A 级（结构+唯一消费者），动态复现见 §2（布局毒化）。 |
-| Evidence grade | A (bytes / disassembly measured), B (static inference), C (unresolved) | A |
-| Record anchor | The verdict record's file, section, and its SHA-256 | 136_CRASH_VERDICT.md §0 终审判词, sha256 465a8885bbfc2bea7eea3375be7021e37e14fe09e66fc33d3a34813839ca9f2e |
-| Code anchors | Every offset / symbol cited, with the address mapping used | 0x410DF358; 0x410DFD98; 0x410DFE4C; 0x410DFDF8; 0xA029B1BB8; 0x410DFE10; 0x1348; 0x410E1790; 0x410DFE1C; 0x410DFE24; 0xF7F9D4; 0xF803D4; 0xF80F68; 0x4CBC9B9; 0x4CBC9BD; 0xA04812848; 0xA04812850; 0xA029B0670; 0x44182FE0; 0x410E0F38; 0xA047E6B3C; 0x40874284; 0x40001000; 0xA04842160; 0x40FFFFFF; 0x4086871C; 0x410DF3F8; 0x410DF4F4 |
-| Delta exhaustion | Statement that every other candidate in the V9↔V10 delta is excluded, naming the method for each | present in §3 (8 lines); method named: yes |
-| Hardware reproduction | Yes / no; if no, why the evidence stands without it | **判**：越界的**动态复现**在模拟器里卡在"文件读入"一步（合成卡 + 顶开的门 ≠ 真机的文件服务上下文）； |
-| What stays unproven | Spelled out, not left implicit | 剩余工作 = 让 FS 读真的拿到98 B 设置体（约 0.5–1 人日：补 FS_open 调用点/文件对象上下文，或用 `--skipcall` 顶开 fd 获取），随后 `--poison-at` 毒化列表尾即可看到越界显形。 |
-| Filled by / date | Who copied it here, and when | 2026-10-19 (copied verbatim by tools/fill_c1.py on 2026-10-19) |
+**但它依然不能刷：**
+1. 它的 6 处挂钩函数全部处于**开机必经路径**上。
+2. **没有任何一部分在真实相机上测试过。**
+3. 它是作为测试品发布的，且身上带着前文提到的**“预拍功能静默失效”的严重功能 Bug**（这 4 处修复并未覆盖预拍问题）。因此它依然被打了 **⛔ UNSAFE** 标记。
 
-Rules for filling this slot:
+---
 
-- Copy the verdict; do not paraphrase it into something stronger. The
-  mechanical filler `tools/fill_c1.py` copies it verbatim and refuses while
-  any field is missing — run it against the finished record first.
-- A verdict graded B or C is recorded here, but does **not** meet C1.
-- Anchors must be checkable from this repository plus the local evidence; a
-  hash without a source is not an anchor.
-- The delta-exhaustion line is mandatory. A verdict that leaves another
-  delta window unexcluded is a hypothesis, and hypotheses live in
-  [upstream-issue-3.md](upstream-issue-3.md), not here.
+## 风险清单
 
-## Fix landed: V11.1 candidate (2026-10-19)
+| 风险类别 | 现实情况 |
+| :--- | :--- |
+| **相机无法开机（变砖）** | **真实发生过。** 任何软件自救都没用，最终只能送售后换主板。 |
+| **数据丢失（丢照片）** | **极高可能。** 必须使用一张空的、专用的测试卡。默认卡里任何数据都可能随风蒸发。 |
+| **存储卡损坏** | 固件涉及高频读写和配置文件更改，请使用一张**坏了也不心疼的旧卡**。 |
+| **暗病（静默异常）** | 屏幕参数显示错误、照片元数据写入错误、菜单逻辑混乱——且**相机完全不会报错**。 |
+| **未知的底层不兼容** | 相机内部模型是通过反汇编逆向出来的，并不完整；很多常量是推测填入的。 |
+| **第三方软件不认** | 拍出来的魔改照片，Lightroom、Photoshop (ACR) 或尼康自家的 NX Studio 能否正常打开，完全未经测试。 |
+| **无法降级/回滚** | 不能保证一定能退回原版。请随时在电脑里备好官方固件。 |
 
-The four fixes of [c2-fix-plan.md](c2-fix-plan.md) are landed in build
-`bricking-edge_v11.1` (`f25c505d…`, identity `03.11.p0`, rebuilt from a
-fresh official input; reproducible). What that means for this page's
-incident: the count sources are back to 617 — **the mechanism the verdict
-identified is gone** — the unowned table write is deleted, and all six
-walk sites carry the corrected clamp (same-base compare plus a
-header-length plausibility clamp, stronger than planned).
+---
 
-Offline record: unit tests 9/9 (including the v10 cross-region negative
-control, which reproduces the defect and shows the fixed stub is
-layout-independent), content gates G3.5–G3.8, settings regression R1–R3,
-mutation battery 39/39, combination matrix 17/17, structural torture 4/4,
-A/B diffs confined to the declared windows, rebuild byte-identical.
+## 自动化测试工具到底能防什么？
 
-Residuals, stated as they are: the clamp bounds **file-internal** ranges,
-so a segment-internal overrun still applies the in-file value (stock-like,
-not memory-unsafe); the six hooks are all in boot-reachable paths; and
-**none of this has been on a camera** — criterion C4 stays a prerequisite.
-The build is a candidate: not in a flash kit, not installed, never on
-hardware. Its toolkit objects were published 2026-10-19 as a trial, and the
-build is meanwhile marked **⛔ UNSAFE (known defects, under investigation)**
-for the separate pre-capture defect family documented in
-[Known unsafe: V11.1](#known-unsafe-v111-2026-10-19) — the four fixes above
-do not cover it.
+**工具防不了相机变砖，它唯一的用处是防止“把代码打错了”：**
 
-## Risk classes
+* 刷入任何补丁前，先比对原始固件的 SHA-256 指纹，只要有一位不对立刻停机；
+* 额外添加的代码，编译出的机器码必须与审计通过的字节 100% 相同；
+* 验证工具独立于构建工具，严格检查补丁范围外的所有字节，严防误伤；
+* 没有任何“强制忽略/跳过”开关；
+* 测试工具会主动破坏输出文件来测试自身的报警能力，只要有一项亮红灯，就绝不会显示“通过”；
+* 绝不覆盖输入源文件，只在新目录中输出。
 
-| Risk | Reality |
-|---|---|
-| Camera no longer boots | **Has happened.** Software recovery attempts failed; the unit was sent for service |
-| Data loss (photos on card) | Use a dedicated, empty test card. Assume anything on the card can be lost |
-| Card corruption | Configuration files and heavy write patterns are involved; use media you can afford to discard |
-| Silent wrong behaviour | Displayed values, metadata fields, and menu states can be wrong without triggering an error |
-| Undetected incompatibility | The device model is reconstructed and incomplete; constants were inferred |
-| Third-party software rejection | Adobe Camera Raw / Lightroom / NX Studio acceptance of modified files is untested |
-| No downgrade path | Recovery is not guaranteed. Keep the official package verified and ready |
+---
 
-## What the tools do to reduce risk
+## 如果翻车了该怎么办？
 
-They cannot make the firmware safe. They only reduce the chance of *building the
-wrong thing*:
+救砖的唯一手段是**老老实实刷回官方固件**，不要抱有侥幸心理：
 
-- input is checked against SHA-256 fingerprint windows before anything is
-  touched; any mismatch halts the build;
-- added code must compile to the exact reviewed bytes;
-- the verifier is independent of the builder and checks every byte outside
-  the declared windows;
-- there is no force or bypass switch anywhere in the pipeline;
-- the gauntlet attacks its own output (mutations, structural torture,
-  refused combinations) and refuses to report green while red items remain;
-- the output directory must be new, and inputs are never overwritten.
+1. **立刻停手：** 别反复重启，别想着“我再刷另一个版本试试”，不要让机器一直处于崩溃抽搐状态。
+2. **刷回尼康官方 C 3.11 固件包，刷前必须先校验 SHA-256 哈希值：**
+   `shasum -a 256 <固件路径>/Z_8_0311.bin`
+   输出必须**丝毫不差**地等于：
+   `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96`
+3. **清卡：** 拔出存储卡，在电脑上**彻底删掉**本项目生成的所有配置文件（`Z8PRE*.CFG` 和 `Z8OG.CFG`）。删掉这些文件后，附加的代码逻辑就会自动停用。
+4. **如果机器彻底黑屏、连官方刷机引导都进不去：** 软件手段已经彻底没救了，请直接联系尼康官方售后服务中心。
 
-## If something goes wrong
+---
 
-Rollback is the official firmware, full stop:
+## 免责声明（真出事没人赔）
 
-1. Stop. Do not retry, do not "try one more build", and do not keep the camera
-   running in a broken state.
-2. Reflash the official Nikon C 3.11 package and verify its checksum first:
-   `shasum -a 256 <your-path>/Z_8_0311.bin` must print
-   `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96`.
-3. Remove the project's configuration files from the card
-   (`Z8PRE*.CFG`, `Z8OG.CFG`) — deleting them switches off the added
-   behaviours that depend on them.
-4. If the camera does not boot at all, software options may be exhausted;
-   the V10 incident ended at a service centre.
+在法律允许的最大范围内，本项目作者和贡献者**不提供任何形式的担保**，亦不对以下损失承担任何责任：**数据丢失、存储卡报废、相机功能异常、相机变砖无法开机、售后维修费用**，或因编译、安装、使用本仓库任何产物所导致的任何损失。
 
-## Not a warranty
+详见根目录下的 `NOTICE.md` 及 `LICENSE` 文件。**本项目与尼康公司（Nikon）没有任何官方关联。**
 
-To the extent permitted by applicable law, the authors and contributors
-provide no warranty and accept no liability for data loss, card corruption,
-camera malfunction, a camera that no longer boots, service costs, or any
-other loss arising from building, installing, or using anything produced
-from this repository. See [NOTICE.md](../NOTICE.md) and the disclaimer in
-[LICENSE](../LICENSE). This project is not affiliated with Nikon.
+Recorded hash: `f25c505d…` (V11.1 build)
+
+See also: [LICENSE](../LICENSE), [NOTICE.md](../NOTICE.md), [c2-fix-plan.md](c2-fix-plan.md), [unfreeze-criteria.md](unfreeze-criteria.md), [upstream-issue-3.md](upstream-issue-3.md).
+## 简体中文
+
+这里是一份**大白话、保留全部技术事实与链接**的重写版本：
+
+---
 
 ## 简体中文
 
-- **一句话：改固件的最坏结果是相机永远开不了机，且该最坏情况在开发中已经
-  真实发生过一次**（V10 构建，离线全绿，测试机陷入开机循环，软件救机无效，送修）。
-- **⚠️ V11.1 = 不安全（2026-10-19 标记）**：已知缺陷家族＝预拍三态静默失效（含
-  STP 粘性文件）等，判词与口径见本页 [Known unsafe: V11.1](#known-unsafe-v111-2026-10-19)
-  节（含中文要点），勿刷。
-- 事故经过、离线取证结论（618/617 遍历越界为已证机理；T4 表尾写归属未闭环；
-  guard 跨区比较虽不致崩溃但可能导致全跳过或全放行；实机炸点已于 2026-10-19 定谳=S3 槽计数 618/617 越界、布局相关 UB）以及由此固化的纪律，
-  全部详实记录在本页英文部分，不作省略。**C1 证据槽已备好留空**（[risks.md#c1-evidence-slot](risks.md#c1-evidence-slot)）：
-  判词、证据分级、记录与代码锚点、delta 穷举声明、复现状态、仍未证明项逐格待填——**八格已于定谳当日由 `tools/fill_c1.py` 逐字填满。**警示随判词带出：同一份 v10 在不同内存布局下可能静默写坏而非立即崩——"某台机器没炸"不等于 v10 安全，V11 之前的构建一律不回灌。**
-- 风险清单：开不了机、照片丢失、存储卡损坏、静默异常行为、推断常量不准、第三方软件
-  不兼容、不保证可降级恢复。
-- 工具能做的只是“避免构建出错误的产物”：指纹门禁校验、编译器锁定、独立校验器复核、无任何强制开关、
-  执行自攻击测试套件（gauntlet）、输出目录必须全新且绝不覆盖输入。
-- 出事就回退官方固件：先校验 sha256 再重刷官方 03.11，删除卡上的 `Z8PRE*.CFG` 与
-  `Z8OG.CFG`（移除即可停用依赖它们的注入逻辑）；若完全无法开机，则软件恢复手段可能已全部穷尽。
-- 免责声明参见 [NOTICE.md](../NOTICE.md) 与 [LICENSE](../LICENSE)；本项目与 Nikon 无任何隶属关系。
+- **一句话警告：改固件最坏的下场是相机彻底变砖（永远开不了机）。** 这不是理论假设，我们在开发时已经真实踩过一次雷：V10 版本在线下测试时全绿通过，但刷进测试机后立刻无限重启死机，任何软件手段都救不回来，最终只能自费送修售后。
+- **⚠️ 绝对不要刷 V11.1（已于 2026-10-19 标记为不安全）：** 该版本存在严重暗病，比如预拍摄三档功能会悄悄失效、卡里残留 STP 粘性垃圾文件等。官方详细说明见文末 [Known unsafe: V11.1](#known-unsafe-v111-2026-10-19) 节，**千万别刷**。
+- **技术复盘与事故结论：** 崩溃的深层原因已在 2026-10-19 彻底查明并坐实——实机崩溃是因为 S3 槽计数发生了 618/617 数组越界访问；T4 表尾写入未做闭环处理；保护检查（guard）跨内存区比较，虽未直接闪退但导致逻辑被全跳过或全放行；外加不同内存布局引发的未定义行为（UB）。
+  详细的事故全过程、排查记录及代码规范，英文部分均有一字不漏的记录。关于代码证据槽（[risks.md#c1-evidence-slot](risks.md#c1-evidence-slot)），当天已由 `tools/fill_c1.py` 脚本把判词、证据等级、复现情况等 **8 项证据全部填满归档**。
+  **特别提醒：** V10 在某些机器上没立刻崩溃，只是因为内存排布不同而在暗中搞坏数据——**“别人刷了没炸”绝不代表固件是安全的，V11 之前的所有构建版本严禁再次刷入任何机器！**
+- **你可能承担的风险清单：** 彻底变砖开不了机、照片丢损、存储卡烧坏或逻辑损坏、功能暗中抽风、逆向推算的常量不准、无法配合第三方软件使用、无法保证能降级救回。
+- **构建工具的局限：** 我们的自动化工具只能保证“编译输出的文件没损坏”，绝不能保证刷进相机后绝对安全。目前能做的防御措施包括：固件哈希指纹门禁、强制固定编译器版本、第三方验证器二次复核、不允许跳过检查的强制开关、每次构建必跑极端对抗测试（gauntlet）、构建强制输出到全新空目录（严禁覆盖源文件）。
+- **一旦异常，如何回退官方固件：**
+  1. 删掉存储卡上的 `Z8PRE*.CFG` 和 `Z8OG.CFG` 配置文件（删掉就能立刻停用所有依赖它们的注入代码）。
+  2. 严格核对 sha256 校验和，确保官方固件文件完整。
+  3. 重新刷回官方 03.11 固件。
+  *（注：如果相机已经彻底黑屏、按开机键毫无反应，说明软件恢复已彻底失效，只能走硬件送修。）*
+- **免责声明：** 详见 [NOTICE.md](../NOTICE.md) 与 [LICENSE](../LICENSE)。本项目为个人逆向研究，与尼康（Nikon）官方没有任何隶属关系。

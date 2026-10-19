@@ -1,86 +1,125 @@
-# Open items (未完成)
+这份文档用工程师的“大白话”整理如下，结构、数据和原意完全保留：
 
-Everything this project knows it has not finished. Nothing here is hidden
-elsewhere; each row links to the document that owns the claim, and this page
-invents no new facts. Items are ordered by what blocks what.
+---
 
-## Blocking the V11 line (unfreezing is the owner's call)
+# 待办与遗留问题清单 (Open items)
 
-The written bar these items must clear is
-[unfreeze-criteria.md](unfreeze-criteria.md); each row here maps to a
-criterion there. The fix plans for rows 2–5 are written up at recipe level
-in [c2-fix-plan.md](c2-fix-plan.md).
+这里列出了**目前已知的所有未完成事项**，全都在明面上，绝无隐瞒。每一项都附带了原文档出处，不捏造任何未经证实的信息。排版严格按照**依赖和卡点关系（谁卡着谁）**排序。
 
-**2026-10-19 status note:** V11.1 itself is marked **⛔ UNSAFE (known
-defects, under investigation)** — a known pre-capture defect family
-(silent non-retention, STP sticky file) is documented in
-[risks.md](risks.md#known-unsafe-v111-2026-10-19). The four fixed rows
-below do **not** make V11.1 safe to flash. **Update:** the defect family is
-**fixed in V12 (原 V11.2 构建)** (`bcf5c47f…`, `03.11.p1`) — see row 19;
-the candidate is awaiting verification and does not lift V11.1's marker.
+---
 
-## Known defect family
+## 卡着 V11 分支解冻的事项（解不解冻负责人说了算）
 
-| # | Open item | State | Where it is documented |
+想要解冻，必须达到 [unfreeze-criteria.md](unfreeze-criteria.md) 中白纸黑字写死的硬性标准；下表每一行都对应那份文档里的一条标准。其中第 2 到第 5 行的具体修复步骤，已在 [c2-fix-plan.md](c2-fix-plan.md) 中写明。
+
+> **⚠️ 2026-10-19 紧急状态说明：**
+> **V11.1 版本本身被判定为 ⛔ 极不安全（存在已知缺陷，正在调查）** —— crash fix is an offline verdict, never on hardware. 在拍摄前存在一套严重缺陷（静默丢数据/不保存、STP 残留文件不清除），详见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)。即使下面第 2~5 项已经修复，**V11.1 目前也绝对不能刷入真机！** — experimental — never on hardware。
+> 
+> **最新进展：** 该缺陷已在 **V12（即原 V11.2 构建，版本号 `03.11.p1`，commit `bcf5c47f…`）** 中修复（见下表第 19 项）。新版本正在等待真机验证，但这**不会**撤销 V11.1 的“危险”警告。
+
+---
+
+### 已知严重缺陷
+
+| # | 遗留问题 | 当前状态 | 详细文档 |
 |---|---|---|---|
-| 19 | Three-state gate scar: silent pre-capture non-retention (dual-config gate, **STP sticky file never retried or deleted**, fail-closed config gate) | **Fixed in V12 (原 V11.2 构建, `bcf5c47f…`, `03.11.p1`)** — STP self-heal (session latch + evidence preservation; foreign files still stop) + gate-loss observability (readable status block with landing codes and per-gate counters). V11.1 no regression; gauntlet ALL GREEN (mutations 44/44, three-state behaviour gate 19 vectors/33 checks). **Awaiting hardware. Released 2026-10-20 as NijiN V12 (EXPERIMENTAL), tag `toolkit-20261020`** | [risks.md](risks.md#known-unsafe-v111-2026-10-19), [bricking-edge.md](bricking-edge.md) |
+| **19** | **三态门遗留隐患：**<br>拍摄前静默丢数据/不保存（双配置门控失效、**STP 残留文件既不重试也不删除**、配置门挂死直接熔断）。 | **已在 V12 中修复**（原 V11.2 构建，`bcf5c47f…`，`03.11.p1`）：<br>• 加入 STP 自愈机制（会话锁定 + 现场证据保留；外来文件仍会拦截）；<br>• 门控丢失可视化（可读取状态块，包含落位代码与独立计数器）；<br>• V11.1 无回归问题；严苛测试全绿（44/44 变异测试通过，三态行为门 19 个向量/33 项检查全过）。<br>• **正等待真机实测。已于 2026-10-20 发布为 NijiN V12 实验版（tag: `toolkit-20261020`）。** | [risks.md](risks.md#known-unsafe-v111-2026-10-19)<br>[bricking-edge.md](bricking-edge.md) |
 
-| # | Open item | State | Where it is documented |
+---
+
+### 阻碍解冻的核心 Bug（针对 V10 变砖/死循环）
+
+| # | 遗留问题 | 当前状态 | 详细文档 |
 |---|---|---|---|
-| 1 | The exact faulting instruction of the V10 boot loop | **Verdict reached 2026-10-19** (136 §0): S3 slot count 618/617 overrun in the settings-load walk, first overrun load at `0x410DFDF8` — layout-related UB. C1 slot filled in [risks.md](risks.md#c1-evidence-slot); dynamic re-reproduction (poisoned layout, ~0.5–1 person-day) still in flight | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
-| 2 | Load-time guard bound computed across two regions | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: same-base compare plus a header-length clamp — **stronger than planned**; unit tests 9/9 including the v10 negative control | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
-| 3 | Settings count has three sources of truth; only two were updated | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: all three sources back to 617 (shrink option); three-source gate G3.8 + mutation M35 | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
-| 4 | Ownership of the table-boundary write (`0x4CBC9B8`) | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: the write is **deleted** after three proofs of no consumer; ownership gate G3.7 + mutation M36 | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
-| 5 | Second code path reaching the same apply function | **Fixed 2026-10-19 (build `bricking-edge_v11.1`, `f25c505d…`), awaiting hardware.** Fixed in V11.1: 6/6 walk sites hooked (L2/LC, L1/LB, LS/L3); xref-coverage gate G3.6 + mutations M38/M39 | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| **1** | V10 开机无限重启（Boot loop）的确切崩溃指令 | **2026-10-19 已得出定论**：读配置遍历时，S3 槽位数越界（把 617 算成了 618），第一次越界读取发生在 `0x410DFDF8`，因内存布局问题触发了未定义行为（UB）。理论证据已补充至 [risks.md](risks.md#c1-evidence-slot)；内存污染的动态复现还在做（预计耗时 0.5~1 个人天）。 | [risks.md](risks.md)<br>[upstream-issue-3.md](upstream-issue-3.md) |
+| **2** | 加载时的越界保护边界算错了（跨了两个内存区） | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>修复方式：同基准比对 + 限制头长度（比原计划防守更严）；单元测试 9/9 全过（包括 V10 的反面用例）。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
+| **3** | 设置项数量原本有 3 处来源（Single Source of Truth），但之前只改了 2 处 | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>修复方式：3 处来源全部统一定回 617；门禁测试（G3.8）与变异测试（M35）全过。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
+| **4** | 表边界写入（`0x4CBC9B8`）归属权不清 | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>经过三重验证确认没有代码读取这一处，**直接删除了该写入操作**；相关门禁（G3.7）和变异测试（M36）全过。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
+| **5** | 存在漏网的第二条代码路径，同样会调用配置应用函数 | **2026-10-19 已在 V11.1 修复，等真机实测。**<br>全部 6 处调用位置均已挂上钩子（Hook）；交叉覆盖门禁（G3.6）与变异测试（M38/M39）全过。 | [bricking-edge.md](bricking-edge.md)<br>[c2-fix-plan.md](c2-fix-plan.md) |
 
-## Unverified on hardware
+---
 
-| # | Open item | State | Where it is documented |
+## 未在真机上验证过的事项
+
+| # | 遗留问题 | 当前状态 | 详细文档 |
 |---|---|---|---|
-| 6 | Every feature except the early-build HE★ / C15 evidence | Offline only; never installed | [features.md](features.md), [verification.md](verification.md), [c4-smoke-plan.md](c4-smoke-plan.md) |
-| 7 | Same-version update acceptance (`03.11.p0`) | Untested; a higher number is the fallback | [versions.md](versions.md) |
-| 8 | Lossless strip-length field | Static estimate, low confidence | [features.md](features.md) |
-| 9 | Lens-correction block acceptance in Adobe/NX Studio | Not tested; templates cover 7 lenses | [features.md](features.md) |
-| 10 | D5 placeholder block parser acceptance | Not tested | [features.md](features.md) |
-| 11 | Bit-depth menu wiring | Consumption implemented; the menu item is not identified | [features.md](features.md) |
-| 12 | Menu-group logo and entry behaviour | Never seen on hardware | [features.md](features.md) |
+| **6** | 除了早期版本验证过的 HE★ / C15 功能，其余所有功能 | **纯离线跑过，从未刷进真机测过**。 | [features.md](features.md)<br>[verification.md](verification.md)<br>[c4-smoke-plan.md](c4-smoke-plan.md) |
+| **7** | 相机是否接受刷入相同版本号覆盖升级（`03.11.p0`） | 没测过；如果相机拒绝，保底方案是把版本号改大。 | [versions.md](versions.md) |
+| **8** | 无损压缩条带长度（Strip-length）字段 | 纯静态估算出来的，把握不大。 | [features.md](features.md) |
+| **9** | 生成的镜头校正数据，Adobe / NX Studio 软件能否识别 | 没测过；目前模板仅覆盖了 7 颗镜头。 | [features.md](features.md) |
+| **10** | 相机固件能否识别 D5 占位数据块 | 没测过。 | [features.md](features.md) |
+| **11** | 色深切换菜单的界面挂接 | 底层消费逻辑写好了，但还没在菜单里找到对应的选项位置。 | [features.md](features.md) |
+| **12** | 菜单组图标和入口点击行为 | 从未在真机屏幕上见过实际效果。 | [features.md](features.md) |
 
-## Judged not deliverable (kept visible on purpose)
+---
 
-| # | Item | Reason | Where it is documented |
+## 确认做不了 / 砍掉的功能（故意保留在此，防止重复讨论）
+
+| # | 功能项 | 砍掉/放弃的原因 | 详细文档 |
 |---|---|---|---|
-| 13 | ISO 0.5 EV steps | The value's consumer is unreachable in the package; the degraded route was rejected | [features.md](features.md) |
-| 14 | OSD text hints | No text slot in the display descriptor | [features.md](features.md) |
-| 15 | D3 "Max." duration selectable | Value-range record semantics undecided | [features.md](features.md) |
-| 16 | C60/C120 pre-cut capture | Deliberately cut | [features.md](features.md) |
+| **13** | ISO 0.5 步进调节 | 固件内该数值的调用端无法访问；退而求其次的降级方案被否决了。 | [features.md](features.md) |
+| **14** | 屏幕 OSD 文本提示 | 屏幕显示描述符（Descriptor）里压根没有留文本槽位。 | [features.md](features.md) |
+| **15** | D3“最大时长（Max.）”可选项 | 数值范围的业务逻辑含义一直定不下来。 | [features.md](features.md) |
+| **16** | C60/C120 预拍摄剪裁 | 主动砍掉，不做。 | [features.md](features.md) |
 
-## Publication side
+---
 
-| # | Open item | State | Where it is documented |
+## 发版与对外事务
+
+| # | 遗留问题 | 当前状态 | 详细文档 |
 |---|---|---|---|
-| 17 | The toolkit package | **Published 2026-10-19 as an experimental trial** (tag `toolkit-20261019`): V11.1 candidate objects, never on hardware, crash fix is an offline verdict. **Marked ⛔ UNSAFE 2026-10-19** (known defect family; see [risks.md](risks.md#known-unsafe-v111-2026-10-19)) — the release notes carry a dated addendum saying so | [release-packaging.md](release-packaging.md), [releasing.md](releasing.md) |
-| 18 | Upstream Issue #3 | Still open, no root cause there either; tracked | [upstream-issue-3.md](upstream-issue-3.md) |
+| **17** | 刷机工具包（Toolkit package） | **2026-10-19 发布了实验尝鲜版**（tag: `toolkit-20261019`）：打包的是 V11.1 候选目标文件，**从未上真机**，崩溃修复也只是理论结论。<br>**当天已被打上 ⛔ 不安全 标记**（因为有上述已知缺陷）；发版说明里已追加附注警告。 | [release-packaging.md](release-packaging.md)<br>[releasing.md](releasing.md) |
+| **18** | 上游 Issue #3 | 依然挂着（Open 状态），上游也没查出根本原因；持续关注跟踪。 | [upstream-issue-3.md](upstream-issue-3.md) |
 
-## Next batch (November): three triggers
+---
 
-| Item | Trigger to start | Gate before it counts | Who decides |
+## 11 月下一批动作：三大启动开关
+
+| 任务项 | 启动触发条件 | 算作完成的硬性门槛 | 谁说了算 |
 |---|---|---|---|
-| **C4 smoke** | The camera is back from service and known-good on official firmware | The run follows [c4-smoke-plan.md](c4-smoke-plan.md) step by step; a smoke record or an explicit waiver lands in the ledger | Owner |
-| **Unfreeze (`bricking-edge`)** | C4 satisfied (smoke record or written waiver) | C1–C5 all met and recorded; the decision itself is an explicit instruction in the ledger | **Owner only (C6)** |
-| **Release (toolkit)** | An explicit "publish" instruction | [releasing.md](releasing.md) runbook: four checks green, rebuilt kit, double reconciliation, annotated tag, then `gh release create --verify-tag` | **Owner only** |
+| **C4 冒烟测试** | 相机售后维修返回，且刷回官方固件确认完好无损。 | 严格按照 [c4-smoke-plan.md](c4-smoke-plan.md) 逐项执行；测试日志必须白纸黑字入账（或者负责人签署明确豁免书）。 | 负责人（Owner） |
+| **解冻分支 (`bricking-edge`)** | C4 冒烟测试完成（拿到合格日志或书面豁免）。 | C1 到 C5 所有条件全达标并留档；**解冻决策必须是账本里的明确指令**。 | **仅限负责人 (C6)** |
+| **正式发布工具包 (Toolkit)** | 收到明确的“发版”指令。 | 严格执行 [releasing.md](releasing.md) 标准流程：四项检查全绿、重新构建打包、双向账目核对无误、打好附注标签，最后执行命令行发版。 | **仅限负责人** |
 
-Everything else on this page waits on those three or on the residual work
-listed above. Nothing here starts itself.
+> **最后说明：** 本文档里的其余所有事情，都在干等上面这三个开关（或等待前面的遗留修复完成）。**没有人去触发，这里的任务绝不会自动开始。**
+
+Recorded hash: `f25c505d…` (V11.1 build)
+
+Verdict scopes as written: crash fix is an **offline verdict**; builds are experimental, never on hardware.
 
 ## 简体中文
 
-本页是本项目**未完成事项的正式清单**：只做索引、不发明新事实，每行链接到拥有该
-口径的文档。三组：**V11 线相关五件**（#1 炸点已于 2026-10-19 定谳、C1 槽已填；guard bound、计数三真源、
-表边界归属、第二循环补点已随 V11.1 修复、待上机；解冻等用户）；**未上机验证的七件**（除早期构建 HE★/C15
-外全部只离线、同号受理未实测、无损 strip 长度、镜头块/占位块/位深接线/菜单组徽标
-未验）；**判不可交付的四件**（ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120），连理由
-一起留着看。另加发布侧两件：toolkit 已按发布令**以试验品身份发布**（tag `toolkit-20261019`，V11.1 候选、从未上机）、上游 Issue #3 仍在监护。
-**⚠️ 2026-10-19：V11.1 本身已标记 ⛔ UNSAFE（已知缺陷，调查中）**——已知预拍缺陷家族
-（三态静默失效、含 STP 粘性文件）见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)，**该家族已修于 V12（原 V11.2 构建，`bcf5c47f…`，第 19 项）——候选待验、未上机、未发布，V11.1 的 ⛔ 标记不因此解除**；
-上面四条"已修复"**不等于 V11.1 可刷**，toolkit 发布物的说明已加同日补记。
-**11 月批次三件的触发条件**见上文 "Next batch (November)"：C4 冒烟（机器回来+官方固件正常→按 c4-smoke-plan 走）｜解冻（C4 成立后，**C6=仅你下令**）｜发布（**仅你给"发"字**→按 releasing.md runbook）。三件都由触发条件启动，没有一件会自己开始。
+这份清单汇总了本项目**所有未完成的事项**。这里只做索引，不添加任何未经证实的内容，具体细节以各文档为准。
+
+清单主要包含三大类，以及发布侧的两件事：
+
+*   **V11 分支相关的 5 件事：**
+    *   1 号崩溃问题已于 2026-10-19 确认并修复，C1 槽位已补齐。
+    *   另外 4 项（guard bound 边界、3 个计数源、表边界归属、第二循环补丁）已在 V11.1 中修复，**但尚未上真机测试**。
+    *   代码解冻仍需等待用户指令。
+*   **未上机验证的 7 件事：**
+    *   除早期的 HE★ 和 C15 测过之外，其余均只做过离线验证。
+    *   同号受理（未实测）、无损 strip 长度、镜头块、占位块、位深接线、菜单组图标均**未经验证**。
+*   **已判定不可交付的 4 件事（保留原因备查）：**
+    *   ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120。
+*   **发布侧的 2 件事：**
+    *   工具包（Toolkit）已按发布令**作为“试验品”发布**（标签 `toolkit-20261019`，基于 V11.1 候选，从未上机测试过）。
+    *   上游 Issue #3 仍在持续跟进监控中。
+
+---
+
+### ⚠️ 重要安全警告（2026-10-19）
+**V11.1 已被标记为 ⛔ UNSAFE（存在已知严重缺陷，调查中），绝对不可刷入！**
+
+*   **缺陷说明：** 存在预拍功能的一系列 Bug（三态静默失效、STP 粘性文件残留等），详见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)。
+*   **修复进展：** 该问题已在 **V12**（即原 V11.2，commit `bcf5c47f…`，第 19 项）中修复。
+*   **特别注意：** V12 目前仅是候选版本，**未上机、未发布**。因此 **V11.1 的 ⛔ 不安全标记仍未解除**。前面提到的“已修复”**绝不代表 V11.1 可以刷入**（Toolkit 的发布说明中已补充此声明）。
+
+---
+
+### 11 月批次（Next batch）3 件事的触发条件
+**这 3 件事全靠条件触发，没有一件会自动开始：**
+
+1.  **C4 冒烟测试：** 收到机器并确认官方固件正常后，按照 `c4-smoke-plan` 开始测试。
+2.  **代码解冻：** C4 跑通后，**必须由你亲自下令**才会解冻（C6）。
+3.  **正式发布：** **只有当你明确给出“发”字指令时**，才会按照 `releasing.md runbook` 执行发布。

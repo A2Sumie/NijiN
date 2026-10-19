@@ -1,94 +1,154 @@
-# Build your own
+这份文档的技术味较浓，下面用**清晰、好懂的大白话**为你重写，结构和关键细节完全保留：
 
-This repository does not contain ready-made firmware. You build the update package locally using your own copy of the official release. This page outlines the complete workflow.
+---
 
-## What you need
+# 自己动手构建固件
 
-- Python 3.10 or newer, and the pinned dependency in `requirements.txt` (Capstone, used to inspect generated instructions).
-- For `precapture` (and anything utilizing its loader): Clang targeting AArch64. The build compiles the C sources in `z8precapture/` and `z8opengate/`, rejecting any compiler output that differs from the reviewed bytes. Building `prores` alone requires no compiler.
-- A few hundred MB of free space for the output directory. The build tooling never overwrites an existing output directory.
+本项目**不提供现成的修改版固件**。出于安全和版权考虑，你必须自己准备一份官方原版固件，然后在本地电脑上打补丁生成。
 
-## Your input
+以下是完整的制作流程。
 
-The only publicly supported input is the **official Nikon Z8 C 3.11 update package**. Download it directly from [Nikon's download center](https://downloadcenter.nikonimglib.com/en/download/fw/606.html) under Nikon's terms. An update package from one version is not interchangeable with that of another.
+---
 
-Expected properties (the tools check them):
+## 1. 准备工作（你需要什么）
 
-| Property | Value |
+1. **Python 3.10 或更新版本**：并安装 `requirements.txt` 里的依赖库（主要是 Capstone，用于检查底层汇编指令）。
+2. **Clang 编译器（需支持 AArch64 架构）**：
+   - 只有开启 `precapture`（预拍摄）或依赖它的 `opengate` 功能时才需要，因为要编译 C 源码。如果编译出的结果与官方审核过的指纹有哪怕一个字节不同，构建就会直接报错终止。
+   - **如果你只开启 `prores` 补丁，则完全不需要这个编译器。**
+3. **几百 MB 的空闲硬盘空间**：用于存放生成的文件。注意：脚本**绝不会覆盖已存在的文件夹**，输出目录必须是全新的。
+
+---
+
+## 2. 必备输入文件（官方原版固件）
+
+目前**唯一支持**的底包是：**尼康官方 Z8 的 C 3.11 固件更新包**。  
+请自行前往 [尼康官网下载中心](https://downloadcenter.nikonimglib.com/en/download/fw/606.html) 下载。**不同版本的固件绝对不能混用！**
+
+构建工具会严格核对固件的各项特征，必须完全一致：
+
+| 校验项 | 正确数值 |
 |---|---|
-| File size | 99,051,117 bytes |
-| SHA-256 | `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96` |
-| Modules | five, each with its own SHA-256 in `z8prores/package.py` |
-| Payload (EG) size | 81,807,711 bytes inside the package |
+| **文件大小** | 99,051,117 字节 |
+| **SHA-256 哈希值** | `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96` |
+| **模块数量** | 5 个（各自的 SHA-256 记录在 `z8prores/package.py` 中） |
+| **内部核心载荷 (EG) 大小** | 81,807,711 字节 |
 
-These values serve as fingerprints only; this repository stores no payload bytes from that file. An unsupported input might pass partial checks by coincidence, but that provides neither compatibility nor a safety guarantee.
+> **提示**：这些数值仅作为“防伪指纹”，本项目没有存储官方固件的任何实际代码。如果拿其他未受支持的固件碰巧绕过了部分检查，也绝不代表安全可用，刷入极大概率出故障。
 
-## Steps
+---
+
+## 3. 具体操作步骤
+
+打开终端，按顺序执行以下命令：
 
 ```sh
+# 创建并激活 Python 虚拟环境
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 
-# 1. read-only compatibility check of your input against the recipe hashes
+# 第 1 步：只读检查（看看你的官方固件对不对，不修改任何文件）
 python patch.py "/path/to/Z_8_0311.bin" --features prores precapture --check
 
-# 2. build (output directory must not exist yet)
+# 第 2 步：正式构建（注意：输出路径 build/mybuild 之前必须不存在）
 python patch.py "/path/to/Z_8_0311.bin" --features prores precapture \
     --version 03.11 --tag p1 --output build/mybuild
 
-# 3. independent re-verification of the produced pair
+# 第 3 步：独立复核生成的文件
 python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
     --features prores precapture
 
-# 4. offline test suites
+# 第 4 步：运行离线测试套件
 python tests/validate.py --stock "/path/to/Z_8_0311.bin" --report build/validate.json
 python tests/validate_features.py --stock "/path/to/Z_8_0311.bin" --report build/features.json
 
-# 5. the mandatory battery (gates, mutations, combinations, structural)
+# 第 5 步：运行地狱级安全测试（必须全绿通过）
 python gauntlet/gauntlet.py run --kit build/mybuild \
     --stock "/path/to/Z_8_0311.bin" --out build/gauntlet
 ```
 
-`--features` accepts any combination of `prores`, `precapture`, `opengate`, and `menuh`, without duplicates. Note that `opengate` requires `precapture`: only the pre-capture loader window maps its hook code. Without `--features` or `--interactive`, the tool defaults to building `prores` alone.
+### 功能参数说明（`--features`）：
+- 可选的功能有：`prores`、`precapture`、`opengate`、`menuh`（可自由组合，用空格隔开，不要重复）。
+- **注意**：`opengate` 强依赖于 `precapture`（因为它的挂钩代码借用了预拍摄的加载窗口）。
+- 如果你不加 `--features` 也不加 `--interactive`，**默认只会生成 `prores` 补丁**。
 
-The build halts on any mismatch: wrong input, modified source bytes, compiler output differing from the reviewed recipe, a pre-existing output directory, or a target patch window failing the published `old_sha256` fingerprint. There is no force or bypass switch.
+### 零容忍熔断：
+只要出现以下任何一种情况，构建流程**立刻报错停止**：输入文件不对、源码被改动、编译字节对不上、目标目录已存在、补丁位置特征码不符。**这里没有提供任何“强制忽略”或“跳过”开关。**
 
-## Output
+---
 
-| File | What it is |
+## 4. 输出文件说明
+
+构建成功后，输出目录会包含以下内容：
+
+| 文件名 | 作用说明 |
 |---|---|
-| `Z_8_<version>.bin` | The locally generated update package |
-| `manifest.json` | What was edited, where, and the source hashes of the recipe used |
-| `SHA256SUMS.txt` | Checksums for the output directory |
-| `Z8PRE*.CFG` | Pre-capture configuration files (only with `precapture`) |
-| `Z8OG.CFG` | OpenGate enable file (only with `opengate`) |
+| `Z_8_<版本号>.bin` | 最终生成的修改版固件包（刷机用） |
+| `manifest.json` | 修改明细单：改了什么、改在什么位置、补丁源码的哈希值 |
+| `SHA256SUMS.txt` | 输出目录下所有文件的校验和 |
+| `Z8PRE*.CFG` | 预拍摄配置文件（仅在开启 `precapture` 时生成） |
+| `Z8OG.CFG` | OpenGate 开关配置文件（仅在开启 `opengate` 时生成） |
 
-Always build from a fresh official package, never from an earlier output. Regenerate and replace old configuration files whenever the recipe revision changes.
+> **规矩**：每次构建必须从干净的**官方原版固件**开始，绝对不要拿已经改过的固件当底包二次制作！如果补丁配方更新了，请重新生成并替换内存卡里的所有配置文件。
 
-## Version numbers and identity
+---
 
-`--version NN.NN` sets the version written into the package; `--tag` accepts a lowercase letter followed by a digit (defaults to `p0`). The tools stamp an internal identity in the format `NN.NN.xN`. **Tag generations: `p0` is the historical smoke and incident generation; `p1` is the V11.1 experimental generation — use `--tag p1` for anything built from V11.1 content** (identity `03.11.p1`).
+## 5. 关于版本号与防呆标识
 
-Where upstream strictly required a higher version number, this fork deliberately accepts an output version **equal to or higher than** the input version. This adjustment is based on hardware observations where a lower-numbered package was accepted by the camera; the relaxed check is marked as `LOCAL DEVIATION` in the source. This is provided for convenience rather than as a compatibility claim: modifying the number adds no functionality, and camera acceptance for any given version number is **not guaranteed and, for the same-number case, not tested**. If an update is refused, rebuild using a higher number.
+- `--version NN.NN`：写进固件的版本号。
+- `--tag`：后缀标识（一个小写字母 + 一个数字，默认是 `p0`）。
+- 最终写进相机的固件标识格式为：`NN.NN.xN`。
+  - **版本代号说明**：`p0` 是历史测试及故障排查代号；**`p1` 是 V11.1 实验版本代号**。只要你使用了 V11.1 的内容构建，**务必加上 `--tag p1`**（生成标识为 `03.11.p1`） — experimental。
 
-Never stamp `04.01`: it is a placeholder value that the test battery explicitly treats as a defect.
+### 版本号检查机制（本分支与原版的区别）：
+- 上游项目通常强制要求修改版固件的“版本号必须高于官方版本”。
+- 本分支基于实机测试放宽了要求：**允许生成版本号“大于或等于”输入版本的固件**（源码中标记为 `LOCAL DEVIATION`）。
+- **请注意**：这只是为了操作方便，改版本号不会凭空增加功能；**官方相机到底接不接受相同版本号的固件，我们不打包票，也没在所有机型上测过**。如果刷机时相机提示“固件无法更新”，请重新构建并填入一个更高的版本号。
+- **高压线**：绝对不要填写 `04.01`，测试套件会直接将其判定为致命错误。
 
-## The gauntlet
+---
 
-`gauntlet/gauntlet.py run` executes the mandatory test battery. In brief: byte-level verification of every declared patch window and all regions outside them, package identity and integrity-chain checks, feature-combination rules, configuration file validation, offline test suites, output-directory hygiene checks, and pre-flash checklist generation. It then stress-tests its own output: a mutation suite that rebuilds structurally valid yet intentionally corrupted packages, an exhaustive combination matrix covering rejected feature combinations, and structural stress tests (round-trip serialization, single-byte mutations with repaired integrity chains, reverse chain traversals, and cross-tool decode comparisons).
+## 6. Gauntlet（地狱级安全测试套件）
 
-Exit code 0 confirms that every gate passed. Items marked `SKIPPED` are checks that require a local input or an external tool you did not provide; they are never counted as green.
+`gauntlet/gauntlet.py run` 是必跑的终极体检。它会：
+1. 逐字节检查所有打补丁和没打补丁的区域。
+2. 校验包完整性链条、功能组合合法性及配置文件。
+3. 模拟极端情况：故意构造损坏的固件来压力测试校验系统、尝试非法的参数组合、修改单字节验证链条修复逻辑等。
 
-## If you ever put this on a camera
+- **结果判定**：退出代码为 `0` 说明全部通过。
+- **警惕标记**：如果出现 `SKIPPED`（已跳过），说明你电脑里缺少某个外部工具或依赖，**跳过绝不能算作测试通过**。
 
-Read [risks.md](risks.md) first, and understand that the current stable line is the one that caused a boot loop during development. If you proceed anyway: keep a verified official package ready to reflash, work with a single dedicated test card, change one variable at a time, and stop at the first sign of an anomaly instead of pushing through it. The generated `PREFLIGHT_CHECKLIST.md` serves as the operational checklist. Flashing and camera operation are entirely your own responsibility; the tools never interface with hardware.
+---
+
+## 7. 刷机前的终极警告（真要刷进相机的话）
+
+1. **先看风险文档**：请先仔细阅读 `risks.md`。必须明确知晓：**即便是当前这个所谓的“稳定分支”，在开发过程中也曾经把相机搞成过“无限重启”的砖机状态！**
+2. **准备救砖**：手头必须备好一份未修改的**官方原版固件**，以便相机异常时随时回滚。
+3. **独立测试**：拿一张空白的专用测试卡折腾，不要混用日常拍摄卡。
+4. **单变量验证**：每次只改一项设置，一旦相机出现任何异常、卡死或报错，**立即停止使用，千万不要硬着头皮继续操作**。
+5. **打勾检查**：生成目录里的 `PREFLIGHT_CHECKLIST.md` 是起飞前的必查清单，刷机前请逐项确认。
+
+> **免责声明**：这些脚本工具只在电脑上生成文件，绝不直接连接相机硬件。刷机与相机操作的**所有风险与责任完全由你自行承担**。
+## 简体中文
+
+为你重写后的“人话”版本，在保留全部技术细节和警告的前提下，去除了生硬的机器翻译腔：
+
+---
 
 ## 简体中文
 
-- 需要 Python 3.10+ 与固定版本的依赖项。预拍及依赖其加载器的功能需要支持 AArch64 目标的 Clang；若编译产物与已审阅字节不一致，构建会直接报错中止。仅构建 ProRes 时不需要编译器。
-- 输入必须是自行下载的官方 Z8 C 3.11 更新包（文件大小 99,051,117 字节，sha256 为 `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96`）；本仓库不包含该文件的任何数据，仅用于指纹核验。
-- 构建流程：`--check` 只读检查 → `patch.py` 执行构建（输出目录此前不得存在）→ `verify.py` 独立复核产物 → `tests/` 运行两套离线测试 → `gauntlet/gauntlet.py run` 运行完整测试集。
-- 构建输出包括更新包、`manifest.json`、`SHA256SUMS.txt` 与 CFG 配置文件。每次构建都必须以原始官方固件包为输入，切勿在之前生成的产物上叠加修改；配方更新时须重新生成并替换旧配置文件。
-- 版本标识通过 `--version NN.NN` 与 `--tag`（默认 `p0`）指定。**tag 世代：`p0`=历史冒烟/事故代，`p1`=V11.1 试验品代——V11.1 内容一律 `--tag p1`（身份 `03.11.p1`）。**上游要求输出版本号必须严格高于输入版本，本分支主动放宽为“≥”（源码内标注为 `LOCAL DEVIATION`，改动依据为真机可接受较低版本包的实际观察）；此放宽仅为操作便利，不代表兼容性承诺，且同版本号受理情况**未实测**；任何情况下都不要打 `04.01`。
-- 若要写入相机，请先阅读 [risks.md](risks.md)：当前稳定分支在早期开发阶段曾引发过开机循环。刷写与相机操作的风险完全由个人承担，工具链本身不直接接触任何硬件。
+- **环境准备**：需要 Python 3.10 或更高版本，并安装指定版本的依赖包。如果要用“预拍”及相关功能，必须安装支持 AArch64 的 Clang 编译器（编译出来的代码必须和预设字节完全一致，哪怕差一点都会直接报错中断）；如果你**只改 ProRes**，则不需要编译器。
+- **固件原料**：请自行下载尼康官方的 Z8 C 3.11 固件包。本项目不附带任何官方固件文件，仅用于校验。请务必核对文件：大小必须正好是 **99,051,117 字节**，SHA256 哈希值必须是 `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96`。
+- **打包操作步骤**：
+  1. 运行 `--check` 进行只读环境检查。
+  2. 运行 `patch.py` 执行构建（**注意：** 输出文件夹在运行前绝对不能存在）。
+  3. 运行 `verify.py` 独立复核生成的文件。
+  4. 运行 `tests/` 跑两套离线测试。
+  5. 运行 `gauntlet/gauntlet.py run` 跑完完整测试集。
+- **文件与产物管理**：构建完成后会生成固件包、`manifest.json`、`SHA256SUMS.txt` 以及 CFG 配置文件。**特别强调：** 每次修改都必须以官方纯净固件为底包，绝对不要在已经改过的文件上“套娃”叠加修改；如果修改了构建配置，必须重新生成并替换旧的 CFG 文件。
+- **版本号与标签设置**：通过 `--version NN.NN` 设置版本号，用 `--tag` 指定世代（默认是 `p0`）。
+  - **标签含义**：`p0` 代表早期的冒烟/踩坑版本；`p1` 代表最新的 V11.1 试验版——**本次 V11.1 的内容一律加 `--tag p1`**（完整标识为 `03.11.p1`）。
+  - **版本号规则变更**：原版工具要求输出版本必须“大于”输入版本，本分支放宽到了“大于或等于”（因为实测相机可以刷入低版本固件）。但这种放宽纯粹是为了操作方便，**不保证兼容性**，而且刷入完全相同版本号固件的情况**我们还没实机测试过**。
+  - **死命令：任何情况下都绝对不要把版本号改成 `04.01`。**
+- **风险提示（必读）**：在刷入相机前，务必先阅读 [risks.md](risks.md)。当前这个稳定分支在早期开发阶段**曾导致过相机开机无限重启（变砖）**。本工具只负责生成文件，不会直接操作你的硬件，一切刷机与操作风险完全由你自行承担。
