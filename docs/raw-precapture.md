@@ -77,7 +77,7 @@ The stop file prevents additional NEF saving and survives restart; **JPEG menu q
 
 The per-NEF budget is 1.5 s, checked after a stock write returns or between fallback I/O calls. It cannot interrupt a blocked call or guarantee against freezes. On errors, missing files, `.NE_`, a stop file, resets or freezes, stop testing and preserve evidence. After writing has ended, back up the card and disable the feature; investigate before deleting a stop file or retrying.
 
-Read the [validation scope](validation.md) for hardware coverage, frame-correspondence review and model limits. New public packages are not individually hardware-certified.
+Read the [verification scope](verification.md) for hardware coverage, frame-correspondence review and model limits. New public packages are not individually hardware-certified.
 
 ## 简体中文
 
@@ -147,4 +147,4 @@ python configure.py --diagnostic-footer --output build/config-diagnostic
 
 每张 NEF 预算 1.5 秒，只能在原厂写入返回后或回退 I/O 调用之间检查，不能打断已阻塞的调用，也不保证不会冻结。报错、缺片、出现 `.NE_`／停止文件、重启或冻结时停止测试并保留证据；待写入结束后备份、停用，排查后再考虑删除停止文件或重试。
 
-请阅读[验证范围](validation.md)，了解上机覆盖、画面对应复核和模型边界。公开脚本新生成的包没有逐个上机认证。
+请阅读[验证边界](verification.md)，了解上机覆盖、画面对应复核和模型边界。公开脚本新生成的包没有逐个上机认证。

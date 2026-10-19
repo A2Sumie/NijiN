@@ -22,6 +22,8 @@ Words that must never appear are written as patterns with a character class
 (e.g. 'Tornado[N]KN') so this file does not contain them literally.
 """
 import argparse
+import hashlib
+import json
 import pathlib
 import re
 import subprocess
@@ -129,6 +131,78 @@ def iter_files(root):
         yield p
 
 
+RELEASE_NAME = re.compile(r'^[a-z0-9_]+-code\.(bin|o)$')
+RELEASE_ALLOWED_META = {'manifest.json', 'SHA256SUMS.txt'}
+
+
+def declared_code_hashes(repo):
+    """Every code hash the recipes pin in resources/ — the only hashes a release may ship."""
+    out = {}
+    for p in sorted((repo / 'resources').glob('*.json')):
+        data = json.loads(p.read_text())
+        for key in ('code_sha256', 'source_sha256'):
+            val = data.get(key)
+            if isinstance(val, str):
+                out[val.lower()] = p.name
+            elif isinstance(val, dict):
+                for v in val.values():
+                    out[str(v).lower()] = p.name
+    return out
+
+
+def scan_release(root, repo):
+    """Stricter mode for release staging: manifest-listed, hash-pinned code objects only."""
+    issues = []
+    manifest_path = root / 'manifest.json'
+    if not manifest_path.exists():
+        return [('manifest.json', 'release staging needs a manifest.json')], 0
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except ValueError as exc:
+        return [('manifest.json', 'unreadable manifest: %s' % exc)], 0
+    listed = {e['name']: e for e in manifest.get('files', [])}
+    if not listed:
+        issues.append(('manifest.json', 'manifest lists no files'))
+    if not manifest.get('commit'):
+        issues.append(('manifest.json', 'manifest must record the commit the objects came from'))
+    pinned = declared_code_hashes(repo)
+    seen = 0
+    for p in sorted(root.rglob('*')):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(root).as_posix()
+        seen += 1
+        if rel in RELEASE_ALLOWED_META:
+            data = p.read_bytes()
+            for pattern, why in LOCAL_PATHS + PERSONAL + FORBIDDEN_MARKS + [(s, 'possible credential') for s in SECRET_PATTERNS]:
+                if pattern.search(data):
+                    issues.append((rel, why))
+            continue
+        entry = listed.get(rel)
+        if entry is None:
+            issues.append((rel, 'not listed in manifest.json'))
+            continue
+        if not RELEASE_NAME.match(rel):
+            issues.append((rel, 'release objects must be named <feature>-code.bin/.o'))
+        data = p.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        if digest != str(entry.get('sha256', '')).lower():
+            issues.append((rel, 'sha256 differs from the manifest'))
+        code_sha = str(entry.get('code_sha256', '')).lower()
+        if code_sha not in pinned:
+            issues.append((rel, 'code_sha256 is not pinned by any resources/*.json recipe'))
+        elif code_sha != digest:
+            issues.append((rel, 'object bytes do not match the pinned recipe code_sha256'))
+        if len(data) > MAX_BYTES:
+            issues.append((rel, 'object exceeds the 512 KiB limit'))
+        if not entry.get('source_hashes'):
+            issues.append((rel, 'manifest entry needs the source hashes that produced it'))
+    for name in listed:
+        if not (root / name).exists():
+            issues.append((name, 'listed in manifest but missing from staging'))
+    return issues, seen
+
+
 def git_staged():
     out = subprocess.run(['git', 'diff', '--cached', '--name-only', '-z'],
                          capture_output=True, check=True).stdout
@@ -138,9 +212,22 @@ def git_staged():
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--staged', action='store_true', help='scan staged files instead of the working tree')
+    ap.add_argument('--release', type=pathlib.Path,
+                    help='release staging directory: manifest-listed, recipe-pinned code objects only')
     ap.add_argument('--root', type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
     args = ap.parse_args()
     root = args.root.resolve()
+    if args.release:
+        staging = args.release.resolve()
+        issues, scanned = scan_release(staging, root)
+        for rel, why in issues:
+            print('%s: %s' % (rel, why), file=sys.stderr)
+        print('Release scan: %d files, %d issue(s).' % (scanned, len(issues)))
+        if issues:
+            print('VERDICT: FAIL — do not attach this staging directory to a release.', file=sys.stderr)
+            return 1
+        print('VERDICT: PASS — manifest-listed, recipe-pinned code objects only.')
+        return 0
     files = [root / p for p in git_staged()] if args.staged else list(iter_files(root))
     issues = []
     scanned = 0
@@ -172,6 +259,8 @@ def main():
                     issues.append((rel, 'non-text content outside the reviewed brand PNGs'))
         if data.startswith(EXECUTABLE_MAGIC):
             issues.append((rel, 'compiled executable magic'))
+        if item.suffix.lower() == '.svg' and (b'data:image' in data or b'data:application' in data):
+            issues.append((rel, 'SVG embeds raster or foreign data'))
         for pattern, why in LOCAL_PATHS + PERSONAL + FORBIDDEN_MARKS:
             m = pattern.search(data)
             if m:

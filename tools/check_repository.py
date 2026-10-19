@@ -74,6 +74,18 @@ def git(*args, data=None):
                           stderr=subprocess.PIPE, check=True).stdout
 
 
+def git_modes():
+    """(mode, path) for every indexed file; symlinks and submodules are refused."""
+    out = git('ls-files', '-s', '-z')
+    rows = []
+    for entry in out.split(b'\0'):
+        if not entry:
+            continue
+        meta, _, path = entry.partition(b'\t')
+        rows.append((meta.split()[0].decode(), path.decode('utf-8', 'replace')))
+    return rows
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group()
@@ -90,6 +102,11 @@ def main():
     total = 0
     issues = []
     largest = ('', 0)
+    for mode, mpath in git_modes():
+        if mode in ('120000', '160000'):
+            issues.append((mpath, 'symlink or submodule entry (mode %s)' % mode))
+        elif mode not in ('100644', '100755'):
+            issues.append((mpath, 'unexpected index mode ' + mode))
     for name in names:
         end = raw.index(b'\n', position)
         header = raw[position:end].rsplit(b' ', 2)
@@ -124,6 +141,8 @@ def main():
                 issues.append((path, 'NUL bytes suggest binary content'))
         if content.startswith(EXECUTABLE_MAGIC):
             issues.append((path, 'compiled executable magic'))
+        if item.suffix.lower() == '.svg' and (b'data:image' in content or b'data:application' in content):
+            issues.append((path, 'SVG embeds raster or foreign data'))
         for pattern in SECRET_PATTERNS:
             match = pattern.search(content)
             if match:
