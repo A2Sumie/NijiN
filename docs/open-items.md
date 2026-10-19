@@ -44,7 +44,7 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
-| 17 | The prepared toolkit package | Built, reconciled, **not published** — waiting for the word | [release-packaging.md](release-packaging.md), [releasing.md](releasing.md) |
+| 17 | The toolkit package | **Published 2026-10-19 as an experimental trial** (tag `toolkit-20261019`): V11.1 candidate objects, never on hardware, crash fix is an offline verdict | [release-packaging.md](release-packaging.md), [releasing.md](releasing.md) |
 | 18 | Upstream Issue #3 | Still open, no root cause there either; tracked | [upstream-issue-3.md](upstream-issue-3.md) |
 
 ## Next batch (November): three triggers
@@ -65,5 +65,5 @@ listed above. Nothing here starts itself.
 表边界归属、第二循环补点待落地；解冻等用户）；**未上机验证的七件**（除早期构建 HE★/C15
 外全部只离线、同号受理未实测、无损 strip 长度、镜头块/占位块/位深接线/菜单组徽标
 未验）；**判不可交付的四件**（ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120），连理由
-一起留着看。另加发布侧两件：toolkit 已备好**未发布**、上游 Issue #3 仍在监护。
+一起留着看。另加发布侧两件：toolkit 已按发布令**以试验品身份发布**（tag `toolkit-20261019`，V11.1 候选、从未上机）、上游 Issue #3 仍在监护。
 **11 月批次三件的触发条件**见上文 "Next batch (November)"：C4 冒烟（机器回来+官方固件正常→按 c4-smoke-plan 走）｜解冻（C4 成立后，**C6=仅你下令**）｜发布（**仅你给"发"字**→按 releasing.md runbook）。三件都由触发条件启动，没有一件会自己开始。
