@@ -79,8 +79,12 @@ picked. **That is the end of the safe part.** What the file does on a
 camera is a different question entirely — see [risks.md](risks.md) and the
 status table in [features.md](features.md). The build above comes from the
 **V11.1** line (`03.11.p1` generation) and is marked **⛔ UNSAFE (known
-defects, under investigation)** — known issues:
-[risks.md](risks.md#known-unsafe-v111-2026-10-19).
+defects)** — known issues:
+[risks.md](risks.md#known-unsafe-v111-2026-10-19). **Recommendation: wait
+for the V11.2 candidate to be accepted before building anything you might
+use.** V11.2 fixes that defect family (see
+[bricking-edge.md](bricking-edge.md)) but is a candidate: not on hardware,
+not released, awaiting verification.
 
 ## When something fails
 
@@ -152,7 +156,9 @@ QQ 群：`1108781835`
 到手的东西：`Z_8_0311.bin` + `manifest.json` + `SHA256SUMS.txt` + 相应的
 `Z8PRE*.CFG`／`Z8OG.CFG`。**安全的部分到此为止**——文件上机会怎样完全是另一个问题，
 见 [risks.md](risks.md) 与 [features.md](features.md) 的状态表。上面构建的是
-**V11.1** 线内容（`03.11.p1` 世代），状态 **⛔ UNSAFE（已知缺陷，调查中）**——
+**V11.1** 线内容（`03.11.p1` 世代），状态 **⛔ UNSAFE（已知缺陷）**——**建议等 V11.2
+候选验收后再构建你要用的东西**：V11.2 已修该缺陷家族（见
+[bricking-edge.md](bricking-edge.md)），但它是候选——未上机、未发布、待验证。
 已知问题见 [risks.md](risks.md#known-unsafe-v111-2026-10-19)。
 
 **出错对照表**（完整表见英文部分，每条都实测触发过，仅两条标注"源码引文"）：

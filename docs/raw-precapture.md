@@ -73,9 +73,9 @@ Switch between the three formats only after the previous burst is finished. The 
 
 Registration failure can fall back to a JPEG plus a separately written NEF, temporarily named `.NE_`; that NEF may require a later database rescan. Other failures may produce JPEG-only output, a reduced 1620×1080 NEF preview, missing/partial files, or **`Z8PRESTP.BIN`**. A RAW-only fallback JPEG can have the lower NEF-preview quality while its metadata still says FINE. Check the file set, not just the absence of an error message.
 
-The stop file prevents additional NEF saving and survives restart; **JPEG menu quality may still be applied**. To disable this feature fully, remove `Z8PRE.CFG` while the camera is off and the card is safely accessible. C15/C30 then uses original HSFC behavior. This does not uninstall firmware, remove an included ProRes feature or guarantee rollback.
+The stop file prevents additional NEF saving **for the rest of the session in which the failure happened** and is kept on the card as evidence: the firmware never deletes or rewrites it. After a restart a stop file written by this firmware no longer stops NEF saving (the stop is a session latch that every new error re-arms); a stop file this firmware did not write (empty, truncated or otherwise foreign) still stops it, so a manually placed stop file keeps working. **JPEG menu quality may still be applied**. To disable this feature fully, remove `Z8PRE.CFG` while the camera is off and the card is safely accessible. C15/C30 then uses original HSFC behavior. This does not uninstall firmware, remove an included ProRes feature or guarantee rollback.
 
-The per-NEF budget is 1.5 s, checked after a stock write returns or between fallback I/O calls. It cannot interrupt a blocked call or guarantee against freezes. On errors, missing files, `.NE_`, a stop file, resets or freezes, stop testing and preserve evidence. After writing has ended, back up the card and disable the feature; investigate before deleting a stop file or retrying.
+The per-NEF budget is 1.5 s, checked after a stock write returns or between fallback I/O calls. It cannot interrupt a blocked call or guarantee against freezes. On errors, missing files, `.NE_`, a stop file, resets or freezes, stop testing and preserve evidence. Whether a frame was kept and which check refused it is recorded in a small fixed-address status block that diagnostic tools can read; there is no on-screen message. After writing has ended, back up the card and disable the feature; investigate before deleting a stop file or retrying.
 
 Read the [verification scope](verification.md) for hardware coverage, frame-correspondence review and model limits. New public packages are not individually hardware-certified.
 
@@ -143,8 +143,8 @@ python configure.py --diagnostic-footer --output build/config-diagnostic
 
 登记失败时可能回退为 JPEG＋另写 NEF，先用 `.NE_` 再改名；该 NEF 可能要之后重新扫描照片库。其他失败可能产生 JPEG-only、缩小的 1620×1080 NEF 预览、缺失／不完整文件或 **`Z8PRESTP.BIN`**。RAW-only 回退 JPEG 可能使用较低的 NEF 预览画质而元数据仍写 FINE。不能只看是否报错，也要核对文件集合。
 
-停止文件会阻止额外 NEF 保存，关开机不清除它；**JPEG 仍可能应用普通菜单中的画质**。要完全停用本功能，关机并安全取卡后移除 `Z8PRE.CFG`，C15／C30 回到原有 HSFC 行为。这不卸载固件、不移除已包含的 ProRes 功能，也不保证固件可回退。
+停止文件会在**发生故障的本次使用期间**阻止额外 NEF 保存，并作为证据保留在卡上：固件从不删除或改写它。重启后，由本固件写下的停止文件不再阻止 NEF 保存（停机是会话级闩，任何新的故障都会重新上闩）；而非本固件写下的停止文件（空文件、截断文件或其他外来文件）仍然生效，因此手工放置的停止文件照旧可用。**JPEG 仍可能应用普通菜单中的画质**。要完全停用本功能，关机并安全取卡后移除 `Z8PRE.CFG`，C15／C30 回到原有 HSFC 行为。这不卸载固件、不移除已包含的 ProRes 功能，也不保证固件可回退。
 
-每张 NEF 预算 1.5 秒，只能在原厂写入返回后或回退 I/O 调用之间检查，不能打断已阻塞的调用，也不保证不会冻结。报错、缺片、出现 `.NE_`／停止文件、重启或冻结时停止测试并保留证据；待写入结束后备份、停用，排查后再考虑删除停止文件或重试。
+每张 NEF 预算 1.5 秒，只能在原厂写入返回后或回退 I/O 调用之间检查，不能打断已阻塞的调用，也不保证不会冻结。报错、缺片、出现 `.NE_`／停止文件、重启或冻结时停止测试并保留证据。每帧是否保留、被哪道检查拒绝，都记录在一个固定地址的状态块里供诊断工具读取，屏幕上不显示提示；待写入结束后备份、停用，排查后再考虑删除停止文件或重试。
 
 请阅读[验证边界](verification.md)，了解上机覆盖、画面对应复核和模型边界。公开脚本新生成的包没有逐个上机认证。
