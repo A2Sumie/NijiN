@@ -1,0 +1,518 @@
+{
+  "id": "z8-c311-precapture-v3",
+  "payload_bytes": 81807711,
+  "code_bytes": 35053,
+  "code_sha256": "fb53a54994b10f5db35ce53e1389b42292cbdb1829e0410b547bed7de2a4036e",
+  "entries": {
+    "precapture_bank_get": "0x40962018",
+    "precapture_bank_set": "0x40962054",
+    "precapture_current_entry": "0x409604cc",
+    "precapture_history_entry": "0x40960000",
+    "precapture_main_rc": "0x40961ed0",
+    "precapture_main_step": "0x40961830",
+    "precapture_tdec_release": "0x40960504",
+    "precapture_write_file": "0x4096208c",
+    "precapture_y_alloc": "0x4096156c",
+    "precapture_y_alloc_entry": "0x40967bbc",
+    "precapture_y_size": "0x409613a4",
+    "precapture_y_size_entry": "0x40967bb4",
+    "precapture_grade_entry": "0x40967b50",
+    "precapture_ncset_guard": "0x40967b84"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+  "compiler_flags": [
+    "--target=aarch64-none-elf",
+    "-O2",
+    "-ffreestanding",
+    "-fno-builtin",
+    "-fno-stack-protector",
+    "-fno-unwind-tables",
+    "-fno-asynchronous-unwind-tables",
+    "-mgeneral-regs-only",
+    "-mstrict-align",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "ranges": [
+    {
+      "start": "0x17aa4c",
+      "end": "0x17b1d0",
+      "purpose": "pre-capture dependency 0x402daa4c",
+      "sha256": "0edf15282089bb757c300a8df9b39195324d3fcf29b4f4c5ccf7d8aa29818e1f"
+    },
+    {
+      "start": "0xe0fe04",
+      "end": "0xe10034",
+      "purpose": "pre-capture dependency 0x40f6fe04",
+      "sha256": "fa5ab727580da97b332fa578ae1b8a9eb7c23c7ebb4169f8f09a2a7e68ec1e15"
+    },
+    {
+      "start": "0xd4340c",
+      "end": "0xd43800",
+      "purpose": "pre-capture dependency 0x40ea340c",
+      "sha256": "d03cb7088de365154d556bb30778311b7612441b9163c7961b69ea1f7ab7b2f3"
+    },
+    {
+      "start": "0xd48fc8",
+      "end": "0xd491d4",
+      "purpose": "pre-capture dependency 0x40ea8fc8",
+      "sha256": "e6f055710d5a54f555268685431b6acc1fcb07ba25c4752a4d5dae8d7790317d"
+    },
+    {
+      "start": "0xd444d0",
+      "end": "0xd445e4",
+      "purpose": "pre-capture dependency 0x40ea44d0",
+      "sha256": "13071989e766bd3d0284a2badf9692e3827d68a5598a4a7b1cf23387c9b64b80"
+    },
+    {
+      "start": "0xeed5c0",
+      "end": "0xeed680",
+      "purpose": "pre-capture dependency 0x4104d5c0",
+      "sha256": "e40796b5a781ef325e159550c442a8f06aba790db84e3ffab2cf132417625b85"
+    },
+    {
+      "start": "0xeedea4",
+      "end": "0xeedf60",
+      "purpose": "pre-capture dependency 0x4104dea4",
+      "sha256": "40435315b15fba59050b73f607f612f7b17718c1c8cd8ea73ac6c177d26b75ef"
+    },
+    {
+      "start": "0xe33098",
+      "end": "0xe33328",
+      "purpose": "pre-capture dependency 0x40f93098",
+      "sha256": "3a07250c20f328d300613ba0156bfb371892d2323a4c7c396b242a7f7132580c"
+    },
+    {
+      "start": "0xbcb8b8",
+      "end": "0xbcb95c",
+      "purpose": "pre-capture dependency 0x40d2b8b8",
+      "sha256": "bb93c46e9a96fcdadb6eda2109724c8b22e2bb90ffa8a4534364e982206abf78"
+    },
+    {
+      "start": "0xbcc408",
+      "end": "0xbcc480",
+      "purpose": "pre-capture dependency 0x40d2c408",
+      "sha256": "1f374af0c7656808a4436f63a4692943a47f6958f3be5470d4db0dc87e7eddb5"
+    },
+    {
+      "start": "0xb1c778",
+      "end": "0xb1c794",
+      "purpose": "pre-capture dependency 0x40c7c778",
+      "sha256": "08cd2323b6c27701819719faa4439cc05bf7da4cd40f0c4372805a3513cd8813"
+    },
+    {
+      "start": "0x6fa8e0",
+      "end": "0x6fa970",
+      "purpose": "pre-capture dependency 0x4085a8e0",
+      "sha256": "0adcbb688bdd801bf6a030dcb5dc5bbd0b2fa9941c5106eca80339e4f49a0337"
+    },
+    {
+      "start": "0x6faa7c",
+      "end": "0x6faad0",
+      "purpose": "pre-capture dependency 0x4085aa7c",
+      "sha256": "165afdd1ac1a1aa8515c61311f0ddf11125b7ddabc4545e0d202d941006f7cf4"
+    },
+    {
+      "start": "0x6fbfe0",
+      "end": "0x6fc020",
+      "purpose": "pre-capture dependency 0x4085bfe0",
+      "sha256": "bc3f13be4128e3c4a65ccb1828559909d1d73d71282956c8cce5e2644d8db1e3"
+    },
+    {
+      "start": "0x1026718",
+      "end": "0x1026894",
+      "purpose": "pre-capture dependency 0x41186718",
+      "sha256": "2b0fbd3b8b9039e5727198b5c94a93889c431f8b8a88d2a74317b8353f83b506"
+    },
+    {
+      "start": "0x56ddf8",
+      "end": "0x56e07c",
+      "purpose": "pre-capture dependency 0x406cddf8",
+      "sha256": "40cf0b2906b979767a7c80465f719a603eb2a1e4ed2059ff2064018e7193389d"
+    },
+    {
+      "start": "0xbb7368",
+      "end": "0xbb73c0",
+      "purpose": "pre-capture dependency 0x40d17368",
+      "sha256": "8ba77ff789a5457d979ef42e77a57adbe25c2b59bf4a4b88b898e7d8487eeea6"
+    },
+    {
+      "start": "0xd51fd4",
+      "end": "0xd52100",
+      "purpose": "pre-capture dependency 0x40eb1fd4",
+      "sha256": "81ce186220295ae88ac35a7c5bed57a8c72b78e9c69e9f931ef7cdfbb9c0a5a7"
+    },
+    {
+      "start": "0x800000",
+      "end": "0x810000",
+      "purpose": "reserved code space",
+      "sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31"
+    },
+    {
+      "start": "0x4d2ffc0",
+      "end": "0x4d2ffd0",
+      "purpose": "compressed allocation requests",
+      "sha256": "540e3e29ec386f747b3754136dde1bf67ba9628f89f2a60d8635f4e8f44db0e7"
+    },
+    {
+      "start": "0x560000",
+      "end": "0x570000",
+      "purpose": "stock still-image writer and segment/attribute helpers",
+      "sha256": "d7538afb6d1ce25e98cc9023f12b0069f0b76e3313d2d30e48a557ac60bace9d"
+    },
+    {
+      "start": "0x6fa000",
+      "end": "0x716000",
+      "purpose": "stock file database and creation-lock interfaces",
+      "sha256": "b268ccbbaa3d21ebea1c49f7a08ef3b56d9d739a39ab7748768a1a4fc83e177e"
+    },
+    {
+      "start": "0xd4e9f0",
+      "end": "0xd4fb00",
+      "purpose": "main JPEG and NEF-preview parameter builders",
+      "sha256": "e925ac24ec636a21014fa9564bf24c1e78429ba0d4f969abbbaf9b24b7683039"
+    },
+    {
+      "start": "0xd57318",
+      "end": "0xd579c0",
+      "purpose": "JPEG rate control and quantization",
+      "sha256": "755f47dc02afd321fbb01cfcfe08ec2b62467e31baf341a38926e0e4a3aa7ec4"
+    },
+    {
+      "start": "0xb19000",
+      "end": "0xb19100",
+      "purpose": "image size classifier",
+      "sha256": "8228215b485f0ceeb95df36066eef867694e14de62cd9b8462fe0af8f986c082"
+    },
+    {
+      "start": "0x4cdb000",
+      "end": "0x4cfb000",
+      "purpose": "JPEG rate-control tables, jump table and NEF-preview quality pair",
+      "sha256": "9f5f97f355d9c41d3bca1b34765e3d5aa8273db636916f7797d77fd358d09279"
+    },
+    {
+      "start": "0xd49f3c",
+      "end": "0xd49fe4",
+      "purpose": "output-resource allocation step and x23 contract",
+      "sha256": "f1bb0bc933c1bf8ab2c515ae8866a407e451adbaa6b04bb0eb79b7797700aebc"
+    },
+    {
+      "start": "0xee5000",
+      "end": "0xeee000",
+      "purpose": "output-resource capacity, pool allocation and layout",
+      "sha256": "4ea96a6c5b09007bdd7381d18595362a63c3789446823795054370bbad24fa10"
+    },
+    {
+      "start": "0xf00780",
+      "end": "0xf00c00",
+      "purpose": "preview descriptor initialization",
+      "sha256": "959ed2d7c2e080a3361f032e1123fde95b17f417348d6d471f3c755d5f3e8f88"
+    },
+    {
+      "start": "0xd22090",
+      "end": "0xd22400",
+      "purpose": "JPEG engine interface",
+      "sha256": "525ac94e73e9f593376802f46e5045dab1f9b22f19cf09ff2c53c40fb5274e21"
+    },
+    {
+      "start": "0xd58800",
+      "end": "0xd58900",
+      "purpose": "JPEG channel locking",
+      "sha256": "cfc1d9c50e84152c76d62c6b20a018b075316f7508aca5d53f93464f201ea1ea"
+    },
+    {
+      "start": "0x47add4",
+      "end": "0x47aed4",
+      "purpose": "ordinary Image quality menu composer",
+      "sha256": "1205c4d3969478d1852538928cf8b992990a47a5c0269c8e94c468ec5433884c"
+    },
+    {
+      "start": "0xef9000",
+      "end": "0xef9200",
+      "purpose": "image format and preview reuse helpers",
+      "sha256": "dca1f608066ce0de4dde3378b4b47c1ff2c837a12c07578fcd8f7843f25a9562"
+    },
+    {
+      "start": "0x3ec44c8",
+      "end": "0x3ec4618",
+      "purpose": "settings group layout for Image quality",
+      "sha256": "19fe6e81f230f1abc7c2616442ae72e81319cd9befc94757b8e7f5573b2194a6"
+    },
+    {
+      "start": "0x3eabbf8",
+      "end": "0x3eabc10",
+      "purpose": "Image quality file type/grade/star setting 4",
+      "sha256": "82ab01bf6ae06cf2486d0d1d5075072c8c0d167a4681f4f4121e82284850f413"
+    },
+    {
+      "start": "0x3eabc10",
+      "end": "0x3eabc28",
+      "purpose": "Image quality file type/grade/star setting 5",
+      "sha256": "bd081f4c065e974d549984cbe92f5bf9ab751d3ce601fe24056e0accaa1c2dee"
+    },
+    {
+      "start": "0x3eabc28",
+      "end": "0x3eabc40",
+      "purpose": "Image quality file type/grade/star setting 6",
+      "sha256": "82698c6bee251e88fc89d70e381294e179355ceb69e574dd0427fcafcad9bd09"
+    },
+    {
+      "start": "0x4d2f60c",
+      "end": "0x4d2ffc0",
+      "purpose": "output-resource capacity table",
+      "sha256": "78396da154bba60a3a2067f26b6d04bfa7686e3130bd20d4605482232672f932"
+    }
+  ],
+  "patches": [
+    {
+      "offset": "0xe0fe90",
+      "bytes": 4,
+      "purpose": "history submission hook",
+      "old_sha256": "27af073012fac2bb86b9e7dacd89756c34d6cd000b285d80bca1116705a7528c",
+      "new_sha256": "49175a4f2703a2406dfa7f50d75b8b80e5e0809bf3e3019041029212c028bd29"
+    },
+    {
+      "offset": "0xd4915c",
+      "bytes": 12,
+      "purpose": "retain compressed frames and apply menu quality",
+      "old_sha256": "95109b212f615942ee0df7b74ed5f197426d467e48d761af60ec4142b02f0b35",
+      "new_sha256": "cc0b4d7af7ba8c8a25b971a6e5e6a3ffbb3cf1118333281ea0f4942852dc657c"
+    },
+    {
+      "offset": "0xd43638",
+      "bytes": 4,
+      "purpose": "register and write NEF with stock writer",
+      "old_sha256": "ac25b5a993ee70328996e6c4981cce939b6bfec6a2e4e6e8504fd8c9920b2f95",
+      "new_sha256": "087b1f1d8efd84fd16fd0f7e9bffc196f7ff7edd520fa7b66225520d558fc714"
+    },
+    {
+      "offset": "0xd4eb60",
+      "bytes": 4,
+      "purpose": "RAW-only preview quality",
+      "old_sha256": "33fed37b30517aeec754863a31016ac367fb2934fe6489976294ccc3da654bbc",
+      "new_sha256": "7937e3692df801de8dad057bc743c5d1f133a66972b7dd87ac17d96d6b8f485d"
+    },
+    {
+      "offset": "0xe0ff38",
+      "bytes": 4,
+      "purpose": "full-press and post-release frame submission",
+      "old_sha256": "83957af20d60d0e60522f4fa7bd82e7769aa59eaac1f144d333ee70251cf94c7",
+      "new_sha256": "e1ec3991030c428fd6a0b0157b4e301bdc92750a2aca04e286abb1c3694a2058"
+    },
+    {
+      "offset": "0xee8e1c",
+      "bytes": 4,
+      "purpose": "capacity for separate NEF preview",
+      "old_sha256": "0c75d9ea2e49d4ca6a42410494a353bbab87cc2baa4d0d73f7ebe79ed1edf1f0",
+      "new_sha256": "095d72ed4a2e3c1ffd08460b5e70c70b824eb8925ebb7c6723d5b59da35a0561"
+    },
+    {
+      "offset": "0xd49fac",
+      "bytes": 4,
+      "purpose": "allocate and lay out separate NEF preview",
+      "old_sha256": "97dba574f77f0b493a416a9a11d49878808d1143cae14bc48b0936ecc55141b0",
+      "new_sha256": "f9e1c8ae1b36bfbdd45f2515c7e3c373a85784eab8e5dbf47fec23d4de549c3b"
+    },
+    {
+      "offset": "0xd4eeec",
+      "bytes": 4,
+      "purpose": "encode separate NEF preview, pipeline 0",
+      "old_sha256": "ea90a6be6c2e651e73138ffbb5ccc1ae971c373669ab2a772eb9dafe89d625d5",
+      "new_sha256": "e1bcd57677120173310e0509b41811a21750f504ae39433ef1fc9197a8fa41d8"
+    },
+    {
+      "offset": "0xd4ef10",
+      "bytes": 4,
+      "purpose": "encode separate NEF preview, pipeline 1",
+      "old_sha256": "cc0029408ed88a750ff669546d54fb80155c4552695a925098cfb925e0987b45",
+      "new_sha256": "1ef3623af22c779b229b949a0da1fcd823f649ddb5c01639dbd72e4df99615b3"
+    },
+    {
+      "offset": "0x4d2ffc0",
+      "bytes": 4,
+      "purpose": "C30 frame record capacity",
+      "old_sha256": "5e1d4844aceee4a6302de2518f38ccd7ebf93d13f779a99369c20f845b3ca9f9",
+      "new_sha256": "b0d576cb7d9fc0a562d0c3f77e86bb25f22f86784413a52018d1233360aee2fc"
+    },
+    {
+      "offset": "0x4d2ffcc",
+      "bytes": 4,
+      "purpose": "C15 frame record capacity",
+      "old_sha256": "5e1d4844aceee4a6302de2518f38ccd7ebf93d13f779a99369c20f845b3ca9f9",
+      "new_sha256": "b0d576cb7d9fc0a562d0c3f77e86bb25f22f86784413a52018d1233360aee2fc"
+    },
+    {
+      "offset": "0x800000",
+      "bytes": 35053,
+      "purpose": "compiled capture code and constants",
+      "old_sha256": "b0dd30b277dcc46ac2065db6f951bb0af9df3e75758a1c8ac18a0c1adb64a6e6",
+      "new_sha256": "fb53a54994b10f5db35ce53e1389b42292cbdb1829e0410b547bed7de2a4036e"
+    },
+    {
+      "offset": "0x1024d8c",
+      "bytes": 8,
+      "purpose": "extend text copy to 0x40970000",
+      "old_sha256": "bda28137c2144d68e201a3cd3b59a3c006df0ece63bb4c270da16ab9505f5405",
+      "new_sha256": "358811743bb777fe9243250116eefd2d9ce5d1f7fa157fb3701afc6f57cb0e89"
+    },
+    {
+      "offset": "0xd52564",
+      "bytes": 4,
+      "purpose": "HE* encode budget: +0x2ac=4 (marker 14)",
+      "new_sha256": "d30590c5276bc7bfa09fee75ac68980d8de6c910c69a2226bf9f1d9848fcea72",
+      "old_sha256": "1ca70e097d55c387af35487e6b20566e82322e8b29252a72f347c306ee9d36fd"
+    },
+    {
+      "offset": "0xeb56d0",
+      "bytes": 4,
+      "purpose": "v6: card settings 0x120B packing hook",
+      "old_sha256": "0ca758c5dfdf24442c1150301c7132309fa4ff0cfa1bb29a1b5a862a62b228cc",
+      "new_sha256": "68534263a4d6c70f6d15c2a726feeb2e1719f54c9c132f48927f58c2652fd402"
+    },
+    {
+      "offset": "0xeb5860",
+      "bytes": 4,
+      "purpose": "v6: card settings 0x120B packing hook",
+      "old_sha256": "709d2f87409d56582a8bd1d8ebd68d9d22206156ec39e6d513092ed4a0084b88",
+      "new_sha256": "d7935ff717ca90da808d25e662ae62ea011b98279617f30242e2ceb155355ac8"
+    },
+    {
+      "offset": "0xe3a4c4",
+      "bytes": 4,
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
+    },
+    {
+      "offset": "0xe3a4e8",
+      "bytes": 4,
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
+    },
+    {
+      "offset": "0xe3a50c",
+      "bytes": 4,
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
+    },
+    {
+      "offset": "0xe3a530",
+      "bytes": 4,
+      "purpose": "v7/117: D3-MAX boundary cmp #3->#4",
+      "old_sha256": "b12650fb5880a860549f00685b91bac05caff673ac5cf75376c59161772c16e7",
+      "new_sha256": "104e473c780afcec8207ee0f866bd70fb1dd9c19f7059d2c8dfbe2d336ed6ff1"
+    },
+    {
+      "offset": "0xe3a4cc",
+      "bytes": 8,
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "6098a55fe067915f82f9d894b9b0896d348264cb35c8635b952fecd6b8b5d6b5",
+      "new_sha256": "e21c5f89c0b76c120c6b0c5ebf59cec81e721855c54dd310863fad2e1a268cb1"
+    },
+    {
+      "offset": "0xe3a538",
+      "bytes": 8,
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "d598cc7ac5af746a4f98bd2c769f5a8feb54bee365f01f18dc1dee8c142c8456",
+      "new_sha256": "cfdca247722f3de6b914810b49000ca0595ef61f19775cb1b3183583a7417f3c"
+    },
+    {
+      "offset": "0xe3a4f0",
+      "bytes": 8,
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "2a45c4cab16bf78e3e495983e5771407db3c6fdccf24af0e2ac4b7a26f270cc9",
+      "new_sha256": "1db56c44fec22d775db02e4068c71f17b6dec25937b71894973bb51a89007a0d"
+    },
+    {
+      "offset": "0xe3a514",
+      "bytes": 8,
+      "purpose": "v7/117: D3-MAX case base -> injected table row",
+      "old_sha256": "cf6166f142bb471e7c4f3e60398d3fee68c7a55e96192bea959fad637b867c6d",
+      "new_sha256": "5e594d88506052738991c2be242fa46e60d47e2181b8421edac0724f4972d40f"
+    },
+    {
+      "offset": "0x71e5d4",
+      "bytes": 4,
+      "purpose": "v7/111: remaining-count hook -> cave",
+      "old_sha256": "0728bd28083a27342e9402a519746a69f22161ac16178bb9fbb778a71b80a36e",
+      "new_sha256": "afdef7a788c0ed1387a99a5b50b3ae3e98209d188c590ff35e71b67fe21c8101"
+    },
+    {
+      "offset": "0x7f8000",
+      "bytes": 64,
+      "purpose": "v7/111: counter scale cave (15 instrs + ctrl byte)",
+      "old_sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+      "new_sha256": "5c9cdcbd6a317d07c0111d82531027f9d944656ece8ad073702d226c80ce7545"
+    },
+    {
+      "offset": "0x4cbc9b8",
+      "bytes": 8,
+      "purpose": "v10/122: T4 tail entry id 0x0800 (card serialization of menuh item)",
+      "new_sha256": "d642fab67354407e720ec2ce737cb639d0621df6d4fa69e32c9f22ce7f79216e",
+      "old_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+    },
+    {
+      "offset": "0xf803d4",
+      "bytes": 4,
+      "purpose": "v10/122: card S3 slot count 617->618 (save side)",
+      "new_sha256": "9c5dd12df02effd9b3e35d5f744261aed411bcc8a03e56507e4d8aeacee14b3f",
+      "old_sha256": "c01ead1b59ca9392be0fd45dca6e698d40abe6acae6edd91a1ee96cfc59ada17"
+    },
+    {
+      "offset": "0xf80f68",
+      "bytes": 4,
+      "purpose": "v10/122: card S3 slot count 617->618 (load side)",
+      "new_sha256": "2341bc0d4d014ef3474531b312eace9e1e70625b2111f59f7ca6f3ad3cae7619",
+      "old_sha256": "f09032e0f47fd699f1159876c3548d98010cf0ba046fa957a2ad4ce79c3a613e"
+    },
+    {
+      "offset": "0xf7f9d4",
+      "bytes": 4,
+      "purpose": "v10/122: per-item apply -> bounds guard",
+      "new_sha256": "c01f75503f3298ea28438cd6dd0a2cc558cccc089836da30b5b351ad190d757d",
+      "old_sha256": "e06e656908c88f9bf209314ea07719fcabade642c597a23f64fd9ed4ca916632"
+    }
+  ],
+  "loader_input_sha256": [
+    "bda28137c2144d68e201a3cd3b59a3c006df0ece63bb4c270da16ab9505f5405",
+    "b1a236384039ff913578cca24bf8cf646780acfa87170ec379cc7ba001c8ecd2"
+  ],
+  "source_sha256": {
+    "firmware.c": "9d5b216224bc16b6b7b03f5e98277cd0cd6b764bfbdbb87e699922a12aa47860",
+    "crc32_table.inc": "fe021e684d78717732adddb6c9dde91f6fc6918f18cb0aeccfb349db5511a515",
+    "patcher.py": "089b8a3aa2164a0dd85e8bcb11f8374852f516a6c9ad766a9ccb47f12918f4ef"
+  },
+  "merged": {
+    "payload": "0x1b3e000",
+    "alloc_base": "0x1b67e00",
+    "alloc_request": "0x1b68000",
+    "ring_cap": "0x14",
+    "marker": 14,
+    "cfg_magic": "Z8PRECFGv4"
+  },
+  "v6": {
+    "items": [
+      "timestamp",
+      "bank-0x120B",
+      "preview-family",
+      "bit-depth"
+    ],
+    "bank_hooks": [
+      "0xeb56d0",
+      "0xeb5860"
+    ],
+    "grade_item": "0xa03d5c028"
+  },
+  "v7": {
+    "items": [
+      "lensdb",
+      "counter",
+      "d3-max"
+    ],
+    "d3max_table": "0x409677d0",
+    "ring_cap": 20
+  }
+}

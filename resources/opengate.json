@@ -1,0 +1,153 @@
+{
+  "id": "z8-c311-opengate-v1",
+  "payload_bytes": 81807711,
+  "code_bytes": 4040,
+  "code_sha256": "36e56939ad4f1234404d39038fa25bf3aeddba24db68dbea6a6351e0b426b1fe",
+  "entries": {
+    "og_case_23x": "0x4096f000",
+    "og_case_41k": "0x4096f014",
+    "og_case_83k": "0x4096f03c",
+    "og_case_common": "0x4096f04c",
+    "og_case_dx": "0x4096f028",
+    "og_cfg_ok": "0x4096f4ac",
+    "og_pad_23x": "0x4096f068",
+    "og_pad_41k": "0x4096f07c",
+    "og_pad_83k": "0x4096f0a4",
+    "og_pad_common": "0x4096f0b4",
+    "og_pad_dx": "0x4096f090",
+    "og_rate_pick": "0x4096f380",
+    "og_rate_row": "0x4096f0d4",
+    "og_read_flag": "0x4096f234",
+    "og_rows_type1": "0x4096fa70",
+    "og_rows_type2": "0x4096f680",
+    "og_size_pick": "0x4096f100",
+    "og_rate_map": "0x4096ff38",
+    "og_rows_type0_422": "0x4096fcb0",
+    "og_rows_type0_hq": "0x4096fbd8",
+    "og_rows_type0_lt": "0x4096fd88",
+    "og_rows_type0_proxy": "0x4096fe60"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+  "compiler_flags": [
+    "--target=aarch64-none-elf",
+    "-O2",
+    "-ffreestanding",
+    "-fno-builtin",
+    "-fno-stack-protector",
+    "-fno-unwind-tables",
+    "-fno-asynchronous-unwind-tables",
+    "-mgeneral-regs-only",
+    "-mstrict-align",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "ranges": [
+    {
+      "start": "0x808000",
+      "end": "0x810000",
+      "sha256": "c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479",
+      "purpose": "loader-covered cave (zeros in stock)"
+    },
+    {
+      "start": "0x57305c",
+      "end": "0x573170",
+      "sha256": "d0bf975c726024520c65398b5b4ec801229166bccd11e40dfeed18d66ef0bf26",
+      "purpose": "RAW record size setter (4-case switch)"
+    },
+    {
+      "start": "0xb9ae90",
+      "end": "0xb9b080",
+      "sha256": "a7a5b2549931ba5367ea92b631f9b285b3b737164b55fcdbd2aa6644371a0d6d",
+      "purpose": "record setup (padded size switch)"
+    },
+    {
+      "start": "0xbbe5c4",
+      "end": "0xbbe7f0",
+      "sha256": "0baabef25f19ee9233160b7492659ffb326f93af826793a868876f123672fb17",
+      "purpose": "bitrate table lookup"
+    }
+  ],
+  "patches": [
+    {
+      "offset": "0x573120",
+      "bytes": 12,
+      "purpose": "OG 3:2 size case 3840x2160 -> 3840x2560",
+      "old_sha256": "fb1d5f3977867377217735cddd3ce04809c5d9b91ce6fa2ae33ff4d730aaaf28",
+      "new_sha256": "6214fc548f43c2939029c5e4e97c0a86afe37b1a1bf2c8c513c3483bb39f5519"
+    },
+    {
+      "offset": "0x573134",
+      "bytes": 12,
+      "purpose": "OG 3:2 size case 4128x2322 -> 4128x2752",
+      "old_sha256": "d490e7f7dc6998280dede55599276dd1a15ec7f408e377c757b968511e41ad71",
+      "new_sha256": "6214fc548f43c2939029c5e4e97c0a86afe37b1a1bf2c8c513c3483bb39f5519"
+    },
+    {
+      "offset": "0x573140",
+      "bytes": 12,
+      "purpose": "OG 3:2 size case 5392x3032 -> 5392x3592",
+      "old_sha256": "bff95a34ff0f730d25d1a3d50acb599b66c6469433daa88fa8e17a524f2160e1",
+      "new_sha256": "89aaa3dcab87ee844b41b1811345799154f67290325a3500c35c14eeb3dc19a7"
+    },
+    {
+      "offset": "0x57314c",
+      "bytes": 12,
+      "purpose": "OG 3:2 size case 8256x4644 -> 8256x5504",
+      "old_sha256": "9913bdd9a5a8e321745e42519c598f497c192308eba8c6fc00f3815fa255e501",
+      "new_sha256": "aeb72a1c1081e37b8e53099321e6030cb96f51abf423860333a17f0e2077ce7f"
+    },
+    {
+      "offset": "0x80f000",
+      "bytes": 4040,
+      "purpose": "OpenGate code and 3:2 rate rows (experimental)",
+      "old_sha256": "bf45005795ffa8764d42f0a53d8ebc6e2068469ef97f4b0b6310e3d22063185c",
+      "new_sha256": "36e56939ad4f1234404d39038fa25bf3aeddba24db68dbea6a6351e0b426b1fe"
+    },
+    {
+      "offset": "0xb9af64",
+      "bytes": 16,
+      "purpose": "OG padded case 8268x4652 -> 8268x5512",
+      "old_sha256": "64c993b7b4e68b8ef473c3132896deaa5e1a2c0666f05229f3561f757f24ebeb",
+      "new_sha256": "f781b12415af7b9363b1cdb4194ae5a38533ea84814409710380de6f3d0e5804"
+    },
+    {
+      "offset": "0xb9af88",
+      "bytes": 16,
+      "purpose": "OG padded case 5404x3040 -> 5404x3600",
+      "old_sha256": "6986b9c2c9e7497248640252e0a036e8fec5cd5318a41ada0f53581eb80e8e7a",
+      "new_sha256": "f7d3aa25b15fb36bbf1308f82b12e4a7062c915155671a3312df7bb7d02f70cc"
+    },
+    {
+      "offset": "0xb9af9c",
+      "bytes": 16,
+      "purpose": "OG padded case 4140x2330 -> 4140x2760",
+      "old_sha256": "079e6447552d07e393c845c0b8020befa0b639c0a9a6965062a71173d43efa70",
+      "new_sha256": "6375a6f30bf2b2e80c433b95ed7c0bdeb2ebfa0a6a68e079e28f359dbb77c28d"
+    },
+    {
+      "offset": "0xb9afb0",
+      "bytes": 16,
+      "purpose": "OG padded case 3852x2168 -> 3852x2568",
+      "old_sha256": "5282e879ef8442b0621b9b70cfb43aa55f76eed41f90a9acb31b6e5dc55a9c00",
+      "new_sha256": "094ab95d62a460b589035bd90408e48f8f751b3a6dca2035f4ab7b5d0f753242"
+    },
+    {
+      "offset": "0xbbe650",
+      "bytes": 4,
+      "purpose": "OG bitrate-row redirect (type1/type2)",
+      "old_sha256": "9179081c588b0963a45f8abfb4cfdd866f04409acebdc543cd7a5bca73e0b3ae",
+      "new_sha256": "0ce3f86f1fa3d5bd0469b5d4ebd8d9d1436fa2b4a59e945f75c0d0409210ab62"
+    }
+  ],
+  "source_sha256": {
+    "firmware.c": "2540c0b25cd0b57604f889c0e4dd5792f376c534a37e7bca6f0b892d4019eadd",
+    "og_rows.inc": "d2d28e64417acc6f00ca6bf51c87bf6054d2b8c19eeab1e9c0afe53fb5fd7530",
+    "og_dispatch.inc": "7502346a6f5941cf152262175ceca1ecd46d6b762009ba59a8cdadacb8a68c87"
+  },
+  "merged": {
+    "cfg_magic": "Z8OGCFGv1",
+    "cave": "0x808000",
+    "og_sizes": "8256x5504/4128x2752/5392x3592/3840x2560 (experimental)"
+  }
+}
