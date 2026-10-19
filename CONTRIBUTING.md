@@ -47,6 +47,23 @@ Do not upgrade "offline green" to "works".
   file behind an environment variable and skip loudly when it is absent.
 - Update `resources/` hashes through the recipe-locking path, not by hand.
 
+## Git trap in this repository: a branch and a tag share a name
+
+The V11 line has both a branch and an annotated tag called
+`bricking-edge`. Git treats the ambiguous name as the tag first, so a bare
+`git merge bricking-edge` or `git push origin bricking-edge` can act on the
+wrong object — this has silently sent work to the wrong place before. Always
+use fully qualified refs for that name:
+
+```sh
+git merge refs/heads/bricking-edge          # the branch
+git push origin refs/heads/bricking-edge    # the branch
+git push origin refs/tags/bricking-edge     # the tag
+```
+
+Working convention: do development on `main`, and sync to the branch at the
+end of a batch with an explicit `refs/heads/…`.
+
 ## Before you push
 
 ```sh
@@ -65,6 +82,14 @@ verifies that every documentation link and anchor resolves, and
 `tools/check_consistency.py` verifies that every documented path and hash
 matches what the repository actually contains. The repository hook runs all
 four automatically: `git config core.hooksPath .githooks`.
+
+Prepared release material is reconciled the same way, against the pins in
+`resources/` and the archived notes:
+
+```sh
+python tools/check_consistency.py --release-kit /path/to/kit \
+    --release-notes /path/to/RELEASE_NOTES.md --release-zip /path/to/kit.zip
+```
 
 When adding content of a new kind, review its origin first, then update the
 allowlists in these tools deliberately — never to make a warning disappear.

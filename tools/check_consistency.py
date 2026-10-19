@@ -7,8 +7,11 @@ recipes, anchors, tools). Anything else is a stale doc claim.
 
     python3 tools/check_consistency.py
 """
+import argparse
+import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -35,8 +38,92 @@ def pinned_hashes(root):
     return out
 
 
+def release_kit_check(kit, notes_path, zip_path):
+    """Reconcile a prepared (unpublished) release kit against the pins in this repository."""
+    problems = []
+    manifest_path = kit / 'manifest.json'
+    if not manifest_path.exists():
+        return ['release kit needs manifest.json'], 0
+    manifest = json.loads(manifest_path.read_text())
+    pinned = pinned_hashes(Path(__file__).resolve().parents[1])
+    # 1. the recorded commit must be a real commit of this repository
+    try:
+        commit = subprocess.run(['git', 'cat-file', '-e', manifest['commit'] + '^{commit}'],
+                                cwd=Path(__file__).resolve().parents[1], capture_output=True)
+        if commit.returncode != 0:
+            problems.append('manifest commit is not in the repository: %s' % manifest.get('commit'))
+    except OSError as exc:
+        problems.append('cannot verify manifest commit: %s' % exc)
+    # 2. every object: bytes match the manifest, and the manifest matches a recipe pin
+    checked = 0
+    for entry in manifest.get('files', []):
+        p = kit / entry['name']
+        if not p.exists():
+            problems.append('listed object missing: %s' % entry['name'])
+            continue
+        checked += 1
+        digest = hashlib.sha256(p.read_bytes()).hexdigest()
+        if digest != entry.get('sha256'):
+            problems.append('%s: bytes differ from the manifest' % entry['name'])
+        if entry.get('code_sha256') != digest:
+            problems.append('%s: object does not match its own code_sha256' % entry['name'])
+        if str(entry.get('code_sha256', '')).lower() not in pinned:
+            problems.append('%s: code_sha256 is not pinned by resources/' % entry['name'])
+        if not entry.get('source_hashes'):
+            problems.append('%s: manifest entry lacks source hashes' % entry['name'])
+    # 3. SHA256SUMS.txt must cover the kit and agree
+    sums_path = kit / 'SHA256SUMS.txt'
+    if sums_path.exists():
+        listed = {}
+        for line in sums_path.read_text().splitlines():
+            if line.strip():
+                h, _, n = line.partition('  ')
+                listed[n] = h
+        for name, want in listed.items():
+            p = kit / name
+            if not p.exists():
+                problems.append('SHA256SUMS lists a missing file: %s' % name)
+            elif hashlib.sha256(p.read_bytes()).hexdigest() != want:
+                problems.append('SHA256SUMS mismatch: %s' % name)
+        missing = [p.relative_to(kit).as_posix() for p in kit.rglob('*')
+                   if p.is_file() and p.name != 'SHA256SUMS.txt' and p.relative_to(kit).as_posix() not in listed]
+        for name in missing:
+            problems.append('file not covered by SHA256SUMS: %s' % name)
+    else:
+        problems.append('release kit needs SHA256SUMS.txt')
+    # 4. the archived notes must agree with the kit and the zip
+    if notes_path and notes_path.exists():
+        text = notes_path.read_text()
+        if manifest.get('commit', '')[:7] not in text:
+            problems.append('release notes do not mention the manifest commit')
+        for line in ("WIP. Owner's Z8 bricked! Use at your own risk.", '施工中。作者的 Z8 已经刷砖！风险自担。'):
+            if line not in text:
+                problems.append('release notes miss the warning line: %s' % line)
+        if zip_path and zip_path.exists():
+            digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+            if digest not in text:
+                problems.append('release notes cite a different zip hash than the prepared zip')
+        for entry in manifest.get('files', []):
+            if entry['sha256'][:8] not in text:
+                problems.append('release notes do not cite object %s' % entry['name'])
+    return problems, checked
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--release-kit', type=Path,
+                    help='prepared release kit directory: reconcile it against the repository pins')
+    ap.add_argument('--release-notes', type=Path, help='archived release notes to reconcile')
+    ap.add_argument('--release-zip', type=Path, help='prepared release zip to reconcile')
+    args = ap.parse_args()
+    if args.release_kit:
+        problems, checked = release_kit_check(args.release_kit.resolve(), args.release_notes, args.release_zip)
+        for p in problems:
+            print(p, file=sys.stderr)
+        print('Release reconciliation: %d object(s) checked; %d problem(s).' % (checked, len(problems)))
+        print('VERDICT: %s' % ('PASS' if not problems else 'FAIL'))
+        return 0 if not problems else 1
     pinned = pinned_hashes(root)
     problems = []
     docs = [p for p in sorted(root.rglob('*.md'))
