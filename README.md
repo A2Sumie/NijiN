@@ -1,8 +1,13 @@
+**WIP. Owner's Z8 bricked! Use at your own risk.**
+**施工中。作者的 Z8 已经刷砖！风险自担。**
+
 <p align="center">
-  <img src="assets/nijin-wordmark-transparent.png" alt="NijiN" width="360">
+  <img src="assets/lockup/nijin-lockup-transparent.png" alt="NijiN" width="420">
 </p>
 
 # NijiN
+
+**QQ group / QQ 群：`1108781835`** — 讨论与互助 / discussion and help
 
 [English](#english) · [简体中文](#简体中文)
 
@@ -17,6 +22,8 @@ package locally and verify it byte by byte.
 ---
 
 ## English
+
+**WIP. Owner's Z8 bricked! Use at your own risk.**
 
 ### Read this first
 
@@ -169,6 +176,12 @@ them local. See [CONTRIBUTING.md](CONTRIBUTING.md); the pre-push scanner is
 Source comments may cite note numbers from the development log; those notes
 are internal and are not distributed here.
 
+### Community
+
+Discussion, questions and mutual help: **QQ group `1108781835`**. Please keep
+the red lines of [CONTRIBUTING.md](CONTRIBUTING.md) there too: no firmware,
+no dumps, no personal data.
+
 ### License and attribution
 
 Original tool source is [GPL-3.0-only](LICENSE). This work is derived from
@@ -181,6 +194,8 @@ with or endorsed by Nikon.
 ---
 
 ## 简体中文
+
+**施工中。作者的 Z8 已经刷砖！风险自担。**
 
 ### 先读这一段
 
@@ -311,6 +326,11 @@ python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.b
 | `assets/` | 本项目自有的 NijiN 文字标与图标 |
 
 源码注释里可能出现开发笔记的编号；那些笔记是内部材料，不随本仓分发。
+
+### 社区
+
+讨论、提问与互助：**QQ 群 `1108781835`**。群里同样遵守
+[CONTRIBUTING.md](CONTRIBUTING.md) 的红线：不传固件、不传 dump、不传个人数据。
 
 ### 许可与署名
 
