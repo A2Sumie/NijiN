@@ -27,12 +27,17 @@ SLOT = ROOT / 'docs' / 'risks.md'
 
 PLACEHOLDER = re.compile(r'待填|TBD|TODO|（待填）|\(to be filled\)', re.I)
 GRADE = re.compile(r'(?:证据分级|分级|grade)[^\n]{0,12}?([ABC])(?=[）)\s。，、,.\n]|$)'
+                   r'|([ABC])\s*级(?=[（(，。、\s\n]|$)'
                    r'|(?:^|\s)([ABC])\s*[=＝:：]\s*(?:模拟器|字节|结构|未闭环)')
 CODE_ANCHOR = re.compile(r'0x[0-9A-Fa-f]{4,}|eg\s+0x[0-9A-Fa-f]+|VA\s*[=＝]\s*0x[0-9A-Fa-f]+')
 EXCLUSION = re.compile(r'排除|已排除|ruled out|exclud', re.I)
 METHOD = re.compile(r'反汇编|逐字节|实测|观测|模拟器|差分|disassembly|measured|observed', re.I)
 HARDWARE = re.compile(r'真机|上机|实机|on hardware|camera test', re.I)
-UNPROVEN = re.compile(r'未证明|未定案|未闭环|尚未|仍[^，。]{0,8}(未知|未解)|unproven|not established', re.I)
+HW_REPRO = re.compile(r'复现|reproduce|未上机|没有真机|实机|动态复现|毒化', re.I)
+UNPROVEN = re.compile(r'未证明|未定案|未闭环|尚未|未到达|剩余工作|在途|人日|仍[^，。]{0,8}(未知|未解)|unproven|not established', re.I)
+UNPROVEN_FOCUS = re.compile(r'剩余工作|在途|人日|未证明|尚未|not yet|remaining', re.I)
+MAPPING = re.compile(r'(VA\s*[=＝][^\n；;`]{0,40}|映射[^\n；;`]{0,40}|mapping[^\n；;`]{0,40}'
+                     r'|RAM\s*别名[^，。；;`()\n]{0,40}|别名\s*[=＝:：][^，。；;`()\n]{0,40})', re.I)
 VERDICT_MARK = re.compile(r'判词|verdict', re.I)
 
 
@@ -45,9 +50,14 @@ def sections(text):
 
 
 def first_sentence(block):
-    """Verbatim leading content of a section: the claim itself, untouched."""
+    """Verbatim leading content of a section: the claim itself, untouched.
+
+    Prefers a blockquote (the record's own verdict statement); markup
+    characters are dropped, wording never is.
+    """
     lines = [l for l in block.splitlines() if l.strip() and not PLACEHOLDER.search(l)]
-    return '\n'.join(lines).strip()
+    quoted = [re.sub(r'^>\s?', '', l) for l in lines if l.lstrip().startswith('>')]
+    return '\n'.join(quoted or lines).strip()
 
 
 def collect(record: Path):
@@ -70,7 +80,7 @@ def collect(record: Path):
 
     grade_src = '\n'.join([verdict_sec, chain_sec])
     g = GRADE.search(grade_src)
-    fields['Evidence grade'] = (g.group(1) or g.group(2)) if g else ''
+    fields['Evidence grade'] = next((x for x in g.groups() if x), '') if g else ''
     if not fields['Evidence grade']:
         problems.append('evidence grade: no explicit A/B/C grade found in §0/§1')
 
@@ -82,7 +92,7 @@ def collect(record: Path):
     fields['Code anchors'] = '; '.join(anchors)
     if not anchors:
         problems.append('code anchors: no offset/symbol cited in §0–§2')
-    mapping = re.search(r'(VA\s*[=＝][^\n；;]{0,40}|映射[^\n；;]{0,40}|mapping[^\n；;]{0,40})', ub_sec + chain_sec, re.I)
+    mapping = MAPPING.search(ub_sec + chain_sec + excl_sec + verdict_sec)
     fields['Address mapping'] = mapping.group(1).strip() if mapping else ''
     if not fields['Address mapping']:
         problems.append('address mapping: none stated alongside the code anchors')
@@ -97,14 +107,21 @@ def collect(record: Path):
     fields['Delta exhaustion'] = 'present in §3 (%d lines); method named: %s' % (
         len([l for l in excl.splitlines() if l.strip()]), 'yes' if METHOD.search(excl) else 'no')
 
-    hw = [l.strip() for l in (verdict_sec + '\n' + ub_sec + '\n' + stance_sec).splitlines()
-          if HARDWARE.search(l) and not PLACEHOLDER.search(l)]
+    def sentences(block):
+        out = []
+        for l in block.splitlines():
+            out.extend(s.strip() for s in re.split(r'(?<=[。；;])', l) if s.strip())
+        return out
+    hw_pool = [l for l in sentences(verdict_sec + '\n' + ub_sec + '\n' + stance_sec)
+               if HARDWARE.search(l) and not PLACEHOLDER.search(l)]
+    hw = [l for l in hw_pool if HW_REPRO.search(l)] or hw_pool
     fields['Hardware reproduction'] = hw[0] if hw else ''
     if not hw:
         problems.append('hardware reproduction: no statement about real-device reproduction')
 
-    un = [l.strip() for l in (verdict_sec + '\n' + ub_sec + '\n' + stance_sec + '\n' + excl_sec).splitlines()
-          if UNPROVEN.search(l) and not PLACEHOLDER.search(l)]
+    un_pool = [l for l in sentences(verdict_sec + '\n' + ub_sec + '\n' + stance_sec + '\n' + excl_sec)
+               if UNPROVEN.search(l) and not PLACEHOLDER.search(l)]
+    un = [l for l in un_pool if UNPROVEN_FOCUS.search(l)] or un_pool
     fields['What stays unproven'] = ' / '.join(un[:3])
     if not un:
         problems.append('what stays unproven: nothing stated — it must be spelled out')

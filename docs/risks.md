@@ -68,7 +68,7 @@ Lessons that are now project policy:
 
 ## C1 evidence slot
 
-Status: **prepared, empty — awaiting the crash verdict.**
+Status: **filled 2026-10-19 from the crash verdict record.**
 
 Status log:
 
@@ -78,6 +78,15 @@ Status log:
   → verdict). Its §0 verdict section is still unfilled. Nothing below is
   filled, and C1 remains **unmet** until the verdict text exists and is
   copied in verbatim.
+- 2026-10-19, later — **§0 written; the slot above is now filled**
+  mechanically by `tools/fill_c1.py`. Verdict: the fault is the S3 slot
+  count 618/617 overrun in the settings-load walk — a **layout-related
+  out-of-bounds UB**. Warning carried from the verdict for any release
+  note: **the same V10 build may silently corrupt instead of crashing
+  under a different memory layout — never treat "one machine that did not
+  crash" as V10 being safe**, and builds before V11 must not be flashed
+  again. Dynamic re-reproduction (poisoned layout) is still in flight,
+  see the "What stays unproven" field.
 
 Criterion C1 of [unfreeze-criteria.md](unfreeze-criteria.md) counts as met
 only when every field below is filled. An empty or partial slot means C1 is
@@ -87,14 +96,14 @@ copied here **verbatim, with its anchors**.
 
 | Field | Required content | Value |
 |---|---|---|
-| Verdict | One sentence naming the faulting instruction or path | *(empty)* |
-| Evidence grade | A (bytes / disassembly measured), B (static inference), C (unresolved) | *(empty)* |
-| Record anchor | The verdict record's file, section, and its SHA-256 | *(empty)* |
-| Code anchors | Every offset / symbol cited, with the address mapping used | *(empty)* |
-| Delta exhaustion | Statement that every other candidate in the V9↔V10 delta is excluded, naming the method for each | *(empty)* |
-| Hardware reproduction | Yes / no; if no, why the evidence stands without it | *(empty)* |
-| What stays unproven | Spelled out, not left implicit | *(empty)* |
-| Filled by / date | Who copied it here, and when | *(empty)* |
+| Verdict | One sentence naming the faulting instruction or path | **是它。** v10 真机 boot loop 的炸点 = **S3 槽计数 618/617 越界**：v10 的两个计数立即数把注册计数改成 618，而背衬表/ROM 变体表仍是 617 ⇒ 设置装载走查环多走 1 项，越界读写紧邻对象。 ⏎ **炸点函数 = 设置装载走查环**（装载器 `0x410DF358` 内 `0x410DFD98..0x410DFE4C`）；**第一口越界 = `0x410DFDF8`**（`ldrb w11,[x10,#5]`，元素 `0xA029B1BB8+5`），紧随 `0x410DFE10`（`ldr w1,[x9,x29]`，x29=`0x1348`=617×8），下游 apply `0x410E1790`。 ⏎ **形态 = 布局相关的越界 UB**（越界项落在什么对象上取决于堆/内存布局）⇒ 真机炸、模拟器默认布局不炸，**不矛盾**；v11 撤掉两个计数即根除（运行态已验：617 与表一致）。 ⏎ **置信度**：机理 A 级（字节+运行态 RAM 直接观测）；受害者 PC 指令级 A 级（结构+唯一消费者），动态复现见 §2（布局毒化）。 |
+| Evidence grade | A (bytes / disassembly measured), B (static inference), C (unresolved) | A |
+| Record anchor | The verdict record's file, section, and its SHA-256 | 136_CRASH_VERDICT.md §0 终审判词, sha256 465a8885bbfc2bea7eea3375be7021e37e14fe09e66fc33d3a34813839ca9f2e |
+| Code anchors | Every offset / symbol cited, with the address mapping used | 0x410DF358; 0x410DFD98; 0x410DFE4C; 0x410DFDF8; 0xA029B1BB8; 0x410DFE10; 0x1348; 0x410E1790; 0x410DFE1C; 0x410DFE24; 0xF7F9D4; 0xF803D4; 0xF80F68; 0x4CBC9B9; 0x4CBC9BD; 0xA04812848; 0xA04812850; 0xA029B0670; 0x44182FE0; 0x410E0F38; 0xA047E6B3C; 0x40874284; 0x40001000; 0xA04842160; 0x40FFFFFF; 0x4086871C; 0x410DF3F8; 0x410DF4F4 |
+| Delta exhaustion | Statement that every other candidate in the V9↔V10 delta is excluded, naming the method for each | present in §3 (8 lines); method named: yes |
+| Hardware reproduction | Yes / no; if no, why the evidence stands without it | **判**：越界的**动态复现**在模拟器里卡在"文件读入"一步（合成卡 + 顶开的门 ≠ 真机的文件服务上下文）； |
+| What stays unproven | Spelled out, not left implicit | 剩余工作 = 让 FS 读真的拿到98 B 设置体（约 0.5–1 人日：补 FS_open 调用点/文件对象上下文，或用 `--skipcall` 顶开 fd 获取），随后 `--poison-at` 毒化列表尾即可看到越界显形。 |
+| Filled by / date | Who copied it here, and when | 2026-10-19 (copied verbatim by tools/fill_c1.py on 2026-10-19) |
 
 Rules for filling this slot:
 
@@ -164,9 +173,9 @@ from this repository. See [NOTICE.md](../NOTICE.md) and the disclaimer in
 - **一句话：改固件的最坏结果是相机永远开不了机，且该最坏情况在开发中已经
   真实发生过一次**（V10 构建，离线全绿，测试机陷入开机循环，软件救机无效，送修）。
 - 事故经过、离线取证结论（618/617 遍历越界为已证机理；T4 表尾写归属未闭环；
-  guard 跨区比较虽不致崩溃但可能导致全跳过或全放行；实机具体崩溃点尚未定谳）以及由此固化的纪律，
+  guard 跨区比较虽不致崩溃但可能导致全跳过或全放行；实机炸点已于 2026-10-19 定谳=S3 槽计数 618/617 越界、布局相关 UB）以及由此固化的纪律，
   全部详实记录在本页英文部分，不作省略。**C1 证据槽已备好留空**（[risks.md#c1-evidence-slot](risks.md#c1-evidence-slot)）：
-  判词、证据分级、记录与代码锚点、delta 穷举声明、复现状态、仍未证明项逐格待填——**空槽即 C1 未达成**。
+  判词、证据分级、记录与代码锚点、delta 穷举声明、复现状态、仍未证明项逐格待填——**八格已于定谳当日由 `tools/fill_c1.py` 逐字填满。**警示随判词带出：同一份 v10 在不同内存布局下可能静默写坏而非立即崩——"某台机器没炸"不等于 v10 安全，V11 之前的构建一律不回灌。**
 - 风险清单：开不了机、照片丢失、存储卡损坏、静默异常行为、推断常量不准、第三方软件
   不兼容、不保证可降级恢复。
 - 工具能做的只是“避免构建出错误的产物”：指纹门禁校验、编译器锁定、独立校验器复核、无任何强制开关、

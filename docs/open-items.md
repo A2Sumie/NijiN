@@ -13,7 +13,7 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
-| 1 | The exact faulting instruction of the V10 boot loop | **Not identified.** Three suspect changes isolated, one overrun mechanism proven. C1 evidence slot prepared and empty in [risks.md](risks.md#c1-evidence-slot) | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
+| 1 | The exact faulting instruction of the V10 boot loop | **Verdict reached 2026-10-19** (136 §0): S3 slot count 618/617 overrun in the settings-load walk, first overrun load at `0x410DFDF8` — layout-related UB. C1 slot filled in [risks.md](risks.md#c1-evidence-slot); dynamic re-reproduction (poisoned layout, ~0.5–1 person-day) still in flight | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
 | 2 | Load-time guard bound computed across two regions | Fix designed, not landed; guard is inert or all-permissive until then | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
 | 3 | Settings count has three sources of truth; only two were updated | Must be changed together or not at all | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
 | 4 | Ownership of the table-boundary write (`0x4CBC9B8`) | Unresolved statically: zero code references to that table | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
@@ -50,8 +50,8 @@ in [c2-fix-plan.md](c2-fix-plan.md).
 ## 简体中文
 
 本页是本项目**未完成事项的正式清单**：只做索引、不发明新事实，每行链接到拥有该
-口径的文档。三组：**卡住 V11 线的五件**（炸点未定谳、guard bound、计数三真源、
-表边界归属、第二循环补点；解冻等用户）；**未上机验证的七件**（除早期构建 HE★/C15
+口径的文档。三组：**V11 线相关五件**（#1 炸点已于 2026-10-19 定谳、C1 槽已填；guard bound、计数三真源、
+表边界归属、第二循环补点待落地；解冻等用户）；**未上机验证的七件**（除早期构建 HE★/C15
 外全部只离线、同号受理未实测、无损 strip 长度、镜头块/占位块/位深接线/菜单组徽标
 未验）；**判不可交付的四件**（ISO 0.5EV、OSD 文本、D3 Max 档、C60/C120），连理由
 一起留着看。另加发布侧两件：toolkit 已备好**未发布**、上游 Issue #3 仍在监护。

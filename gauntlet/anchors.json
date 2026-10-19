@@ -91,5 +91,8 @@
  },
  "external_records": {
   "upstream NikonFirmwarePatch v0.1.0 pre-capture module (cited in docs/upstream-issue-3.md)": "479f4e37db3968a9e796fc97d865246793ebbac83b28f10a95711535c45cb715"
+ },
+ "verdict_records": {
+  "136_CRASH_VERDICT.md §0 as filled (crash-forensics workstream, local evidence)": "465a8885bbfc2bea7eea3375be7021e37e14fe09e66fc33d3a34813839ca9f2e"
  }
 }

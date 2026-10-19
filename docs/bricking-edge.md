@@ -5,6 +5,16 @@ incident: a build from the stable line was installed on a test camera, causing i
 to enter a boot loop and require service. See [risks.md](risks.md) for the full
 record.
 
+**Verdict reached (2026-10-19).** The crash point is the S3 slot count
+618/617 overrun in the settings-load walk (layout-related UB), not the
+table write, the guard stub or the menu code — see the C1 slot in
+[risks.md](risks.md#c1-evidence-slot). The verdict states that this line's
+fix — reverting the two count immediates to 617 — is **correct and
+sufficient**: it returns to the same counts as the previous and stock
+builds. Unfreezing is still the owner's call (criterion C6 in
+[unfreeze-criteria.md](unfreeze-criteria.md)); the remaining criteria keep
+their course.
+
 The name is deliberate dark humor. The usual term is "bleeding edge"; this line is
 named after what the previous line actually did.
 
@@ -77,5 +87,5 @@ verified and ready. See [build.md](build.md) and [verification.md](verification.
 - 本分支定位为**热修／取证线**，因 V10 上机引发开机循环故障而设立；`bricking-edge` 这一命名是有意保留的黑色幽默（常规叫法为 bleeding edge，此处直接以既往版本导致的实际后果命名）。
 - 配方脚本与本文档在 `main` 分支上同步保留，确保公开且可复核（`recipes/revert_v10_tails.py` 仅将四个嫌疑窗口回退至上一构建对应的字节，其余逐字节保持不变，并强制校验 A/B 差分必须落在声明窗口内）；**V11 线路本身的变更直接提交至 `bricking-edge` 分支**，这也是分支名的含义。
 - 四个嫌疑窗口及改动理由（设置项计数 617→618 与底层表不一致且位于开机注册路径、表边界 8B 写入归属未闭环、guard 跨区比较可能导致全部跳过或全部放行）已逐条在上表中列出。
-- **状态**：仅在本地构建过一次试验包（`0da2b2b0…`），字节级比对已通过；**从未进过 flash_kit、从未上机测试、不建议刷写、维持冻结**。解冻门槛见 [unfreeze-criteria.md](unfreeze-criteria.md)：门槛全过也不自动解冻，解冻是用户的决定。
-- 解冻前置条件：guard bound 修复、计数三真源同步修改、表边界写入归属完成闭环、第二代码路径补充防护点，以及最根本的前提——**真机炸点至今未定谳**。四窗回退可能恢复开机，但也完全可能不是根因；目前尚无定论，这条线也不装懂。
+- **状态**：仅在本地构建过一次试验包（`0da2b2b0…`），字节级比对已通过；**从未进过 flash_kit、从未上机测试、不建议刷写**（判词另注：v10 属布局相关 UB，"某台机器没炸"≠安全，V11 之前的构建一律不回灌）。解冻门槛见 [unfreeze-criteria.md](unfreeze-criteria.md)：门槛全过也不自动解冻，解冻是用户的决定。
+- 解冻前置条件：guard bound 修复、计数三真源同步修改、表边界写入归属完成闭环、第二代码路径补充防护点，最根本的前提——**真机炸点已于 2026-10-19 定谳**（S3 槽计数 618/617 越界、布局相关 UB）：本线"撤两个计数立即数回 617"被终审判为**修法正确且充分**（与 v9/官方同轨）。**解冻仍等用户令（C6）**，其余判据照走；毒化崩溃实跑（约 0.5–1 人日）在途。
