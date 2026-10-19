@@ -8,14 +8,16 @@ camera entered a boot loop and went to service. See
 The name is dark humour kept on purpose. The usual word is "bleeding edge";
 this line is named after what the previous line actually did.
 
-## What this branch contains, on top of `main`
+## Where the recipe lives
 
 | Item | What it is |
 |---|---|
 | `recipes/revert_v10_tails.py` | The line's recipe: take a local V10 build and a local previous build, revert the four suspect payload windows to their previous values, rebuild the checksum chain, and prove the result differs from V10 only in those windows |
 | `docs/bricking-edge.md` | This page |
 
-Everything else is identical to `main`.
+Both files are also carried on `main`, so the line is readable and
+reviewable everywhere. **Changes to the V11 line land on the
+`bricking-edge` branch**, which is what the name marks.
 
 ## What the recipe reverts
 
@@ -75,8 +77,9 @@ package verified and ready. See [build.md](build.md) and
 
 - 这条分支是**热修／取证线**，因 V10 上机开机循环事故而生；`bricking-edge` 是
   故意保留的黑色幽默（正常说法是 bleeding edge，这里按它实际干过的事命名）。
-- 分支只比 `main` 多两样：`recipes/revert_v10_tails.py`（把四个嫌疑窗口回退到
-  上一构建的字节，其余逐字节不动，并强制 A/B 差分只能落在声明窗口内）和本文。
+- 配方与本文在 `main` 上同样可读、可复核（`recipes/revert_v10_tails.py` 把四个嫌疑
+  窗口回退到上一构建的字节，其余逐字节不动，并强制 A/B 差分只能落在声明窗口内）；
+  **V11 线本身的变更落在 `bricking-edge` 分支**，这也是分支名的含义。
 - 四个嫌疑窗口及理由（计数 617→618 与背衬表不一致且位于开机注册路径、表边界
   8B 写归属未闭环、guard 跨区比较可能全跳过/全放行）逐条列在上表。
 - **状态**：只本地构建过一次试验包（`0da2b2b0…`），字节比对通过；**从未进过

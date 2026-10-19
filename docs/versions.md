@@ -28,6 +28,9 @@ bricking-edge tag on that branch — a fixed marker of the trial state
 
 Any unreleased work under investigation belongs on `bricking-edge`, not
 on `main`. `main` advances only with reviewed, offline-verified changes.
+The V11 recipe and status page are carried on `main` too, so the line is
+readable and reviewable everywhere; changes to the V11 line itself land on
+`bricking-edge`.
 
 ## Package identity and version numbers
 
