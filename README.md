@@ -120,6 +120,9 @@ does not unfreeze anything; that stays the owner's decision.
 
 ### Build your own
 
+In a hurry? The one-page path from the official download to a verified
+package is [docs/quickstart.md](docs/quickstart.md).
+
 Requires Python 3.10+ and the pinned dependency. Pre-capture features also
 require Clang targeting AArch64; the build refuses any compiler output that
 deviates from the reviewed recipe bytes. ProRes-only builds require no C compiler.
@@ -177,7 +180,7 @@ them local. See [CONTRIBUTING.md](CONTRIBUTING.md); the pre-push scanner is
 | `gauntlet/` | The mandatory test battery: seven gates, mutation battery, combination matrix, structural torture |
 | `tools/` | Repository hygiene checks and the red-line scanner |
 | `recipes/` | Build recipes for research lines (this branch: the `bricking-edge` revert recipe) |
-| `docs/` | Build, features, verification, risks, version policy, release runbook, open items, unfreeze criteria and the upstream symptom comparison |
+| `docs/` | Quickstart, build, features, verification, risks, version policy, release runbook, open items, unfreeze criteria and the upstream symptom comparison |
 | `assets/` | The NijiN wordmark and icon, created for this project |
 
 Source comments may cite note numbers from the development log; those notes
@@ -282,6 +285,8 @@ NijiN 以**你自备的官方 Nikon Z8 C 3.11 更新包**（99,051,117 字节、
 
 ### 自己构建（build your own）
 
+赶时间就走一页纸：[docs/quickstart.md](docs/quickstart.md)——从官方下载到核验通过的最短路径。
+
 需要 Python 3.10+ 与固定依赖。预拍功能还需支持 AArch64 的 Clang：只要编译器
 生成的代码字节与已审阅配方不一致，构建立即中止。只构建 ProRes 不需要 C 编译器。
 
@@ -334,7 +339,7 @@ python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.b
 | `gauntlet/` | 强制测试电池：七道门、变异电池、组合穷举、结构酷刑 |
 | `tools/` | 仓库卫生检查与红线扫描器 |
 | `recipes/` | 研究线的构建配方（本分支：`bricking-edge` 回退配方） |
-| `docs/` | 构建、功能、验证、风险、版本口径、发布流程、未完成清单、解冻判据与上游病症对照 |
+| `docs/` | 速查、构建、功能、验证、风险、版本口径、发布流程、未完成清单、解冻判据与上游病症对照 |
 | `assets/` | 本项目自有的 NijiN 文字标与图标 |
 
 源码注释中引用的开发笔记编号属于内部记录，不随本仓对外分发。
