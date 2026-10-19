@@ -3,3 +3,4 @@ set -eu
 python3 tools/check_repository.py --staged
 python3 tools/redline_scan.py --staged
 python3 tools/check_links.py
+python3 tools/check_consistency.py

@@ -182,7 +182,7 @@ def scan_release(root, repo):
         if entry is None:
             issues.append((rel, 'not listed in manifest.json'))
             continue
-        if not RELEASE_NAME.match(rel):
+        if not RELEASE_NAME.match(pathlib.PurePosixPath(rel).name):
             issues.append((rel, 'release objects must be named <feature>-code.bin/.o'))
         data = p.read_bytes()
         digest = hashlib.sha256(data).hexdigest()

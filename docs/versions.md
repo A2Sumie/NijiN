@@ -32,6 +32,23 @@ The V11 recipe and status page are carried on `main` too, so the line is
 readable and reviewable everywhere; changes to the V11 line itself land on
 `bricking-edge`.
 
+## Tag naming
+
+Tags are annotated, never moved and never reused. A tag name records what
+kind of marker it is; the tag message records the commit and what was
+verified at the time.
+
+| Pattern | Meaning | State |
+|---|---|---|
+| `bricking-edge` | Fixed marker of the V11 trial state, on the `bricking-edge` branch | Exists |
+| `vN` (for example `v10`) | Stable-line marker: the commit that line is named after, only cut when its full gauntlet run is green | None published yet |
+| `toolkit-YYYYMMDD` | A toolkit package release, following [release-packaging.md](release-packaging.md) | None published yet; the first toolkit is prepared locally and **not** published |
+
+Rules: cut a tag from the branch the line lives on; put the verification
+state in the message; if a tag turns out wrong, publish a new tag rather
+than moving the old one; release assets are governed by
+[release-packaging.md](release-packaging.md), not by the tag name.
+
 ## Package identity and version numbers
 
 | Knob | Rule |
