@@ -167,7 +167,9 @@ def main():
             continue
         zh = set(re.findall(r'[0-9a-f]{8,}', text[cut:]))
         en = set(re.findall(r'[0-9a-f]{8,}', text[:cut]))
-        for token in sorted(zh - en):
+        for token in sorted(zh):
+            if any(e.startswith(token) or token.startswith(e) for e in en):
+                continue    # truncated citation of a hash the English part carries
             bilingual_problems.append('%s: Chinese section mentions hash not in the English part: %s' % (rel, token[:16]))
     for p in bilingual_problems:
         print(p, file=sys.stderr)
