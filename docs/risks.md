@@ -98,7 +98,9 @@ copied here **verbatim, with its anchors**.
 
 Rules for filling this slot:
 
-- Copy the verdict; do not paraphrase it into something stronger.
+- Copy the verdict; do not paraphrase it into something stronger. The
+  mechanical filler `tools/fill_c1.py` copies it verbatim and refuses while
+  any field is missing — run it against the finished record first.
 - A verdict graded B or C is recorded here, but does **not** meet C1.
 - Anchors must be checkable from this repository plus the local evidence; a
   hash without a source is not an anchor.
