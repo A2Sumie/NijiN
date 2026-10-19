@@ -8,15 +8,16 @@ invents no new facts. Items are ordered by what blocks what.
 
 The written bar these items must clear is
 [unfreeze-criteria.md](unfreeze-criteria.md); each row here maps to a
-criterion there.
+criterion there. The fix plans for rows 2–5 are written up at recipe level
+in [c2-fix-plan.md](c2-fix-plan.md).
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
 | 1 | The exact faulting instruction of the V10 boot loop | **Not identified.** Three suspect changes isolated, one overrun mechanism proven. C1 evidence slot prepared and empty in [risks.md](risks.md#c1-evidence-slot) | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
-| 2 | Load-time guard bound computed across two regions | Fix designed, not landed; guard is inert or all-permissive until then | [bricking-edge.md](bricking-edge.md) |
-| 3 | Settings count has three sources of truth; only two were updated | Must be changed together or not at all | [bricking-edge.md](bricking-edge.md) |
-| 4 | Ownership of the table-boundary write (`0x4CBC9B8`) | Unresolved statically: zero code references to that table | [bricking-edge.md](bricking-edge.md) |
-| 5 | Second code path reaching the same apply function | No guard point there yet | [bricking-edge.md](bricking-edge.md) |
+| 2 | Load-time guard bound computed across two regions | Fix designed, not landed; guard is inert or all-permissive until then | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 3 | Settings count has three sources of truth; only two were updated | Must be changed together or not at all | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 4 | Ownership of the table-boundary write (`0x4CBC9B8`) | Unresolved statically: zero code references to that table | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
+| 5 | Second code path reaching the same apply function | No guard point there yet | [bricking-edge.md](bricking-edge.md), [c2-fix-plan.md](c2-fix-plan.md) |
 
 ## Unverified on hardware
 
