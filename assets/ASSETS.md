@@ -1,17 +1,24 @@
 # Brand assets
 
-The NijiN wordmark and icon in this directory were designed and generated
-for this project. They are original work of this project: no third-party
-artwork, no font outlines, no device imagery, no screenshots.
+The NijiN icon, wordmark and lockup in this directory were designed and
+generated for this project (v4, padded variant). They are original work of
+this project: no third-party artwork, no font outlines, no device imagery,
+no screenshots.
 
-| File | What it is |
-|---|---|
-| `nijin-wordmark-{transparent,white,black}.{svg,png}` | The coloured "NijiN" text mark (15 flat colours, no gradients, no font dependency) |
-| `nijin-lockup-{transparent,white,black}.{svg,png}` | The mark with its icon lockup |
-| `*-white` / `*-black` | Mono variants for dark / light backgrounds |
+| Directory | Files | What it is |
+|---|---|---|
+| `icon/` | `nijin-icon-{transparent,white,black}.{svg,png}` | The pure icon mark |
+| `wordmark/` | `nijin-wordmark-{transparent,white,black}.{svg,png}` | The coloured "NijiN" text mark (flat colours, no gradients, no font dependency) |
+| `lockup/` | `nijin-lockup-{transparent,white,black}.{svg,png}` | Icon + wordmark together; this is what the README header shows |
+
+`transparent` is for placing on your own background; `white` and `black` are
+mono variants for dark and light backgrounds. Every variant is padded, so
+the shapes keep the same optical margin in any layout.
 
 The PNG files are plain PNG: header, image data and end marker only, no
-metadata chunks. This is enforced by `tools/check_repository.py`.
+metadata chunks. This is enforced by `tools/check_repository.py` and
+`tools/redline_scan.py`, which only accept these nine PNGs as binary
+content anywhere in the repository.
 
 ## License
 

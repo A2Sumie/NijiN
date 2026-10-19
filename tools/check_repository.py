@@ -11,12 +11,15 @@ MAX_BYTES = 512 * 1024
 # Only the project's own brand PNGs may hold binary content, and only as plain PNG
 # (IHDR/IDAT/IEND chunks, no metadata). Provenance: assets/ASSETS.md.
 ASSET_PNGS = {
-    'assets/nijin-wordmark-transparent.png',
-    'assets/nijin-wordmark-white.png',
-    'assets/nijin-wordmark-black.png',
-    'assets/nijin-lockup-transparent.png',
-    'assets/nijin-lockup-white.png',
-    'assets/nijin-lockup-black.png',
+    'assets/icon/nijin-icon-transparent.png',
+    'assets/icon/nijin-icon-white.png',
+    'assets/icon/nijin-icon-black.png',
+    'assets/wordmark/nijin-wordmark-transparent.png',
+    'assets/wordmark/nijin-wordmark-white.png',
+    'assets/wordmark/nijin-wordmark-black.png',
+    'assets/lockup/nijin-lockup-transparent.png',
+    'assets/lockup/nijin-lockup-white.png',
+    'assets/lockup/nijin-lockup-black.png',
 }
 
 

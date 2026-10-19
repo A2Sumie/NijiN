@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">割圆术 · 4-5-6 · 按长度左侧 · 红灰藏青浅粉</title>
+  <desc id="desc">保持原4-5-6与圆弧的几何、间距、四层32线宽及32宽换色窄带。按长度取左侧半边外框61.8%黄金点并连向圆心。仅在该窄带内，四层从外到内使用红色#E64646、深灰色#747A82、藏青色#243A5E、冷浅粉色#F0B6DE。条带外保持原竹绿、粉玫红、天蓝、亮黄。黑底背景。整体内容居中缩至85%，增加外侧留白；原画布尺寸、内部比例和配色保持。</desc>
+  <defs>
+    <clipPath id="quarter-sector" clipPathUnits="userSpaceOnUse">
+      <rect width="472" height="472" />
+    </clipPath>
+    <clipPath id="accent-band" clipPathUnits="userSpaceOnUse">
+      <polygon points="477.709153,457.053242 -316.337352,153.754466 -327.755659,183.647981 466.290847,486.946758" />
+    </clipPath>
+  </defs>
+  <rect id="background" x="0" y="0" width="512" height="512" fill="#000000" />
+  <g id="padding-content-v4" transform="translate(38.4 38.4) scale(0.85)">
+    <g fill="none" stroke-width="32" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="4" clip-path="url(#quarter-sector)">
+      <path id="polygon-4-layer-1" stroke="#68BE8D" d="M 56 472 L 56 56 L 472 56" />
+      <path id="polygon-5-layer-2" stroke="#DE6FA1" d="M 132 472 L 178.48777 178.48777 L 472 132" />
+      <path id="polygon-6-layer-3" stroke="#03A9F4" d="M 214 472 L 268.521815 268.521815 L 472 214" />
+      <path id="quarter-circle" stroke="#FFF700" d="M 296 472 A 176 176 0 0 1 472 296" />
+      <g id="local-accent-palette" clip-path="url(#accent-band)">
+        <path id="accent-polygon-4-layer-1" stroke="#E64646" d="M 56 472 L 56 56 L 472 56" />
+        <path id="accent-polygon-5-layer-2" stroke="#747A82" d="M 132 472 L 178.48777 178.48777 L 472 132" />
+        <path id="accent-polygon-6-layer-3" stroke="#243A5E" d="M 214 472 L 268.521815 268.521815 L 472 214" />
+        <path id="accent-quarter-circle" stroke="#F0B6DE" d="M 296 472 A 176 176 0 0 1 472 296" />
+      </g>
+    </g>
+  </g>
+</svg>
