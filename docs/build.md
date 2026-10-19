@@ -35,7 +35,7 @@ python patch.py "/path/to/Z_8_0311.bin" --features prores precapture --check
 
 # 2. build (output directory must not exist yet)
 python patch.py "/path/to/Z_8_0311.bin" --features prores precapture \
-    --version 03.11 --tag p0 --output build/mybuild
+    --version 03.11 --tag p1 --output build/mybuild
 
 # 3. independent re-verification of the produced pair
 python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
@@ -68,7 +68,7 @@ Always build from a fresh official package, never from an earlier output. Regene
 
 ## Version numbers and identity
 
-`--version NN.NN` sets the version written into the package; `--tag` accepts a lowercase letter followed by a digit (defaults to `p0`). The tools stamp an internal identity in the format `NN.NN.xN`.
+`--version NN.NN` sets the version written into the package; `--tag` accepts a lowercase letter followed by a digit (defaults to `p0`). The tools stamp an internal identity in the format `NN.NN.xN`. **Tag generations: `p0` is the historical smoke and incident generation; `p1` is the V11.1 experimental generation — use `--tag p1` for anything built from V11.1 content** (identity `03.11.p1`).
 
 Where upstream strictly required a higher version number, this fork deliberately accepts an output version **equal to or higher than** the input version. This adjustment is based on hardware observations where a lower-numbered package was accepted by the camera; the relaxed check is marked as `LOCAL DEVIATION` in the source. This is provided for convenience rather than as a compatibility claim: modifying the number adds no functionality, and camera acceptance for any given version number is **not guaranteed and, for the same-number case, not tested**. If an update is refused, rebuild using a higher number.
 
@@ -90,5 +90,5 @@ Read [risks.md](risks.md) first, and understand that the current stable line is 
 - 输入必须是自行下载的官方 Z8 C 3.11 更新包（文件大小 99,051,117 字节，sha256 为 `d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96`）；本仓库不包含该文件的任何数据，仅用于指纹核验。
 - 构建流程：`--check` 只读检查 → `patch.py` 执行构建（输出目录此前不得存在）→ `verify.py` 独立复核产物 → `tests/` 运行两套离线测试 → `gauntlet/gauntlet.py run` 运行完整测试集。
 - 构建输出包括更新包、`manifest.json`、`SHA256SUMS.txt` 与 CFG 配置文件。每次构建都必须以原始官方固件包为输入，切勿在之前生成的产物上叠加修改；配方更新时须重新生成并替换旧配置文件。
-- 版本标识通过 `--version NN.NN` 与 `--tag`（默认 `p0`）指定。上游要求输出版本号必须严格高于输入版本，本分支主动放宽为“≥”（源码内标注为 `LOCAL DEVIATION`，改动依据为真机可接受较低版本包的实际观察）；此放宽仅为操作便利，不代表兼容性承诺，且同版本号受理情况**未实测**；任何情况下都不要打 `04.01`。
+- 版本标识通过 `--version NN.NN` 与 `--tag`（默认 `p0`）指定。**tag 世代：`p0`=历史冒烟/事故代，`p1`=V11.1 试验品代——V11.1 内容一律 `--tag p1`（身份 `03.11.p1`）。**上游要求输出版本号必须严格高于输入版本，本分支主动放宽为“≥”（源码内标注为 `LOCAL DEVIATION`，改动依据为真机可接受较低版本包的实际观察）；此放宽仅为操作便利，不代表兼容性承诺，且同版本号受理情况**未实测**；任何情况下都不要打 `04.01`。
 - 若要写入相机，请先阅读 [risks.md](risks.md)：当前稳定分支在早期开发阶段曾引发过开机循环。刷写与相机操作的风险完全由个人承担，工具链本身不直接接触任何硬件。

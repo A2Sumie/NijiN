@@ -110,7 +110,7 @@ checked against, is in [docs/features.md](docs/features.md).
 | Line | Branch / tag | Meaning | Status |
 |---|---|---|---|
 | **V10** | `main` | The current stable line. Every offline check passes: byte-level verification, the full gauntlet battery, reproducible rebuilds. | ⚠️ offline green; **❌ do not flash** — the V10 build is the one that caused the boot loop described above |
-| **V11 `bricking-edge`** | `bricking-edge` (branch and tag) | The hotfix / forensics line, named after the V10 incident. It strips the three suspect V10 changes and reverts four patch windows to the previous build. See [docs/bricking-edge.md](docs/bricking-edge.md) | 🧪 built and byte-verified offline as a trial only; deliberately never released; frozen until the boot-loop cause is settled |
+| **V11 `bricking-edge`** | `bricking-edge` (branch and tag) | The hotfix / forensics line, named after the V10 incident. It strips the three suspect V10 changes and reverts four patch windows to the previous build. See [docs/bricking-edge.md](docs/bricking-edge.md). The experimental line ships as **`03.11.p1` packages** (`p0` = the historical smoke/incident generation) | 🧪 built and byte-verified offline as a trial only; deliberately never released; frozen until the boot-loop cause is settled |
 
 The name `bricking-edge` is dark humour kept on purpose: the line exists
 because a camera was bricked. See [docs/versions.md](docs/versions.md). The
@@ -139,7 +139,7 @@ python patch.py "/path/to/Z_8_0311.bin" --features prores precapture --check
 
 # Build into a new, empty output directory
 python patch.py "/path/to/Z_8_0311.bin" --features prores precapture \
-    --version 03.11 --tag p0 --output build/mybuild
+    --version 03.11 --tag p1 --output build/mybuild
 
 # Independently re-verify the result
 python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
@@ -302,7 +302,7 @@ python patch.py "/path/to/Z_8_0311.bin" --features prores precapture --check
 
 # 构建到一个全新的空输出目录
 python patch.py "/path/to/Z_8_0311.bin" --features prores precapture \
-    --version 03.11 --tag p0 --output build/mybuild
+    --version 03.11 --tag p1 --output build/mybuild
 
 # 独立复核结果
 python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \

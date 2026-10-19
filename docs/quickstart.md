@@ -54,7 +54,7 @@ pick any version number, and use a directory that does not exist yet:
 
 ```sh
 python patch.py "/path/to/Z_8_0311.bin" --features prores precapture \
-    --version 03.11 --tag p0 --output build/first
+    --version 03.11 --tag p1 --output build/first
 ```
 
 **5. Verify.** This is a second tool that re-checks the result without
@@ -95,7 +95,7 @@ There is no force or bypass switch.
 | `Compiler output differs from the reviewed recipe` *(quoted from source)* | A compiler produced different bytes than the reviewed ones | Use the reviewed Clang; the build will not "accept close enough" |
 | `opengate needs precapture: only the precapture loader window (0x40970000) maps the hook code` | Feature rule | Add `precapture` to `--features` |
 | `Select prores, precapture, opengate, or any combination, without duplicates` | A feature was listed twice, or an unknown name was used | List each feature once; the valid names are `prores`, `precapture`, `opengate`, `menuh` |
-| `Tag must be a lowercase letter and digit` | `--tag` format | Use something like `p0` |
+| `Tag must be a lowercase letter and digit` | `--tag` format | Use `p1` (the experimental line's generation; see [versions.md](versions.md)) |
 | `Version must be two digits, a dot and two digits, e.g. 04.01` | Version format. The example is only a format example — never actually stamp `04.01`, see [build.md](build.md) | Use e.g. `03.11` |
 | `Building requires --version and --output; use --check for read-only inspection` | Missing flags | Add `--version NN.NN --output <new dir>` |
 | `--check cannot be combined with output options` | Mixed the two modes | Use either `--check` or a build |
@@ -136,7 +136,7 @@ QQ 群：`1108781835`
 3. **只读检查**：`python patch.py "/path/to/Z_8_0311.bin" --features prores precapture --check`
    ——输出 JSON 报告=输入被支持。
 4. **构建**：`python patch.py "/path/to/Z_8_0311.bin" --features prores precapture
-   --version 03.11 --tag p0 --output build/first`（输出目录必须是新的）。
+   --version 03.11 --tag p1 --output build/first`（输出目录必须是新的）。
 5. **独立核验**：`python verify.py "/path/to/Z_8_0311.bin"
    "build/first/Z_8_0311.bin" --features prores precapture`。
 6. **测试**（可选）：`python tests/validate.py --stock "/path/to/Z_8_0311.bin"
@@ -155,7 +155,7 @@ QQ 群：`1108781835`
 `Compiler output differs from the reviewed recipe`（源码引文）→ 换审阅过的 Clang，
 "差不多"不收｜`opengate needs precapture` → 补上 precapture｜`Select prores, precapture,
 opengate, or any combination, without duplicates` → feature 别重复、别写错名｜
-`Tag must be a lowercase letter and digit` → tag 用 `p0` 这类｜
+`Tag must be a lowercase letter and digit` → tag 用 `p1`（试验品线世代，见 [versions.md](versions.md)）｜
 `Version must be two digits, a dot and two digits, e.g. 04.01` → 注意：**04.01 只是格式
 示例，绝不要真的打 04.01**（见 [build.md](build.md)）｜缺 `--version`/`--output` → 补上｜
 `--check cannot be combined with output options` → 两种模式二选一｜pytest 出现 skipped →

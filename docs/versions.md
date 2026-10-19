@@ -57,7 +57,7 @@ than moving the old one; release assets are governed by
 | Knob | Rule |
 |---|---|
 | `--version NN.NN` | The version written into the package. Example used in docs: `03.11` |
-| `--tag` | Lowercase letter plus a digit, default `p0`. The stamped identity becomes `NN.NN.xN`, for example `03.11.p0` |
+| `--tag` | Lowercase letter plus a digit, default `p0`. The stamped identity becomes `NN.NN.xN`. **For the experimental line use `p1`** |
 | Identity consistency | Runtime slot, trailer and public version text must agree; the gauntlet fails the build if they do not |
 | Forbidden value | `04.01` is a placeholder and is treated as a defect by the test battery |
 
@@ -67,6 +67,11 @@ Policy notes, including deviations from upstream:
   version, whereas upstream required it to be strictly higher (`LOCAL DEVIATION`
   markers in `features.py` and `verify.py`). Rationale: a real camera was observed
   accepting a lower-numbered package. This is not a compatibility guarantee.
+- Tag generations: **`p0` is the historical smoke and incident generation**;
+  **`p1` is the V11.1 experimental generation — build anything from V11.1
+  content with `--tag p1`, yielding identity `03.11.p1`**. Later generations
+  take the next digit. Build records written before this split cite `p0`
+  and stay as written; they are history.
 - The `03.11.p0` identity deliberately differs from the stock tag so the
   package is not mistaken for stock. Whether a camera accepts an update
   carrying the same version number it already runs remains **untested**; if it
@@ -89,7 +94,8 @@ Policy notes, including deviations from upstream:
   V10 曾导致真机开机循环，README 与本文对此均不作回避。
 - `bricking-edge` 是特意保留的黑色幽默：该分支因刷砖而生，直接以其实际后果命名。
   改成好听的名字，只会掩盖读者最该知道的事实。
-- 版本号规则：`--version NN.NN` + `--tag`（默认 `p0`），最终标识形如 `03.11.p0`；禁止 `04.01`。
+- 版本号规则：`--version NN.NN` + `--tag`（默认 `p0`），最终标识形如 `NN.NN.xN`；禁止 `04.01`。
+- **tag 世代**：`p0` = 历史冒烟/事故代；**`p1` = V11.1 试验品代——凡基于 V11.1 内容构建一律用 `--tag p1`，身份即 `03.11.p1`**；后续世代顺延。本次划分之前写成 `p0` 的构建记录保持原样，属史实。
   本分支将上游“必须高于输入号”放宽为“≥”（源码标注 `LOCAL DEVIATION`），依据是真机
   曾接受过低版本固件，但这**并不是兼容性承诺**；设备是否接受相同版本号尚未实测，若被拒绝，使用更高的 `--version` 重新构建即可。
 - 不提供降级路径与恢复保证；每次必须基于全新官方原始包构建，切勿基于此前的构建产物；
