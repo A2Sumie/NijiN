@@ -30,7 +30,9 @@ Any unreleased work under investigation belongs on `bricking-edge`, not
 on `main`. `main` advances only with reviewed, offline-verified changes.
 The V11 recipe and status page are carried on `main` too, so the line is
 readable and reviewable everywhere; changes to the V11 line itself land on
-`bricking-edge`.
+`bricking-edge`. Unfreezing the line has its own written bar in
+[unfreeze-criteria.md](unfreeze-criteria.md) and remains the owner's
+decision.
 
 ## Tag naming
 

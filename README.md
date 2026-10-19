@@ -113,7 +113,10 @@ checked against, is in [docs/features.md](docs/features.md).
 | **V11 `bricking-edge`** | `bricking-edge` (branch and tag) | The hotfix / forensics line, named after the V10 incident. It strips the three suspect V10 changes and reverts four patch windows to the previous build. See [docs/bricking-edge.md](docs/bricking-edge.md) | 🧪 built and byte-verified offline as a trial only; deliberately never released; frozen until the boot-loop cause is settled |
 
 The name `bricking-edge` is dark humour kept on purpose: the line exists
-because a camera was bricked. See [docs/versions.md](docs/versions.md).
+because a camera was bricked. See [docs/versions.md](docs/versions.md). The
+bar this line must clear before anyone proposes unfreezing it is written
+down in [docs/unfreeze-criteria.md](docs/unfreeze-criteria.md) — meeting it
+does not unfreeze anything; that stays the owner's decision.
 
 ### Build your own
 
@@ -174,7 +177,7 @@ them local. See [CONTRIBUTING.md](CONTRIBUTING.md); the pre-push scanner is
 | `gauntlet/` | The mandatory test battery: seven gates, mutation battery, combination matrix, structural torture |
 | `tools/` | Repository hygiene checks and the red-line scanner |
 | `recipes/` | Build recipes for research lines (this branch: the `bricking-edge` revert recipe) |
-| `docs/` | Build, features, verification, risks, version policy, release runbook, open items and the upstream symptom comparison |
+| `docs/` | Build, features, verification, risks, version policy, release runbook, open items, unfreeze criteria and the upstream symptom comparison |
 | `assets/` | The NijiN wordmark and icon, created for this project |
 
 Source comments may cite note numbers from the development log; those notes
@@ -273,7 +276,9 @@ NijiN 以**你自备的官方 Nikon Z8 C 3.11 更新包**（99,051,117 字节、
 | **V11 `bricking-edge`** | `bricking-edge`（分支与标签） | 热修／取证线，因事故得名：剥掉 V10 三处嫌疑改动、四个补丁窗回退到上一构建。见 [docs/bricking-edge.md](docs/bricking-edge.md) | 🧪 只做过离线构建与字节级比对的试验包，从未放出；事故定谳前冻结 |
 
 `bricking-edge` 这个名字是故意留下的黑色幽默：这条线存在的原因，就是有一台
-相机被刷成了砖。见 [docs/versions.md](docs/versions.md)。
+相机被刷成了砖。见 [docs/versions.md](docs/versions.md)。解冻前要跨过的门槛写在
+[docs/unfreeze-criteria.md](docs/unfreeze-criteria.md)——**门槛全过也不自动解冻，
+解冻是你的决定**。
 
 ### 自己构建（build your own）
 
@@ -329,7 +334,7 @@ python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.b
 | `gauntlet/` | 强制测试电池：七道门、变异电池、组合穷举、结构酷刑 |
 | `tools/` | 仓库卫生检查与红线扫描器 |
 | `recipes/` | 研究线的构建配方（本分支：`bricking-edge` 回退配方） |
-| `docs/` | 构建、功能、验证、风险、版本口径、发布流程、未完成清单与上游病症对照 |
+| `docs/` | 构建、功能、验证、风险、版本口径、发布流程、未完成清单、解冻判据与上游病症对照 |
 | `assets/` | 本项目自有的 NijiN 文字标与图标 |
 
 源码注释中引用的开发笔记编号属于内部记录，不随本仓对外分发。

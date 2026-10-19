@@ -6,6 +6,10 @@ invents no new facts. Items are ordered by what blocks what.
 
 ## Blocking the V11 line (unfreezing is the owner's call)
 
+The written bar these items must clear is
+[unfreeze-criteria.md](unfreeze-criteria.md); each row here maps to a
+criterion there.
+
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
 | 1 | The exact faulting instruction of the V10 boot loop | **Not identified.** Three suspect changes isolated, one overrun mechanism proven | [risks.md](risks.md), [upstream-issue-3.md](upstream-issue-3.md) |
