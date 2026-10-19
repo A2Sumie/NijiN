@@ -88,5 +88,8 @@
  ],
  "trial_records": {
   "v11_hotfix_trial_Z_8_0311.bin": "0da2b2b03d63dfb87f0682eaa7be3901827a214270e453c27972b37ae7af082b"
+ },
+ "external_records": {
+  "upstream NikonFirmwarePatch v0.1.0 pre-capture module (cited in docs/upstream-issue-3.md)": "479f4e37db3968a9e796fc97d865246793ebbac83b28f10a95711535c45cb715"
  }
 }

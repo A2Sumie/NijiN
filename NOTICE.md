@@ -106,3 +106,42 @@ The NijiN wordmark and icon in `assets/` were created for this project and
 are part of this project's own work. They are distributed under
 **CC BY-SA 4.0**; see [assets/ASSETS.md](assets/ASSETS.md). They contain no
 third-party artwork, no font outlines and no device imagery.
+
+## 简体中文
+
+**研究与权利声明。** NijiN 是独立的研究与学习项目；Nikon 未赞助、未认可、未提供
+支持。Nikon 与 Z8 只是互操作对象，权利归其所有者。
+
+**自带固件。** 我们尊重 Nikon 的权利，不公开其私有材料。本仓库只分发原创与派生
+的工具源码及相应开源许可声明：**不含任何 Nikon 固件、解密后的专有代码、boot ROM、
+转储、密钥、字体、图标位图、提取的字符串表、校准数据、照片或相机界面截图**；
+不提供下载固件、刷机程序、USB 设备访问或恢复服务。用户自备兼容的更新包，输出
+只在用户本机生成。本仓的源码许可不授予任何 Nikon 固件或第三方材料的权利；
+固件派生的本地文件（运行目录、提取段、设置文件、构建产物）一律不公开。
+`resources/` 里的兼容性档案只有哈希、偏移与布局参数，没有固件内容；补丁指令由
+本仓源码生成；菜单结构与文字在构建时从用户输入读取，不作再分发。对设备的认识是
+不完整的推断，不构成硬件规格或工厂数据。
+
+**实验性使用与责任。** 本仓产出的一切都是实验性固件。构建、安装或使用可能导致
+照片丢失、卡损坏、相机故障、开机循环乃至永久损坏；**开发期间确有一次测试构建刷入
+测试机后出现开机重启循环并送修**。风险由使用者自行衡量，不要用于不可重拍的重要
+工作。在适用法律允许的范围内，作者与贡献者不作任何担保，不对数据损失、相机损坏
+或其他损失承担责任；此限制补充 LICENSE 中的无担保与责任限制条款，不改变第三方
+权利。
+
+**许可范围。** 原创工具源码采用 **GPL-3.0-only**（见 [LICENSE](LICENSE)）；该许可
+不授予用户提供的 Nikon 固件任何权利；输出的许可见其内容，完整输出固件不宣称为
+GPL 许可的发行物。
+
+**派生与署名。** 本项目派生自并建立在以下公开工作之上，其许可与声明继续适用：
+NikonFirmwarePatch（GPL-3.0-only，工具架构、封包读写、核验器、验证套件、
+ProRes 与预拍配方；其上机验证记录只属其自己的构建，不代表本仓产物）、
+WonderLantern/z9-qemu（本文档的 bring-your-own-firmware 与源码 only 处置范式）、
+WonderLantern/z7-qemu（模拟器与协议参考）、RdWing/z8-qemu（Z8 仿真）、QEMU、
+Nikon Hacker 的 Package.cs（封包 XOR 索引格式参考，未含其源码与查找表）、
+Capstone 5.0.7 与 Clang/LLVM（外部构建依赖，均不随仓分发）。本仓不分发这些项目的
+源码或二进制，不主张其作者身份，也不暗示其维护者为本项目背书。
+
+**品牌素材。** `assets/` 中的 NijiN 文字标与图标为本项目自有原创，采用
+**CC BY-SA 4.0** 发布（见 [assets/ASSETS.md](assets/ASSETS.md)），不含任何第三方
+美术、字体轮廓或设备图像。

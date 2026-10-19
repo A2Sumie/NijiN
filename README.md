@@ -2,7 +2,7 @@
 **施工中。作者的 Z8 已经刷砖！风险自担。**
 
 <p align="center">
-  <img src="assets/lockup/nijin-lockup-transparent.png" alt="NijiN" width="420">
+  <img src="assets/lockup/nijin-lockup-transparent.png" alt="NijiN — the project wordmark with its icon" width="420">
 </p>
 
 # NijiN
@@ -85,7 +85,7 @@ offline only, never confirmed on a camera** · **❌ known problem** ·
 | Feature | What it does | Status | Notes |
 |---|---|---|---|
 | `precapture` — HE★ pre-capture | Pre-release history frames are recorded as true HE★ RAW | ✅ (early build, on hardware) | A test shoot on an early build produced real HE★ NEFs; later changes to this area are ⚠️ |
-| `precapture` — C15/C30 pre-capture window | History window and frame budget for C15/C30 bursts | ✅ (C15, early build) / ⚠️ (C30, frame cap) | C30 one-second clamp and the 20-frame ring cap are offline-verified only |
+| `precapture` — C15/C30 pre-capture window | History window, one-second clamp and frame budget for C15/C30 bursts | ✅ (C15, early build) / ⚠️ (C30, frame cap) | C30 one-second clamp and the 20-frame ring cap are offline-verified only |
 | `precapture` — image quality menu | RAW / RAW+JPEG / JPEG choice drives both pre-release and full-press frames | ⚠️ | Offline verified; menu behaviour on hardware not confirmed |
 | `precapture` — full-size embedded preview, stock playback | 8256×5504 preview inside the NEF, files enter the stock photo database | ⚠️ | Offline verified; no hardware playback test |
 | `precapture` — RAW-only, preview family, file timestamps | Skips JPEG writes; fixed-size small previews; file time = capture time | ⚠️ | Offline verified only |

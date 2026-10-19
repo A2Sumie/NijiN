@@ -7,6 +7,19 @@ This page compares two independent incidents involving modified Nikon Z8 firmwar
 
 We are not affiliated with that project. The comparison below is strictly at symptom level, taken from the public issue text as of 2026-10-19. No firmware, builds, or files were exchanged between the two situations, and nothing from that project is reproduced here beyond the linked public report.
 
+## Tracking log
+
+| Date | What upstream published | Effect on this comparison |
+|---|---|---|
+| 2026-10-18 | Issue #3 opened: one camera fails to boot after flashing, another loses RAW pre-capture permanently after a card change | Baseline text of this page |
+| 2026-10-19 | [Maintainer hardware observation](https://github.com/XinmiaoZhao/NikonFirmwarePatch/blob/main/docs/validation.md): the maintainer's own Z8 booted normally with the staged `04.03.p0` build, card changes (including hot-plug) showed no anomaly, pre-capture could be enabled with a CFG card. The reporter-supplied firmware and config were byte-identical to the project reference (reporter built from source, maintainer used the precompiled path) | The boot symptom is now **not reproduced on the maintainer's camera**; cause still unestablished, issue stays open, install-pause warning retained. The persistent pre-capture loss remains unexplained |
+| 2026-10-19 | [Boot investigation](https://github.com/XinmiaoZhao/NikonFirmwarePatch/blob/main/docs/validation.md): official control and three feature builds all reach the native photo menu in their pinned QEMU model. Stated explicitly: this does not resolve or exclude the issue | Consistent with our own position: a model that boots proves nothing about flashing, boot ROM, persistent settings or the real startup chain |
+| 2026-10-19 | Toolkit release `v0.1.0`: source plus precompiled machine code (30,301 bytes `479f4e37…`), with release builder, package checker and distribution validation | Their precompiled-distribution model is close to our own [release plan](release-packaging.md); same trade-off, decided independently |
+
+What has **not** appeared: a root cause, a recovery procedure, or an
+explanation for the card-change symptom. The reporter's affected camera has
+not been read back.
+
 ## Side by side
 
 | | Upstream Issue #3 (their C 4.03 build) | Our V10 incident (`03.11.p0` build) |
@@ -55,6 +68,7 @@ These are our findings on **our** build. They are hypotheses for anyone debuggin
 ## 简体中文
 
 - 本文对照两起独立事件：本仓 V10 构建引发的测试机开机循环（见 [risks.md](risks.md)）与上游 [XinmiaoZhao/NikonFirmwarePatch Issue #3](https://github.com/XinmiaoZhao/NikonFirmwarePatch/issues/3)（2026-10-18 开，Z8 C 4.03：一台取卡后预拍永久失效、一台刷后不开机）。仅做症状层面对照，内容均取自截至 2026-10-19 的公开 issue 原文；双方无项目隶属关系，亦无固件或文件往来。
+- **监护记录（2026-10-19）**：上游新增 ① 维护者实机观察（自己 Z8 上 `04.03.p0` 正常开机、换卡含热插拔无异常、CFG 卡可启用预拍；反馈者文件与项目参考逐字节一致——反馈者走源码编译、维护者走预编译，字节相同）② QEMU 启动调查（原厂正控与三个功能包都进拍摄菜单，明言"不解决也不排除"Issue #3）③ `v0.1.0` 预编译工具包发布（30,301 字节机器码 `479f4e37…` 与发布/校验工具）。**仍未出现**：根因、恢复方法、换卡症状的解释；故障机已刷内容未读回。开机症状目前属"维护者未复现"，但故障报告仍保留、暂停刷写建议不撤销。
 - **相同点**：均在通过全部离线检查后才上机（离线绿 ≠ 上机安全）；同属“修改版 Z8 固件无法完成应用层初始化”这一类故障；修改点均触及预拍与设置文件处理链路；处置原则一致：先停手别刷，以单变量控制逐步剥离触发面。
 - **我们的取证结论（可迁移的假设）**：① 计数与背衬表不一致（618/617，已证实机理：目标内计数存在三个真源，此前只改了两个，遍历时越界 1 项）。② 载入路径 bounds guard 跨区比较——代码不会崩溃，但会导致配置项“全跳过”或“全放行”，**直观症状正是“无论喂什么文件都不生效”**，与 Issue #3 第一台相机的现象同型（仅为同型，并非断定同因）。③ 写入了归属未闭环的表边界（该表在整个固件包中无任何代码引用；若相邻表在开机时被读取，即为潜在故障点；切勿写入无法证明归属的表）。④ 逐字节排除一个嫌疑点与定位一个嫌疑点同样有价值（核对并排除可疑 stub 后，收窄了排查范围，避免盲目猜测）。
 - **实操建议**：先做零构建判据（无设置文件/无 CFG 各开机一次，快速切分触发面）→ 按构建世代向前二分 → 扫描补丁集里的计数立即数并与底层背衬表核对（单项越界无法被离线检查发现）→ 审查载入路径上的 bounds guard，明确“短文件会怎样” → 将“换卡后失效”视为持久化 bug，优先排查相机侧状态而非卡内文件。

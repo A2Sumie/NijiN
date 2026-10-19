@@ -39,7 +39,8 @@ def main():
     root = Path(__file__).resolve().parents[1]
     pinned = pinned_hashes(root)
     problems = []
-    docs = [p for p in sorted(root.rglob('*.md')) if '.git' not in p.parts]
+    docs = [p for p in sorted(root.rglob('*.md'))
+            if not any(part in {'.git', '__pycache__', '.pytest_cache', '.ruff_cache'} for part in p.parts)]
     path_refs = hash_refs = 0
     for doc in docs:
         text = doc.read_text(encoding='utf-8')
@@ -65,10 +66,29 @@ def main():
                     problems.append('%s: truncated hash not found in sources: %s…' % (rel, token))
     for p in problems:
         print(p, file=sys.stderr)
-    print('Consistency: %d docs, %d path references, %d hash references; %d problem(s).'
-          % (len(docs), path_refs, hash_refs, len(problems)))
-    print('VERDICT: %s' % ('PASS' if not problems else 'FAIL'))
-    return 0 if not problems else 1
+    # bilingual rule: documents carry a Chinese section, and it introduces no
+    # hash that the English part does not already carry
+    bilingual_problems = []
+    allow_english_only = {'CONTRIBUTING.md', 'assets/ASSETS.md'}
+    for doc in docs:
+        rel = doc.relative_to(root).as_posix()
+        text = doc.read_text(encoding='utf-8')
+        cut = text.find('## 简体中文')
+        if cut < 0:
+            if rel not in allow_english_only:
+                bilingual_problems.append('%s: no 简体中文 section' % rel)
+            continue
+        zh = set(re.findall(r'[0-9a-f]{8,}', text[cut:]))
+        en = set(re.findall(r'[0-9a-f]{8,}', text[:cut]))
+        for token in sorted(zh - en):
+            bilingual_problems.append('%s: Chinese section mentions hash not in the English part: %s' % (rel, token[:16]))
+    for p in bilingual_problems:
+        print(p, file=sys.stderr)
+    total = len(problems) + len(bilingual_problems)
+    print('Consistency: %d docs, %d path references, %d hash references; %d problem(s), %d bilingual problem(s).'
+          % (len(docs), path_refs, hash_refs, len(problems), len(bilingual_problems)))
+    print('VERDICT: %s' % ('PASS' if total == 0 else 'FAIL'))
+    return 0 if total == 0 else 1
 
 
 if __name__ == '__main__':
