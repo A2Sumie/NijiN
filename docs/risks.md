@@ -66,6 +66,37 @@ Lessons that are now project policy:
 - **One variable at a time, with a rollback ready**, and stop at the first
   anomaly.
 
+## C1 evidence slot
+
+Status: **prepared, empty — awaiting the crash verdict.**
+
+Criterion C1 of [unfreeze-criteria.md](unfreeze-criteria.md) counts as met
+only when every field below is filled. An empty or partial slot means C1 is
+unmet, whatever else is written around it. The verdict is expected from the
+crash-forensics workstream (`136_CRASH_VERDICT.md` there) and is to be
+copied here **verbatim, with its anchors**.
+
+| Field | Required content | Value |
+|---|---|---|
+| Verdict | One sentence naming the faulting instruction or path | *(empty)* |
+| Evidence grade | A (bytes / disassembly measured), B (static inference), C (unresolved) | *(empty)* |
+| Record anchor | The verdict record's file, section, and its SHA-256 | *(empty)* |
+| Code anchors | Every offset / symbol cited, with the address mapping used | *(empty)* |
+| Delta exhaustion | Statement that every other candidate in the V9↔V10 delta is excluded, naming the method for each | *(empty)* |
+| Hardware reproduction | Yes / no; if no, why the evidence stands without it | *(empty)* |
+| What stays unproven | Spelled out, not left implicit | *(empty)* |
+| Filled by / date | Who copied it here, and when | *(empty)* |
+
+Rules for filling this slot:
+
+- Copy the verdict; do not paraphrase it into something stronger.
+- A verdict graded B or C is recorded here, but does **not** meet C1.
+- Anchors must be checkable from this repository plus the local evidence; a
+  hash without a source is not an anchor.
+- The delta-exhaustion line is mandatory. A verdict that leaves another
+  delta window unexcluded is a hypothesis, and hypotheses live in
+  [upstream-issue-3.md](upstream-issue-3.md), not here.
+
 ## Risk classes
 
 | Risk | Reality |
@@ -120,10 +151,11 @@ from this repository. See [NOTICE.md](../NOTICE.md) and the disclaimer in
 ## 简体中文
 
 - **一句话：改固件的最坏结果是相机永远开不了机，且该最坏情况在开发中已经
-  真实发生过一次**（V10 构建，离线全绿，测试机开机陷入重启循环，软件救机无效，送修）。
+  真实发生过一次**（V10 构建，离线全绿，测试机陷入开机循环，软件救机无效，送修）。
 - 事故经过、离线取证结论（618/617 遍历越界为已证机理；T4 表尾写归属未闭环；
   guard 跨区比较虽不致崩溃但可能导致全跳过或全放行；实机具体崩溃点尚未定谳）以及由此固化的纪律，
-  全部详实记录在本页英文部分，不作省略。
+  全部详实记录在本页英文部分，不作省略。**C1 证据槽已备好留空**（[risks.md#c1-evidence-slot](risks.md#c1-evidence-slot)）：
+  判词、证据分级、记录与代码锚点、delta 穷举声明、复现状态、仍未证明项逐格待填——**空槽即 C1 未达成**。
 - 风险清单：开不了机、照片丢失、存储卡损坏、静默异常行为、推断常量不准、第三方软件
   不兼容、不保证可降级恢复。
 - 工具能做的只是“避免构建出错误的产物”：指纹门禁校验、编译器锁定、独立校验器复核、无任何强制开关、

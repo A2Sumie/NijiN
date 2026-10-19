@@ -94,6 +94,27 @@ python tools/check_consistency.py --release-kit /path/to/kit \
 When adding content of a new kind, review its origin first, then update the
 allowlists in these tools deliberately — never to make a warning disappear.
 
+## Terminology
+
+Keep the same words for the same things, in both languages. Mixed wording
+in a safety-critical document is how claims drift.
+
+| English | 中文 | Notes |
+|---|---|---|
+| pre-capture | 预拍 | The feature. The camera menu item *Pre-release capture options* stays 预拍摄选项 (it is a UI name) |
+| flash / flashing | 刷写 | The act of writing firmware. 刷砖 / bricked is the outcome; the fixed warning line says 刷砖 and is never reworded |
+| boot loop | 开机循环 | Not 重启循环 |
+| fingerprint window | 指纹窗口 | Hashes and offsets only |
+| recipe | 配方 | The pinned patch definition in `resources/` |
+| config file | 配置文件 | `Z8PRE*.CFG`, `Z8OG.CFG` — the project's own files |
+| settings file | 设置文件 | Camera-side settings; never publish samples |
+| offline verification | 离线验证 | Bytes match the recipe; says nothing about hardware |
+| on hardware | 上机 | A named build generation actually installed |
+| source-only | 源码 only / 仅含源码 | The publication posture |
+
+Code identifiers (`precapture`, `opengate`, `menuh`, `flash_kit`, file
+names) are not prose and keep their spelling.
+
 ## Honesty rules
 
 - If something is not verified, say so, in the same table as the things that
