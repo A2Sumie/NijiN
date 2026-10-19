@@ -23,7 +23,7 @@ the candidate is awaiting verification and does not lift V11.1's marker.
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
-| 19 | Three-state gate scar: silent pre-capture non-retention (dual-config gate, **STP sticky file never retried or deleted**, fail-closed config gate) | **Fixed in V12 (原 V11.2 构建, `bcf5c47f…`, `03.11.p1`)** — STP self-heal (session latch + evidence preservation; foreign files still stop) + gate-loss observability (readable status block with landing codes and per-gate counters). V11.1 no regression; gauntlet ALL GREEN (mutations 44/44, three-state behaviour gate 19 vectors/33 checks). **Awaiting hardware; not released** | [risks.md](risks.md#known-unsafe-v111-2026-10-19), [bricking-edge.md](bricking-edge.md) |
+| 19 | Three-state gate scar: silent pre-capture non-retention (dual-config gate, **STP sticky file never retried or deleted**, fail-closed config gate) | **Fixed in V12 (原 V11.2 构建, `bcf5c47f…`, `03.11.p1`)** — STP self-heal (session latch + evidence preservation; foreign files still stop) + gate-loss observability (readable status block with landing codes and per-gate counters). V11.1 no regression; gauntlet ALL GREEN (mutations 44/44, three-state behaviour gate 19 vectors/33 checks). **Awaiting hardware. Released 2026-10-20 as NijiN V12 (EXPERIMENTAL), tag `toolkit-20261020`** | [risks.md](risks.md#known-unsafe-v111-2026-10-19), [bricking-edge.md](bricking-edge.md) |
 
 | # | Open item | State | Where it is documented |
 |---|---|---|---|
