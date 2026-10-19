@@ -64,7 +64,7 @@ GPL-licensed distribution. See
 This project is derived from and builds on public work by others. Their
 licenses and notices remain applicable to their code.
 
-- [NikonFirmwarePatch](https://github.com/A2Sumie) (GPL-3.0-only): the tool
+- [NikonFirmwarePatch](https://github.com/XinmiaoZhao/NikonFirmwarePatch) (GPL-3.0-only): the tool
   architecture this repository extends — package reader/writer, feature
   module layout, verifier, validation suites, repository checks and the
   ProRes and pre-capture patch recipes. Files unchanged from that project

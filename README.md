@@ -11,9 +11,9 @@
 
 [English](#english) · [简体中文](#简体中文)
 
-An open-source, source-only toolchain that builds an **experimental Nikon Z8
+An open-source, source-only toolchain to build an **experimental Nikon Z8
 firmware update on your own machine, from your own copy of the official
-update package**. You pick the features; the tools generate the modified
+update package**. Select your target features; the tools generate the modified
 package locally and verify it byte by byte.
 
 **This repository contains no firmware and no prebuilt binaries.** See
@@ -27,50 +27,54 @@ package locally and verify it byte by byte.
 
 ### Read this first
 
-**Building or installing this can brick your camera. That is not a
-theoretical warning.** During development, one test build (line V10) was
-flashed to a test camera and the camera entered a boot loop; it never came
-back into service and was sent for repair. The offline checks on that build
-were all green. Offline green does not mean safe on hardware.
+**Building or installing this can brick your camera. This is not a
+theoretical warning.** During development, a test build (line V10) was
+flashed to a test camera; the body went into a boot loop and never came back
+into service — the unit was sent for repair. All offline checks on that
+build were green. Offline green does not mean safe on hardware.
 
-- Nothing here is a finished product. Every feature is experimental.
-- Flashing, camera operation and recovery are entirely your own risk and
-  your own work. The tools never touch a camera or a card.
-- Do not use any of this for irreplaceable work.
-- If you want a camera that works, run the official firmware.
+- Nothing here is a finished product; every feature is experimental.
+- Flashing, hardware operation, and device recovery are entirely your own
+  responsibility. The tools never interact directly with a camera or card.
+- Do not use this for production or irreplaceable shoots.
+- If you need a reliable camera, run the official firmware.
+
+A similar post-flash failure was reported independently on another Z8
+modification project; the symptom comparison and what our forensics suggest
+checking are in [docs/upstream-issue-3.md](docs/upstream-issue-3.md).
 
 To the extent permitted by law, the authors and contributors provide no
 warranty and accept no liability for data loss, card corruption, camera
-malfunction, a dead camera or any other loss arising from building,
-installing or using anything produced from this repository. See
+malfunction, a bricked camera, or any other loss arising from building,
+installing, or using anything produced from this repository. See
 [NOTICE.md](NOTICE.md) and [docs/risks.md](docs/risks.md).
 
 ### What this is
 
 NijiN takes a **user-supplied official Nikon Z8 C 3.11 update package**
-(99,051,117 bytes, five modules) and produces a locally generated modified
-package containing the features you select. The tools:
+(99,051,117 bytes, five modules) and produces a locally modified package
+containing only the features you select. The toolchain:
 
-- check your input against **SHA-256 fingerprint windows** — hashes and
-  offsets only, no firmware bytes are stored here;
-- compile the added code from the C and assembly sources in this repository;
-- write a small number of reviewed patch windows and a shared loader edit;
-- independently re-verify the result: every byte outside the declared
-  windows must be preserved, and the declared windows must match the
-  published recipe hashes;
-- run a hard test battery (`gauntlet/`) before anything is considered done.
+- verifies the input against **SHA-256 fingerprint windows** (hashes and
+  offsets only; no proprietary firmware bytes are stored here);
+- compiles added routines from the C and assembly sources in this repository;
+- applies a limited set of reviewed patch windows and a shared loader modification;
+- independently re-verifies the output: every byte outside the target patch
+  windows must remain unmodified, and all patched windows must match published
+  recipe hashes byte for byte;
+- runs a strict test battery (`gauntlet/`) before any build is considered valid.
 
-The tools do not download firmware, do not copy files to a card, do not
-operate a camera and do not include any updater or flashing utility.
+The tools do not download firmware, do not write files to a card, do not
+interface with a camera, and include no updater or flashing utilities.
 
 ### Bring your own firmware
 
-Download the official package yourself from
+Download the official package directly from
 [Nikon's download center](https://downloadcenter.nikonimglib.com/en/download/fw/606.html),
-subject to Nikon's terms, and pass the file to the tool. An upgrade package
-is not interchangeable with other files. This repository supplies no key,
-no decryption service and no extraction service. A source license here does
-not grant any rights to Nikon firmware.
+subject to Nikon's terms, and supply the file to the tool. Update packages
+are not interchangeable with other files. This repository supplies no keys,
+no decryption service, and no extraction utility. The open-source license here
+grants no rights to Nikon proprietary firmware.
 
 ### What you can build
 
@@ -84,7 +88,7 @@ offline only, never confirmed on a camera** · **❌ known problem** ·
 | `precapture` — C15/C30 pre-capture window | History window and frame budget for C15/C30 bursts | ✅ (C15, early build) / ⚠️ (C30, frame cap) | C30 one-second clamp and the 20-frame ring cap are offline-verified only |
 | `precapture` — image quality menu | RAW / RAW+JPEG / JPEG choice drives both pre-release and full-press frames | ⚠️ | Offline verified; menu behaviour on hardware not confirmed |
 | `precapture` — full-size embedded preview, stock playback | 8256×5504 preview inside the NEF, files enter the stock photo database | ⚠️ | Offline verified; no hardware playback test |
-| `precapture` — RAW-only, preview family, file timestamps | Don't write the JPEG; fixed-size small previews; file time = capture time | ⚠️ | Offline verified only |
+| `precapture` — RAW-only, preview family, file timestamps | Skips JPEG writes; fixed-size small previews; file time = capture time | ⚠️ | Offline verified only |
 | `precapture` — lossless / HE pre-capture tiers | Pre-capture in lossless or HE instead of HE★ | 🧪 | Lossless strip length is a static estimate, not confirmed |
 | `prores` — ProRes quality | HQ / 422 / LT / Proxy selection, per shooting-menu bank | ⚠️ | Upstream patch bytes unchanged; icon does not show the selected tier |
 | `opengate` — OpenGate 3:2 recording | Experimental 8256×5504 video modes via `Z8OG.CFG` | 🧪 | Whether the readout window follows the new size is unproven |
@@ -114,8 +118,8 @@ because a camera was bricked. See [docs/versions.md](docs/versions.md).
 ### Build your own
 
 Requires Python 3.10+ and the pinned dependency. Pre-capture features also
-need Clang with an AArch64 target; the build refuses any compiler that does
-not produce the exact reviewed code bytes. ProRes-only needs no compiler.
+require Clang targeting AArch64; the build refuses any compiler output that
+deviates from the reviewed recipe bytes. ProRes-only builds require no C compiler.
 
 ```sh
 git clone https://github.com/A2Sumie/NijiN.git
@@ -136,7 +140,7 @@ python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
     --features prores precapture
 ```
 
-Then run the test battery before you consider the build done:
+Then run the test battery before considering the build complete:
 
 ```sh
 python tests/validate.py --stock "/path/to/Z_8_0311.bin" --report build/validate.json
@@ -144,18 +148,18 @@ python tests/validate_features.py --stock "/path/to/Z_8_0311.bin" --report build
 python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.bin" --out build/gauntlet
 ```
 
-Full flow, version-number policy and the on-device checklist:
+Full flow, version-number policy, and the on-device checklist:
 [docs/build.md](docs/build.md). What those checks do and do not prove:
 [docs/verification.md](docs/verification.md).
 
 ### What is not in this repository
 
 Following the practice of the upstream projects we build on, the following
-are deliberately absent and must never be added: firmware or decrypted
-program bytes, extracted fonts, icon bitmaps or string tables, device
-settings files, third-party commercial software, manuals, photographs,
-camera UI screenshots, personal data or local paths. Runtime folders can
-contain proprietary bytes even when the repository is source-only — keep
+are deliberately excluded and must never be added: firmware or decrypted
+program bytes, extracted fonts, icon bitmaps, string tables, device
+settings files, third-party commercial software, manuals, sample photographs,
+camera UI screenshots, personal data, or local file paths. Runtime folders can
+contain proprietary binaries even in a source-only repository—keep
 them local. See [CONTRIBUTING.md](CONTRIBUTING.md); the pre-push scanner is
 [tools/redline_scan.py](tools/redline_scan.py).
 
@@ -164,13 +168,13 @@ them local. See [CONTRIBUTING.md](CONTRIBUTING.md); the pre-push scanner is
 | Path | Contents |
 |---|---|
 | `patch.py`, `verify.py`, `features.py`, `configure.py` | Build driver, independent verifier, feature composition, config file generator |
-| `z8prores/`, `z8precapture/`, `z8opengate/`, `z8menuh/` | Feature modules: patch recipes and the added code sources (C, AArch64 emitter, linker, patch scripts) |
+| `z8prores/`, `z8precapture/`, `z8opengate/`, `z8menuh/` | Feature modules: patch recipes and added code sources (C, AArch64 emitter, linker, patch scripts) |
 | `resources/` | Patch definitions: SHA-256 fingerprint windows, offsets, entry addresses, constants. Hashes and offsets only |
-| `tests/` | Offline validation suites (no camera, no firmware shipped) |
+| `tests/` | Offline validation suites (no camera required, no firmware shipped) |
 | `gauntlet/` | The mandatory test battery: seven gates, mutation battery, combination matrix, structural torture |
 | `tools/` | Repository hygiene checks and the red-line scanner |
 | `recipes/` | Build recipes for research lines (this branch: the `bricking-edge` revert recipe) |
-| `docs/` | Build, features, verification, risks and version policy |
+| `docs/` | Build, features, verification, risks, version policy and the upstream symptom comparison |
 | `assets/` | The NijiN wordmark and icon, created for this project |
 
 Source comments may cite note numbers from the development log; those notes
@@ -178,15 +182,15 @@ are internal and are not distributed here.
 
 ### Community
 
-Discussion, questions and mutual help: **QQ group `1108781835`**. Please keep
+Discussion, questions, and mutual help: **QQ group `1108781835`**. Please keep
 the red lines of [CONTRIBUTING.md](CONTRIBUTING.md) there too: no firmware,
 no dumps, no personal data.
 
 ### License and attribution
 
-Original tool source is [GPL-3.0-only](LICENSE). This work is derived from
-and builds on NikonFirmwarePatch (GPL-3.0-only); full attribution, the
-references consulted and the licensing boundaries are in
+Original tool source is licensed under [GPL-3.0-only](LICENSE). This work is derived
+from and builds on NikonFirmwarePatch (GPL-3.0-only); full attribution, the
+references consulted, and licensing boundaries are in
 [NOTICE.md](NOTICE.md). Nikon firmware is not relicensed, and the generated
 output is not represented as GPL-licensed. This project is not affiliated
 with or endorsed by Nikon.
@@ -199,37 +203,40 @@ with or endorsed by Nikon.
 
 ### 先读这一段
 
-**用这套东西构建或刷机，可能把相机变砖——这不是套话。** 开发过程中，
-V10 线的一次构建刷到测试机后进入开机重启循环（boot loop），再也没能正常
-开机，最终送修。那次构建的全部离线检查都是绿的。**离线全绿 ≠ 上机安全。**
+**使用本项目构建或刷机，存在相机变砖的真实风险——这绝非理论层面的警示。** 开发
+过程中，V10 分支的一次构建刷入测试机后直接陷入开机重启循环（boot loop），硬件
+未能恢复并最终送修。而该构建在离线校验中全部通过。**离线全绿 ≠ 上机安全。**
 
-- 这里没有任何成品；所有功能都是实验性的。
-- 刷机、相机操作、救砖一律由你自己负责。工具本身不碰相机、不写卡。
-- 不要用于不可重拍的重要工作。
-- 想要一台能用的相机，请使用官方固件。
+- 本项目不提供任何成品；所有功能均为实验性质。
+- 固件刷入、相机操作与救砖恢复完全由个人负责。工具本身不与相机通信、不对存储卡执行写入。
+- 切勿用于不可重拍的重要工作。
+- 若需要一台稳定工作的相机，请使用官方固件。
+
+另一个 Z8 改装项目也独立报告过同类的刷后故障；症状对照与我们取证建议排查的方向见
+[docs/upstream-issue-3.md](docs/upstream-issue-3.md)。
 
 在适用法律允许的范围内，作者与贡献者不作任何担保，不对因构建、安装或使用
-本仓库产物造成的数据丢失、卡损坏、相机故障、相机报废或其他损失承担责任。
+本仓库产物造成的数据丢失、卡损坏、相机故障、设备报废或其他任何损失承担责任。
 详见 [NOTICE.md](NOTICE.md) 与 [docs/risks.md](docs/risks.md)。
 
 ### 这是什么
 
 NijiN 以**你自备的官方 Nikon Z8 C 3.11 更新包**（99,051,117 字节、五个模块）
-为输入，在本地生成一个包含所选功能的改装更新包。工具会：
+为输入，在本地生成包含所选功能的改装更新包。工具会：
 
-- 用 **sha256 指纹窗口**校验输入——只存哈希与偏移，本仓不含任何固件字节；
-- 从本仓的 C 与汇编源码编译新增代码；
-- 只写入少量已审阅的补丁窗口和一处共享装载编辑；
-- 独立复核结果：窗口外逐字节保持、窗口内与公布的配方哈希一致；
-- 用强制测试电池（`gauntlet/`）过一遍才算完。
+- 基于 **sha256 指纹窗口**校验输入文件——仅记录哈希与偏移，本仓不含任何固件原始字节；
+- 由本仓的 C 与汇编源码编译新增代码；
+- 仅写入少量经审阅的补丁窗口及一处共享装载修改；
+- 对生成结果执行独立复核：声明窗口之外的所有字节严格保持原样，声明窗口之内的数据必须与公布的配方哈希完全匹配；
+- 完整运行强制测试套件（`gauntlet/`）进行全面验收。
 
-工具不下载固件、不写卡、不操作相机，也不含任何刷机/升级程序。
+工具不下载固件、不写卡、不操作相机，亦不包含任何刷机或升级程序。
 
 ### 自带固件（bring your own firmware）
 
 请自行从 [Nikon 下载中心](https://downloadcenter.nikonimglib.com/en/download/fw/606.html)
-获取官方更新包并遵守其条款，然后把文件交给工具。升级包与其他文件不可互换。
-本仓不提供密钥、不提供解密或提取服务；本仓的源码许可不授予任何 Nikon 固件的权利。
+获取官方更新包并遵守其条款，随后将文件交由工具处理。升级包与其他文件不可互换。
+本仓不提供密钥，不提供任何解密或提取服务；本仓的源码许可不授予对 Nikon 固件的任何权利。
 
 ### 能构建什么
 
@@ -271,7 +278,7 @@ NijiN 以**你自备的官方 Nikon Z8 C 3.11 更新包**（99,051,117 字节、
 ### 自己构建（build your own）
 
 需要 Python 3.10+ 与固定依赖。预拍功能还需支持 AArch64 的 Clang：只要编译器
-生成的代码字节与已审阅配方不一致，构建立即停止。只构建 ProRes 不需要编译器。
+生成的代码字节与已审阅配方不一致，构建立即中止。只构建 ProRes 不需要 C 编译器。
 
 ```sh
 git clone https://github.com/A2Sumie/NijiN.git
@@ -292,7 +299,7 @@ python verify.py "/path/to/Z_8_0311.bin" "build/mybuild/Z_8_0311.bin" \
     --features prores precapture
 ```
 
-然后跑测试电池，跑完才算构建完成：
+然后运行测试套件，全部通过才算构建完成：
 
 ```sh
 python tests/validate.py --stock "/path/to/Z_8_0311.bin" --report build/validate.json
@@ -305,10 +312,10 @@ python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.b
 
 ### 本仓不含什么
 
-沿用上游项目的处置方式，以下内容有意排除、且永远不要加进来：固件或解密后的
-程序字节、提取的字体/图标位图/字符串表、设备设置文件、第三方商业软件、手册、
-照片、相机界面截图、个人数据、本机路径。运行目录即使在源码仓里也可能带专有
-字节——留在本地。见 [CONTRIBUTING.md](CONTRIBUTING.md)；push 前扫描器是
+沿用上游项目的处置惯例，以下内容严格排除、且严禁提交：固件或解密后的
+程序字节、提取的字体、图标位图、字符串表、设备设置文件、第三方商业软件、手册、
+拍摄样张、相机界面截图、个人数据或本机路径。运行目录即使在源码仓里也可能包含专有
+二进制文件——务必保留在本地。见 [CONTRIBUTING.md](CONTRIBUTING.md)；push 前扫描脚本为
 [tools/redline_scan.py](tools/redline_scan.py)。
 
 ### 目录结构
@@ -322,19 +329,19 @@ python gauntlet/gauntlet.py run --kit build/mybuild --stock "/path/to/Z_8_0311.b
 | `gauntlet/` | 强制测试电池：七道门、变异电池、组合穷举、结构酷刑 |
 | `tools/` | 仓库卫生检查与红线扫描器 |
 | `recipes/` | 研究线的构建配方（本分支：`bricking-edge` 回退配方） |
-| `docs/` | 构建、功能、验证、风险与版本口径 |
+| `docs/` | 构建、功能、验证、风险、版本口径与上游病症对照 |
 | `assets/` | 本项目自有的 NijiN 文字标与图标 |
 
-源码注释里可能出现开发笔记的编号；那些笔记是内部材料，不随本仓分发。
+源码注释中引用的开发笔记编号属于内部记录，不随本仓对外分发。
 
 ### 社区
 
-讨论、提问与互助：**QQ 群 `1108781835`**。群里同样遵守
-[CONTRIBUTING.md](CONTRIBUTING.md) 的红线：不传固件、不传 dump、不传个人数据。
+讨论、提问与互助：**QQ 群 `1108781835`**。群内同样遵守
+[CONTRIBUTING.md](CONTRIBUTING.md) 的红线要求：不传固件、不传 dump、不传个人数据。
 
 ### 许可与署名
 
-原创工具源码采用 [GPL-3.0-only](LICENSE)。本工作派生自并建立在
+原创工具源码采用 [GPL-3.0-only](LICENSE) 协议发布。本工作派生自并建立在
 NikonFirmwarePatch（GPL-3.0-only）之上；完整署名、参考来源与许可边界见
-[NOTICE.md](NOTICE.md)。Nikon 固件不被重新许可，生成的输出也不宣称为
-GPL 许可的发行物。本项目与 Nikon 无隶属关系，也未获其背书。
+[NOTICE.md](NOTICE.md)。Nikon 官方固件未被重新许可，生成的输出也不代表以
+GPL 许可分发。本项目与 Nikon 无隶属关系，亦未获其官方背书。

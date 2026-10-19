@@ -52,13 +52,16 @@ Do not upgrade "offline green" to "works".
 ```sh
 python tools/redline_scan.py
 python tools/check_repository.py --staged
+python tools/check_links.py
 ```
 
-Both must report no issues. `tools/check_repository.py` refuses binary
-content except the reviewed brand PNGs, oversized files, blocked suffixes
-and credential-shaped strings. `tools/redline_scan.py` additionally checks
-for absolute local paths, personal markers and firmware-shaped blobs. The
-repository hook runs the latter automatically:
+All three must report no issues. `tools/check_repository.py` refuses binary
+content except the reviewed brand PNGs, oversized files, blocked suffixes,
+symlinks, submodules, SVGs with embedded raster data and credential-shaped
+strings. `tools/redline_scan.py` additionally checks for absolute local
+paths, personal markers and firmware-shaped blobs, and `tools/check_links.py`
+verifies that every documentation link and anchor resolves. The repository
+hook runs all three automatically:
 `git config core.hooksPath .githooks`.
 
 When adding content of a new kind, review its origin first, then update the
