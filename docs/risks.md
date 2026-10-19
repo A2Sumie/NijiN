@@ -70,6 +70,15 @@ Lessons that are now project policy:
 
 Status: **prepared, empty — awaiting the crash verdict.**
 
+Status log:
+
+- 2026-10-19 — the verdict record has been located in the crash-forensics
+  workstream (`136_CRASH_VERDICT.md`, evidence chain
+  `126_BOOTLOOP_FORENSICS.md` → `132_Z9QEMU_PORT.md` → `134_EXPLOIT_TESTBED.md`
+  → verdict). Its §0 verdict section is still unfilled. Nothing below is
+  filled, and C1 remains **unmet** until the verdict text exists and is
+  copied in verbatim.
+
 Criterion C1 of [unfreeze-criteria.md](unfreeze-criteria.md) counts as met
 only when every field below is filled. An empty or partial slot means C1 is
 unmet, whatever else is written around it. The verdict is expected from the
