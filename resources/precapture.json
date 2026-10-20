@@ -531,7 +531,7 @@
   "source_sha256": {
     "firmware.c": "59889388285245e81ce352d2bc99da1df02c3df7af9c6b57bbe545b6095a3c1f",
     "crc32_table.inc": "fe021e684d78717732adddb6c9dde91f6fc6918f18cb0aeccfb349db5511a515",
-    "patcher.py": "40169388eb11a3cc1b6f90a69b200df2f6c827582569d968731dcd66199e6b91"
+    "patcher.py": "20cd91891470acfadb661510f79e6a3d35542873d6333e5ac5e3fc031c9ba13d"
   },
   "merged": {
     "payload": "0x1b3e000",

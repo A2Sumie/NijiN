@@ -13,7 +13,19 @@ HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
 from z8prores.package import Package, sha
 from z8prores.patcher import build, compatibility, public_words
+from z8prores import base as basemod
 from verify import verify_pair
+
+# Pinned test fixtures: one per supported base. A fixture variant keeps the same checks;
+# only the recipe coordinates, the module name and the reference output move with the base.
+FIXTURES = {
+    '03.11': dict(sha256='d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96',
+                  module='eg2070_0311b0.bi',
+                  prores_ref='780d2a3a6f724743a4619ca646b22c29d2ca43ce17cf7d4c1ad2d0b7ae8df922'),
+    '03.12': dict(sha256='d662dd9dd5da937cb418162c238065e918dcefafd47b47537c3f934d39e83037',
+                  module='eg2070_031200.bi',
+                  prores_ref='0f2f4ebf705576fb05fc119f06b8231d5f08e298b423f3b4b773c07a230d2108'),
+}
 
 
 def check(condition, message):
@@ -35,7 +47,13 @@ def main():
     if a.report and a.report.exists():
         raise SystemExit('Report exists; use a new path')
     data = a.stock.read_bytes()
-    check(sha(data) == 'd67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96', 'Expected exact stock 3.11 test fixture')
+    fixture = next((v for v in FIXTURES.values() if sha(data) == v['sha256']), None)
+    check(fixture is not None, 'Expected a pinned test fixture: official 03.11 or official 03.12')
+    basemod.CURRENT['base'] = next(k for k, v in FIXTURES.items() if v is fixture)
+
+    def A(off):
+        return basemod.at(off)          # recipe offset -> the fixture's base
+
     package = Package(data)
     results = []
 
@@ -54,9 +72,11 @@ def main():
     corrupt = bytearray(data); corrupt[20] ^= 1
     reject('wrong package context', lambda: Package(bytes(corrupt)), 'context')
     for site, name in [(0x75F900,'occupied code gap'),(0xEB62EC,'changed bank hook'),(0x4BF3A60,'changed UI state')]:
+        site = A(site)
         bad = bytearray(package.eg); bad[site] ^= 1
         reject(name, lambda bad=bad: compatibility(crc(bad)), 'Incompatible region')
-    bad = bytearray(package.eg); bad[0x14EAA94] = ord('2')
+    bad = bytearray(package.eg)          # flip one digit of the runtime identity, whatever the fixture
+    bad[0x14EAA94] = ord('9') if bad[0x14EAA94] != ord('9') else ord('8')
     reject('inconsistent identity', lambda: compatibility(crc(bad)), 'versions disagree')
     reject('bad display version syntax', lambda: public_words('3.22'), 'two digits')
     reject('non-increasing version', lambda: build(package.eg,'03.11','p0'), 'higher')
@@ -71,7 +91,7 @@ def main():
         patched = (out/'Z_8_0323.bin').read_bytes()
         record = verify_pair(data,patched)
         check(record['output_identity'] == '03.23.p0','Default tag is not p0')
-        check(sha(patched) == '780d2a3a6f724743a4619ca646b22c29d2ca43ce17cf7d4c1ad2d0b7ae8df922',
+        check(sha(patched) == fixture['prores_ref'],
               'Stock ProRes output differs from the verified reference')
         results.append(dict(test='stock firmware via CLI',**record))
         run = subprocess.run([sys.executable,'-B',str(HERE/'patch.py'),str(a.stock.resolve()),
@@ -90,19 +110,19 @@ def main():
     # Synthetic sentinels verify preservation outside the ProRes patch; never install this test image.
     sentinel = bytearray(package.eg)
     for site in [0x14E5000,0x2400000,0x3E00000]:
-        sentinel[site:site+4] = b'\x13\x27\x42\x91'
+        sentinel[A(site):A(site)+4] = b'\x13\x27\x42\x91'
     sentinel = crc(sentinel)
-    custom_packet,_ = package.replace_eg(sentinel,'eg2070_0311b0.bi')
+    custom_packet,_ = package.replace_eg(sentinel, fixture['module'])
     custom = Package(custom_packet)
     changed,metadata = build(custom.eg,'04.07','p0')
     output,_ = custom.replace_eg(changed,'eg2070_0407p0.bi')
     record = verify_pair(custom_packet,output)
     results.append(dict(test='custom table bytes preserved; custom major/minor version 04.07',**record))
     for site in [0x14E5000,0x2400000,0x3E00000]:
-        check(changed[site:site+4] == sentinel[site:site+4],'Input table changed')
+        check(changed[A(site):A(site)+4] == sentinel[A(site):A(site)+4],'Input table changed')
 
     # Repair all envelopes, then ensure independent verifier still rejects an unrelated byte edit.
-    bad = bytearray(changed);bad[0x14E5000] ^= 1
+    bad = bytearray(changed);bad[A(0x14E5000)] ^= 1
     tampered,_ = custom.replace_eg(crc(bad),'eg2070_0407p0.bi')
     reject('repaired CRC/SHA1 with unrelated changed byte',lambda:verify_pair(custom_packet,tampered),'outside declared')
 

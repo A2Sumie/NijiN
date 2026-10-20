@@ -15,8 +15,17 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from features import compatibility, selected_features
 from z8prores.package import Package, sha
+from z8prores import base as basemod
 from z8precapture.config import build_config
 from verify import verify_pair
+
+
+FIXTURES = {
+    '03.11': dict(sha256='d67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96',
+                  module='eg2070_0311b0.bi'),
+    '03.12': dict(sha256='d662dd9dd5da937cb418162c238065e918dcefafd47b47537c3f934d39e83037',
+                  module='eg2070_031200.bi'),
+}
 
 
 def check(ok, message):
@@ -32,7 +41,13 @@ def main():
     a = ap.parse_args()
     check(not a.report.exists(), 'Report already exists')
     data = a.stock.read_bytes()
-    check(sha(data) == 'd67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96', 'Expected original 3.11 fixture')
+    fixture = next((v for v in FIXTURES.values() if sha(data) == v['sha256']), None)
+    check(fixture is not None, 'Expected a pinned fixture: official 03.11 or official 03.12')
+    basemod.CURRENT['base'] = next(k for k, v in FIXTURES.items() if v is fixture)
+
+    def A(off):
+        return basemod.at(off)          # recipe offset -> the fixture's base
+
     package = Package(data)
     rows = []
 
@@ -76,25 +91,26 @@ def main():
             check(repeated.returncode != 0 and 'already exists' in repeated.stderr and
                   (out/'Z_8_0401.bin').read_bytes() == candidate, 'Existing output changed')
         # Reject validly checksummed changes to required code and occupied patch space.
-        for offset in [0xe0fe90,0xe0ff38,0xee8e1c,0xd49fac,0xd4eeec,0xd4ef10,0x47add4,0x3ec44c8,0xd4915c,0xd43638,0xd4367c,0xd4eb60,0x56c134,0x7002cc,0x7148a8,0x715834,0x4cf4fd0,0x800000,0x4d2ffc0,0x17aa4c]:
+        for offset0 in [0xe0fe90,0xe0ff38,0xee8e1c,0xd49fac,0xd4eeec,0xd4ef10,0x47add4,0x3ec44c8,0xd4915c,0xd43638,0xd4367c,0xd4eb60,0x56c134,0x7002cc,0x7148a8,0x715834,0x4cf4fd0,0x800000,0x4d2ffc0,0x17aa4c]:
+            offset = A(offset0)
             bad = bytearray(package.eg); bad[offset] ^= 1
             bad[-2:] = binascii.crc_hqx(bad[:-2],0).to_bytes(2,'big')
             reject(f'conflicting input {offset:#x}', lambda bad=bad: compatibility(bytes(bad),['precapture']), 'Incompatible')
-        bad = bytearray(Package(candidate).eg); bad[0x2400000] ^= 1
+        bad = bytearray(Package(candidate).eg); bad[A(0x2400000)] ^= 1
         bad[-2:] = binascii.crc_hqx(bad[:-2],0).to_bytes(2,'big')
         packet,_ = package.replace_eg(bytes(bad),'eg2070_0401p0.bi')
         reject('repaired checksums do not hide unrelated edits',lambda:verify_pair(data,packet,['prores','precapture']), 'outside declared')
         # Build from a layout-compatible input with an unrelated sentinel; preserve it exactly.
-        source = bytearray(package.eg); source[0x2400000:0x2400004] = b'\x13\x27\x42\x91'
+        source = bytearray(package.eg); source[A(0x2400000):A(0x2400000)+4] = b'\x13\x27\x42\x91'
         source[-2:] = binascii.crc_hqx(source[:-2],0).to_bytes(2,'big')
         from features import build
         output,_ = build(bytes(source),'04.02','p0',['prores','precapture'],a.compiler)
-        check(output[0x2400000:0x2400004] == source[0x2400000:0x2400004], 'Unselected bytes changed')
+        check(output[A(0x2400000):A(0x2400000)+4] == source[A(0x2400000):A(0x2400000)+4], 'Unselected bytes changed')
         rows.append(dict(test='unselected input bytes preserved',result='PASS'))
         # Optimized Python must not disable the input guards.
-        bad = bytearray(package.eg); bad[0x800000] ^= 1
+        bad = bytearray(package.eg); bad[A(0x800000)] ^= 1
         bad[-2:] = binascii.crc_hqx(bad[:-2],0).to_bytes(2,'big')
-        packet,_ = package.replace_eg(bytes(bad),'eg2070_0311b0.bi')
+        packet,_ = package.replace_eg(bytes(bad), fixture['module'])
         input_path = temp/'bad.bin'; input_path.write_bytes(packet)
         out = temp/'optimized-rejected'
         pr = subprocess.run([sys.executable,'-O',str(ROOT/'patch.py'),str(input_path),'--features','precapture',

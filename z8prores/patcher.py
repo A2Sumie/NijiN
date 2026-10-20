@@ -4,7 +4,7 @@ import json
 import re
 import struct
 from .package import RESOURCES, require, sha
-from .base import at as _at, profile_path
+from .base import at as _at, profile_path, adopt as _adopt
 
 VERSION_AT = 0x14EAA90
 CODE_VERSION_AT = 0xEB29FC
@@ -19,6 +19,7 @@ def public_words(version):
 
 
 def compatibility(eg):
+    _adopt(eg)
     profile = json.loads(profile_path('profile.json').read_text())
     require(len(eg) == profile['payload_bytes'], 'Unsupported EG length')
     require(binascii.crc_hqx(eg, 0) == 0, 'Input EG CRC mismatch')
@@ -59,7 +60,7 @@ def build(eg, version, tag):
                           before_sha256=sha(e['old']), after_sha256=sha(e['new'])))
     out = bytearray(image.new) + bytearray(eg[-2:])
     identity = f'{version}.{tag}'.encode()
-    for offset, value, purpose in [(CODE_VERSION_AT, public_words(version), 'public version instructions'),
+    for offset, value, purpose in [(_at(CODE_VERSION_AT), public_words(version), 'public version instructions'),
                                     (VERSION_AT, identity, 'runtime identity'),
                                     (len(out) - 11, identity, 'trailer identity')]:
         require(not any(offset < e['offset'] + e['bytes'] and e['offset'] < offset + len(value) for e in edits), 'Identity overlaps patch')

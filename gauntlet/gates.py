@@ -941,8 +941,15 @@ def run_verify_py(stock_path, cand_path, features):
 def run_tests_gate(stock_path, out_dir, cand_path=None):
     g = GateRun('G5', '测试门（上游测试栈 + 113 口径）')
     out_dir.mkdir(parents=True, exist_ok=True)
+    # The recipe regression has one pinned fixture per supported base. It runs on the
+    # base under test (your own package) and, when you point NIJIN_EXTRA_FIXTURES at
+    # another official package of the other base, on that variant too.
+    fixtures = [Path(stock_path)]
+    for extra in os.environ.get('NIJIN_EXTRA_FIXTURES', '').split(':'):
+        if extra and Path(extra).exists() and Path(extra).resolve() not in [x.resolve() for x in fixtures]:
+            fixtures.append(Path(extra))
     v = subprocess.run([sys.executable, '-B', str(MERGED / 'tests' / 'validate.py'),
-                        '--stock', str(stock_path), '--report', str(out_dir / 'validate_report.json')],
+                        '--stock', str(fixtures[0]), '--report', str(out_dir / 'validate_report.json')],
                        capture_output=True, text=True)
     try:
         rec = json.loads(v.stdout)
@@ -950,8 +957,22 @@ def run_tests_gate(stock_path, out_dir, cand_path=None):
         n1 = len(rec.get('tests', []))
     except ValueError:
         ok1, n1 = False, 0
-    g.add('G5.1', 'tests/validate.py（16 项：配方回归+负控+CLI+python -O）', ok1,
-          'rc=%d tests=%d %s' % (v.returncode, n1, (v.stderr or '')[:200]))
+    g.add('G5.1', 'tests/validate.py（16 项：配方回归+负控+CLI+python -O；夹具=被测基线）', ok1,
+          'fixture=%s rc=%d tests=%d %s' % (fixtures[0].name, v.returncode, n1, (v.stderr or '')[:160]))
+    for extra in fixtures[1:]:
+        out2 = out_dir / ('validate_report_%s.json' % extra.name)
+        if out2.exists():
+            out2.unlink()
+        v2 = subprocess.run([sys.executable, '-B', str(MERGED / 'tests' / 'validate.py'),
+                             '--stock', str(extra), '--report', str(out2)],
+                            capture_output=True, text=True)
+        try:
+            rec2 = json.loads(v2.stdout)
+            ok2b, n2 = v2.returncode == 0 and rec2.get('status') == 'PASS', len(rec2.get('tests', []))
+        except ValueError:
+            ok2b, n2 = False, 0
+        g.add('G5.1b', 'tests/validate.py 第二夹具变体（另一基线的配方回归）', ok2b,
+              'fixture=%s rc=%d tests=%d %s' % (extra.name, v2.returncode, n2, (v2.stderr or '')[:160]))
     vf_report = out_dir / 'validate_features_report.json'
     if vf_report.exists():
         vf_report.unlink()
@@ -964,8 +985,21 @@ def run_tests_gate(stock_path, out_dir, cand_path=None):
         n2 = len(rec.get('tests', []))
     except (ValueError, OSError):
         ok2, n2 = False, 0
-    g.add('G5.2', 'tests/validate_features.py（组合回归+负控矩阵）', ok2,
-          'rc=%d tests=%d %s' % (f.returncode, n2, (f.stderr or '')[:200]))
+    for extra in fixtures[1:]:
+        rep2 = out_dir / ('validate_features_report_%s.json' % extra.name)
+        if rep2.exists():
+            rep2.unlink()
+        f2 = subprocess.run([sys.executable, '-B', str(MERGED / 'tests' / 'validate_features.py'),
+                             '--stock', str(extra), '--report', str(rep2)], capture_output=True, text=True)
+        try:
+            rec2 = json.loads(rep2.read_text())
+            ok2b = f2.returncode == 0 and rec2.get('status') == 'PASS'
+        except (ValueError, OSError):
+            ok2b = False
+        g.add('G5.2b', 'tests/validate_features.py 第二夹具变体（组合回归+负控矩阵）', ok2b,
+              'fixture=%s rc=%d %s' % (extra.name, f2.returncode, (f2.stderr or '')[:160]))
+    g.add('G5.2', 'tests/validate_features.py（组合回归+负控矩阵；夹具=被测基线）', ok2,
+          'rc=%d tests=%d %s' % (f.returncode, n2, (f.stderr or '')[:160]))
     # 113 P1-P3 baseline patch standards (static source assertions)
     p1 = (MERGED / 'z8precapture' / 'config.py').read_text()
     p2 = (MERGED / 'tests' / 'validate_features.py').read_text()

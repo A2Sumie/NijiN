@@ -216,14 +216,29 @@ EG_VA = 0x40160000
 CURRENT = {'base': '03.11'}
 
 
+def _public5(eg, at):
+    """The five version characters carried by the public version instructions."""
+    import struct
+    w0, w1, w2 = struct.unpack_from('<3I', eg, at)
+    if (w0 & ~0x1FFFE0, w1 & ~0x1FFFE0, w2 & ~0x1FFFE0) != (0x52800008, 0x72A00008, 0x52800009):
+        return None
+    return struct.pack('<I', ((w0 >> 5) & 65535) | (((w1 >> 5) & 65535) << 16)) + struct.pack('<H', (w2 >> 5) & 65535)
+
+
 def identity_of(eg):
+    """Which base this image is built on.
+
+    Geometry, not naming: the public version instructions sit at a base-specific
+    anchor, so the image itself says which base it belongs to. That holds for the
+    stock identities and for synthetic ones (test builds named 03.23 or 04.07).
+    """
     text = bytes(eg[0x14EAA90:0x14EAA98])
+    hits = [name for name in BASES if _public5(eg, anchor(name, 0xEB29FC)) == text[:5] + b'\0']
+    if len(hits) == 1:
+        return hits[0]
     for name, base in BASES.items():
-        # match the version family (03.12.p2 and 03.12.00 are the same base)
         if text[:5] == base['identity'][:5].encode():
             return name
-    # Synthetic identities (test images) keep the 03.11 recipe anchors: that is the family
-    # every recipe is written in. Known public bases override above.
     return '03.11'
 
 
@@ -259,3 +274,9 @@ def profile_path(name):
     if CURRENT['base'] == '03.11':
         return here / name
     return here / (name.replace('.json', '') + '_' + CURRENT['base'].replace('.', '') + '.json')
+
+
+def adopt(eg):
+    """Pin the base under construction from the image about to be worked on."""
+    CURRENT['base'] = identity_of(eg)
+    return CURRENT['base']

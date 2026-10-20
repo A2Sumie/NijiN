@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 from z8prores.package import RESOURCES, require, sha
-from z8prores.base import at, va, profile_path
+from z8prores.base import at, va, profile_path, adopt as _adopt
 from z8precapture.linker import link
 
 HERE = Path(__file__).resolve().parent
@@ -21,6 +21,7 @@ NOP = struct.pack('<I', 0xd503201f)
 
 
 def compatibility(eg):
+    _adopt(eg)
     profile = json.loads(profile_path('opengate.json').read_text())
     require(len(eg) == profile['payload_bytes'], 'Unsupported EG length')
     for r in profile['ranges']:

@@ -19,7 +19,7 @@ from pathlib import Path
 
 from z8prores.package import RESOURCES, require, sha
 
-from z8prores.base import at as _at, profile_path
+from z8prores.base import at as _at, profile_path, adopt as _adopt
 
 HERE = Path(__file__).resolve().parent
 BASE = 0x40160000
@@ -105,6 +105,7 @@ def _chain_edit(img, off, new_val, purpose):
 
 
 def edits(eg):
+    _adopt(eg)
     require(len(eg) == PAYLOAD, f'Unsupported EG length {len(eg)}')
     out = []
 
