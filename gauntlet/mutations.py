@@ -118,19 +118,57 @@ BUILD_M = [
          expect={'G3.1', 'G3.2'}),
 ]
 
+# --- v11.1 c2-fix-plan mutations (one per fix; gate each must intercept) -----
+C2_M = [
+    dict(id='M35', cls='计数三真源', title='保存侧计数立即数改 618（ROM 表/R2 仍 617 ⇒ 三源不一致）',
+         expect={'G3.8'}, stage='pre', at=EG + 0xF803D4, op='set',
+         value=struct.pack('<I', 0x52804D46), repair='all'),
+    dict(id='M36', cls='无主表写', title='T4 边界 8B 写回 v10 字节（归属未闭环的表边界，123 §5）',
+         expect={'G3.7'}, stage='pre', at=EG + 0x4CBC9B8, op='set',
+         value=struct.pack('<II', 0x00000800, 0x00000100), repair='all'),
+    dict(id='M37', cls='guard 语义', title='guard 桩改回 v10 跨区 bound（add x9,x25,x9 顶替同基址 sub）',
+         expect={'G3.5'}, stage='guard_defect', entry='precapture_ncset_guard', repair='all'),
+    dict(id='M38', cls='覆盖缺口', title='LC blob walk 站点 0xF7FBF8 漏挂（复原 stock bl 0x410E1AA8）',
+         expect={'G3.6'}, stage='pre', at=EG + 0xF7FBF8, op='stock', bytes=4, repair='all'),
+    dict(id='M39', cls='覆盖缺口', title='L3 标量 walk 站点 0xF7FE28 漏挂（复原 stock bl 0x410E1790）',
+         expect={'G3.6'}, stage='pre', at=EG + 0xF7FE28, op='stock', bytes=4, repair='all'),
+]
 
-def build_pkg_mutant(codec, base_body, spec):
+# --- 补检门 mutations（G3.9/G3.10/G4.6 各配变异，证明“注入必拦”）-------------
+SUPP_M = [
+    dict(id='M40', cls='多源一致', title='E 容量表行 0x4d2ffc0 +0x200（孪生行 0x4d2ffcc 未动 ⇒ 族分叉）',
+         expect={'G3.9'}, stage='alloc_row', at=0x4d2ffc0, delta=0x200, repair='all'),
+    dict(id='M41', cls='多源一致', title='E 容量表行 0x4d2ffc0 −0x200（反向漂移；漏报双向测）',
+         expect={'G3.9'}, stage='alloc_row', at=0x4d2ffc0, delta=-0x200, repair='all'),
+    dict(id='M42', cls='guard 行为', title='guard 桩 fail-open：尾 cmp x9,x10 + b.hi 双 NOP（全放行）',
+         expect={'G3.5', 'G3.10'}, stage='guard_words', entry='precapture_ncset_guard',
+         word_lo=11, word_hi=12, value=0xD503201F, repair='all'),
+    dict(id='M43', cls='guard 行为', title='guard 桩 fail-closed：apply br x16→ret（全跳过）',
+         expect={'G3.5', 'G3.10'}, stage='guard_words', entry='precapture_ncset_guard',
+         word_lo=15, word_hi=15, value=0xD65F03C0, repair='all'),
+    dict(id='M44', cls='包络', title='recipe ring_cap=30 + Z8PRE_SAFE frames=30（862MB 整环失败级）',
+         expect={'G4.6'}, kind='envelope', file='Z8PRE_SAFE.CFG', value=30),
+]
+
+
+def build_pkg_mutant(codec, base_body, spec, stock_eg=None):
     """Apply one package mutation; returns (raw, body_or_None)."""
     body = bytearray(base_body)
     stage = spec['stage']
     if stage == 'truncate':
         raw = codec.encode(bytes(body))[:-1]
         return raw, None
-    if stage == 'pre':
+    if stage == 'guard_defect':
+        # v10's defective bound: replace the stub's same-base normalization with add x9,x25,x9
+        at = spec['at']
+        body[at + spec['defect_off']:at + spec['defect_off'] + 4] = struct.pack('<I', 0x8B090329)
+    elif stage == 'pre':
         if spec['op'] == 'flip':
             _flip(body, spec['at'])
         elif spec['op'] == 'set':
             _set(body, spec['at'], spec['value'])
+        elif spec['op'] == 'stock':
+            _set(body, spec['at'], stock_eg[spec['at'] - EG:spec['at'] - EG + spec['bytes']])
         elif spec['op'] == 'plus4':
             at = spec['at']
             body[at:at + 4] = (int.from_bytes(body[at:at + 4], 'big') + 1).to_bytes(4, 'big')
@@ -223,7 +261,42 @@ def run_battery(ctx, out_dir, anchors, log=print, skip_build=False):
             else:
                 win_rows = [(G.ENTRY_HOOK['precapture'], 4)]
             spec['patches'] = [(at, n, stock_bytes(at, n)) for at, n in win_rows]
-        raw, body = build_pkg_mutant(base.codec, base.body, spec)
+        raw, body = build_pkg_mutant(base.codec, base.body, spec, stock_eg=stock_eg)
+        mutant = G.Artifact(spec['id'], raw=raw, body=body, codec=base.codec)
+        runs = G.evaluate_package(ctx['stock'], mutant, profiles, features=features,
+                                  baseline=base, anchors=None, pin_baseline=False)
+        record(spec['id'], spec['cls'], spec['title'], spec['expect'], catchers_of(runs))
+
+    # v11.1 c2-fix-plan mutants（一修复一变异；各自的 designated 门须命中）
+    entries = {k: int(v, 16) for k, v in (profiles.get('precapture', {}).get('entries') or {}).items()}
+    for spec in C2_M:
+        spec = dict(spec)
+        if spec['stage'] == 'guard_defect':
+            stub_va = entries[spec.pop('entry')]
+            spec['at'] = EG + (stub_va - 0x40160000)
+            spec['defect_off'] = 4 * len(G.GUARD_PROLOGUE)   # first body word = the normalization
+        raw, body = build_pkg_mutant(base.codec, base.body, spec, stock_eg=stock_eg)
+        mutant = G.Artifact(spec['id'], raw=raw, body=body, codec=base.codec)
+        runs = G.evaluate_package(ctx['stock'], mutant, profiles, features=features,
+                                  baseline=base, anchors=None, pin_baseline=False)
+        record(spec['id'], spec['cls'], spec['title'], spec['expect'], catchers_of(runs))
+
+    # 补检门 mutants（G3.9/G3.10）：同型修链，designated 门须命中
+    for spec in SUPP_M:
+        spec = dict(spec)
+        if spec.get('kind') == 'envelope':
+            continue                                    # CFG 族，下方单独跑（带 recipe ring_cap）
+        if spec['stage'] == 'alloc_row':
+            at = spec['at']
+            val = (struct.unpack_from('<I', base.eg, at)[0] + spec['delta']) & 0xFFFFFFFF
+            spec = dict(spec, stage='pre', at=EG + at, op='set', value=struct.pack('<I', val))
+        elif spec['stage'] == 'guard_words':
+            stub_va = entries[spec.pop('entry')]
+            lo, hi = spec.pop('word_lo'), spec.pop('word_hi')
+            at = EG + (stub_va - 0x40160000) + 4 * lo
+            spec = dict(spec, stage='pre', at=at, op='set',
+                        value=struct.pack('<I', spec.pop('value')) * (hi - lo + 1))
+        raw, body = build_pkg_mutant(base.codec, base.body, spec, stock_eg=stock_eg)
         mutant = G.Artifact(spec['id'], raw=raw, body=body, codec=base.codec)
         runs = G.evaluate_package(ctx['stock'], mutant, profiles, features=features,
                                   baseline=base, anchors=None, pin_baseline=False)
@@ -232,13 +305,22 @@ def run_battery(ctx, out_dir, anchors, log=print, skip_build=False):
     # CFG mutants
     with tempfile.TemporaryDirectory(prefix='preflight-cfg-') as td:
         td = Path(td)
+        per_frame = G.alloc_family(base.eg)['rows'][0]
         for spec in CFG_M:
             src = Path(ctx['kit']) / spec['file']
             raw = apply_cfg_mutation(src.read_bytes(), spec)
             p = td / spec['file']
             p.write_bytes(raw)
             ring_cap = int(profiles['precapture']['merged']['ring_cap'], 16)
-            g, _ = G.run_cfg_gate([p], ring_cap)
+            g, _ = G.run_cfg_gate([p], ring_cap, per_frame=per_frame)
+            record(spec['id'], spec['cls'], spec['title'], spec['expect'], [c.cid for c in g.checks if not c.ok])
+        for spec in [s for s in SUPP_M if s.get('kind') == 'envelope']:
+            src = Path(ctx['kit']) / spec['file']
+            raw = apply_cfg_mutation(src.read_bytes(), dict(kind='pre', field='frames', value=spec['value']))
+            p = td / (spec['id'] + '_' + spec['file'])
+            p.write_bytes(raw)
+            # recipe ring_cap 同步抬 = 一值多源同改；单帧尺寸取自 G3.9 族值
+            g, _ = G.run_cfg_gate([p], spec['value'], per_frame=per_frame)
             record(spec['id'], spec['cls'], spec['title'], spec['expect'], [c.cid for c in g.checks if not c.ok])
 
     # kit hygiene mutants (hardlink the big firmware, copy the rest)

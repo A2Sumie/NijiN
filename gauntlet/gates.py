@@ -219,6 +219,456 @@ def eg_module_name(identity):
     return 'eg2070_' + identity[:5].replace('.', '') + identity[6:] + '.bi'
 
 
+# ---------------------------------------------------------------- v11.1 c2-fix-plan gates
+# G3.5 guard 同基址内容门 (Fix 1) / G3.6 walk 站点全覆盖门 (Fix 4) /
+# G3.7 写区间点名归属门 (Fix 3) / G3.8 计数三真源一致门 (Fix 2)
+
+VA_BASE = 0x40160000
+APPLY_BLOB, APPLY_SCALAR = 0x410E1AA8, 0x410E1790
+FILE_BASE_SLOT = 0xA0480DC70        # *(u64*) = file-image buffer base (126 §2 anchor table)
+# ownership-unresolved regions: a recipe may never write here (c2-fix-plan Fix 3)
+REFUSED_REGIONS = [(0x4CBC9B8, 0x4CBC9C0,
+                    'T4 tail / 32B record-table boundary: alignment gap or rec0 pad — ownership '
+                    'unresolved (123 §5); consumer search: MOV-pair 0 / ADRP 0 / literal 0 / '
+                    'watchpoint 0 (136 §3, fix3-watch-t4)')]
+
+
+_BRANCH_TOP = re.compile(b'[\x14-\x17\x94-\x97]')
+
+
+def _mov(rd, imm, hw, kind):
+    base = {'movz64': 0xD2800000, 'movk64': 0xF2800000}[kind]
+    return base | (hw << 21) | ((imm & 0xFFFF) << 5) | rd
+
+
+def _ldr_imm(rt, rn, imm, sf):
+    return (0xF9400000 if sf else 0xB9400000) | ((imm // 4) << 10) | (rn << 5) | rt
+
+
+def _sub_reg(rd, rn, rm):
+    return 0xCB000000 | (rm << 16) | (rn << 5) | rd
+
+
+def _add_reg(rd, rn, rm, shift=0):
+    return 0x8B000000 | (rm << 16) | (shift << 10) | (rn << 5) | rd
+
+
+def _add_imm(rd, rn, imm):
+    return 0x91000000 | (imm << 10) | (rn << 5) | rd
+
+
+def _cmp_reg(rn, rm):
+    return 0xEB000000 | (rm << 16) | (rn << 5) | 31
+
+
+GUARD_PROLOGUE = [_mov(16, 0xDC70, 0, 'movz64'), _mov(16, 0x480, 1, 'movk64'),
+                  _mov(16, 0xA, 2, 'movk64'), _ldr_imm(9, 16, 0, 1), _ldr_imm(10, 25, 0x10, 0),
+                  ('eq', 0x71000000 | (0x80 << 10) | (10 << 5) | 31),        # cmp w10,#0x80
+                  ('mask', 0x54000003),                                      # b.lo skip
+                  ('eq', 0x71400000 | (0x200 << 10) | (10 << 5) | 31),       # cmp w10,#0x200,lsl#12
+                  ('mask', 0x54000008)]                                      # b.hi skip
+GUARD_TAIL = [('eq', _cmp_reg(9, 10)), ('mask', 0x54000008),             # cmp x9,x10 / b.hi skip
+              ('apply_lo', 0), ('apply_hi', 0), ('eq', 0xD61F0200),     # movz/movk x16,#apply / br x16
+              ('eq', 0x2A1F03E0), ('eq', 0xD65F03C0)]                   # mov w0,wzr / ret
+GUARD_BODY = {
+    'precapture_ncset_guard': [_sub_reg(9, 3, 9), _add_reg(9, 9, 2)],
+    'precapture_ncset_guard_s28': [_sub_reg(9, 23, 9), _add_reg(9, 9, 28, 2), _add_imm(9, 9, 4)],
+    'precapture_ncset_guard_s24': [_sub_reg(9, 23, 9), _add_reg(9, 9, 24, 2), _add_imm(9, 9, 4)],
+}
+APPLY_OF = {'precapture_ncset_guard': APPLY_BLOB,
+            'precapture_ncset_guard_s28': APPLY_SCALAR,
+            'precapture_ncset_guard_s24': APPLY_SCALAR}
+
+
+def guard_words(eg, entry_va, n=28):
+    at = entry_va - VA_BASE
+    return [struct.unpack_from('<I', eg, at + 4 * i)[0] for i in range(n)]
+
+
+def guard_semantics_ok(words, name):
+    """The stub's compare operands must share one base (the file image) — Fix 1 content gate."""
+    rules = GUARD_PROLOGUE + [('eq', w) for w in GUARD_BODY[name]] + GUARD_TAIL
+    for i, rule in enumerate(rules):
+        got = words[i] if i < len(words) else None
+        kind, want = rule if isinstance(rule, tuple) else ('eq', rule)
+        if kind == 'apply_lo':
+            want = _mov(16, APPLY_OF[name] & 0xFFFF, 0, 'movz64')
+        elif kind == 'apply_hi':
+            want = _mov(16, (APPLY_OF[name] >> 16) & 0xFFFF, 1, 'movk64')
+        if kind == 'mask':
+            ok = got is not None and (got & 0xFF00001F) == want
+        else:
+            ok = got == want
+        if not ok:
+            return False, 'stub word %d: %#s != %s' % (i, hex(got) if got is not None else 'none',
+                                                        hex(want))
+    for w in words:
+        # ADD xD,x25,xE (any Rd/Rm/shift/imm6) = the v10 cross-region bound. The mask must
+        # keep the Rn field (bits 5..9) and nothing else below the opcode, or the rule is dead:
+        # a masked left side can never carry the Rn bits it is compared against.
+        if (w & 0xFFC003E0) == (0x8B000000 | (25 << 5)):
+            return False, 'cross-region bound pattern add xD,x25,xE present (%#x)' % w
+    return True, 'same-base bound: item end = (ptr - *(u64*)%#x) + size vs total=[x25,#0x10]' % FILE_BASE_SLOT
+
+
+def walk_sites(eg):
+    """Every B/BL site reaching the two per-item apply functions (123 §3 xref sweep).
+
+    Pure Python on purpose: the published toolkit adds no dependency. The scan
+    prefilters on the top byte of each word (a B/BL word is one of eight values
+    there) and only then computes the PC-relative target.
+    """
+    raw = eg[:len(eg) - len(eg) % 4]
+    sites = {target: [] for target in (APPLY_BLOB, APPLY_SCALAR)}
+    tops = raw[3::4]
+    for match in _BRANCH_TOP.finditer(tops):
+        byte = match.start() * 4
+        word = int.from_bytes(raw[byte:byte + 4], 'little')
+        imm = word & 0x03FFFFFF
+        if imm & (1 << 25):
+            imm -= 1 << 26
+        va = VA_BASE + byte
+        dest = (va + imm * 4) & 0xFFFFFFFFFFFFFFFF
+        if dest in sites:
+            sites[dest].append(va)
+    return sites
+
+
+def bl_target(word, va):
+    if (word & 0xFC000000) != 0x94000000:
+        return None
+    imm = word & 0x03FFFFFF
+    if imm & (1 << 25):
+        imm -= 1 << 26
+    return (va + imm * 4) & 0xFFFFFFFFFFFFFFFF
+
+
+def movz_imm(word, rd):
+    if (word & 0xFF800000) != 0x52800000 or (word & 0x1F) != rd:
+        return None
+    return (word >> 5) & 0xFFFF
+
+
+def guard_gates(g3, stock_eg, cand_eg, profiles, features, decoded):
+    """G3.5–G3.8 (c2-fix-plan fixes 1/4/3/2, V11.1 line)."""
+    prec = 'precapture' in features
+    entries = {k: int(v, 16) for k, v in (profiles.get('precapture', {}).get('entries') or {}).items()}
+
+    # ---- G3.5: the guard's two compare operands derive from one base (no cross-region bound)
+    if decoded and prec and entries:
+        bad, det = [], []
+        for name in GUARD_BODY:
+            va = entries.get(name)
+            if va is None:
+                bad.append('%s 无入口' % name)
+                continue
+            ok, why = guard_semantics_ok(guard_words(cand_eg, va), name)
+            det.append('%s:%s' % (name, 'ok' if ok else why))
+            if not ok:
+                bad.append(name)
+        g3.add('G3.5', 'guard 同基址内容门（Fix 1：比较两端同为文件镜像基址 + 头长；禁跨区 add xD,x25,xE）',
+               not bad, '; '.join(det)[:400])
+    elif decoded:
+        g3.add('G3.5', 'guard 同基址内容门（无 precapture 特性，不适用）', True, 'skipped')
+
+    # ---- G3.6: every walk site is clamped (xref sweep over the stock image)
+    if decoded and prec:
+        sites = walk_sites(stock_eg)
+        uncovered = []
+        for apply, ats in sites.items():
+            for va in ats:
+                got = bl_target(struct.unpack_from('<I', cand_eg, va - VA_BASE)[0], va)
+                if got not in (int(entries.get(n, 0)) for n in GUARD_BODY):
+                    uncovered.append('%#x->%s' % (va - VA_BASE, hex(got) if got else 'not-bl'))
+        total = sum(len(v) for v in sites.values())
+        g3.add('G3.6', 'walk 站点全覆盖门（Fix 4：bl 0x410E1AA8/0x410E1790 每处须挂钳制，漏一处拒构建）',
+               not uncovered and total == 6,
+               'stock xref: %s; uncovered=%s' % ({hex(k): [hex(x - VA_BASE) for x in v] for k, v in sites.items()},
+                                                 uncovered or 'none'))
+    elif decoded:
+        g3.add('G3.6', 'walk 站点全覆盖门（无 precapture 特性，不适用）', True, 'skipped')
+
+    # ---- G3.7: every written range names its owner; unowned regions are refused (Fix 3)
+    # Naming channels: an explicit `owner` field (recipe-level declaration) or the reviewed
+    # `purpose` text naming the written object (upstream profiles predate the owner field).
+    # Anything explicitly UNRESOLVED — or unnamed — is refused, and the contested-ownership
+    # regions (T4 tail / record-table boundary) can never be written at all.
+    unowned, refused_hits = [], []
+    for f, prof in profiles.items():
+        for row in prof.get('patches', []):
+            a, n = int(row['offset'], 16), row['bytes']
+            owner = row.get('owner') or ''
+            if owner == 'UNRESOLVED' or (not owner and not row.get('purpose')) \
+               or (f == 'precapture' and not owner):
+                unowned.append('%s@%s' % (f, row['offset']))
+            for ra, rb, why in REFUSED_REGIONS:
+                if a < rb and ra < a + n:
+                    refused_hits.append('%s@%s 写入无主区 %s' % (f, row['offset'], hex(ra)))
+    if decoded:
+        for ra, rb, why in REFUSED_REGIONS:
+            drift = [hex(a) for a, b in pc.diff_spans(stock_eg, cand_eg) if a < rb and ra < b]
+            if drift:
+                refused_hits.append('候选包改写了无主区 %s @%s' % (hex(ra), drift[:3]))
+        g3.add('G3.7', '写区间点名归属门（Fix 3：每个写区间须点名归属；无主表/存疑归属区一律拒写）',
+               not unowned and not refused_hits,
+               ('unowned=%s; refused=%s' % (unowned[:4], refused_hits[:4]))
+               if (unowned or refused_hits) else
+               '全部 %d 窗口点名归属；无主区 %s 零写入'
+               % (sum(len(p.get('patches', [])) for p in profiles.values()),
+                  ','.join(hex(a) for a, _, _ in REFUSED_REGIONS)))
+    else:
+        g3.add('G3.7', '写区间点名归属门（候选包不可解码，跳过写面核查）', False, 'decode failed')
+
+    # ---- G3.8: the settings count has three sources and they must agree (Fix 2)
+    if decoded:
+        rom = struct.unpack_from('<4I', cand_eg, 0x44182FE0 - VA_BASE)
+        r2_imm = movz_imm(struct.unpack_from('<I', cand_eg, 0x410E0F68 - VA_BASE)[0], 0)
+        save_imm = movz_imm(struct.unpack_from('<I', cand_eg, 0x410E03D4 - VA_BASE)[0], 6)
+        ok = rom[3] == r2_imm == save_imm and r2_imm is not None
+        g3.add('G3.8', '计数三真源一致门（Fix 2：ROM 变体表 == R2 硬编码 == 保存侧立即数）',
+               ok, 'ROM=%s R2=%s save=%s' % (rom, r2_imm, save_imm))
+    else:
+        g3.add('G3.8', '计数三真源一致门（候选包不可解码）', False, 'decode failed')
+
+    # ---- G3.9: E-capacity family, every source of truth changed together (138 §4.1)
+    if decoded:
+        ok, det = multi_source_gate(cand_eg, profiles, stock_eg)
+        g3.add('G3.9', '多源一致门（E 容量族：两表行 + blob 立即数族 + 孪生字面量，一值多源须同改）',
+               ok, det)
+    else:
+        g3.add('G3.9', '多源一致门（候选包不可解码）', False, 'decode failed')
+
+    # ---- G3.10: stub-level behavioural regression on the shipped bytes (138 §4.4)
+    if decoded and prec and entries:
+        ok, det = stub_behavior_check(cand_eg, entries)
+        g3.add('G3.10', '桩级行为回归门（实物桩字节解释执行：在界应用/越界逐项跳过/头长钳；'
+                        '全跳过·全放行退化拒）', ok, det)
+    elif decoded:
+        g3.add('G3.10', '桩级行为回归门（无 precapture 特性，不适用）', True, 'skipped')
+
+
+# ---------------------------------------------------------------- 补检门 G3.9 / G3.10 / G4.6
+# 来源 138_DETECTION_VALIDATION §4 落地：A2 容量表多源漂移 / B 族桩行为盲区 / E2 内存包络
+E_ROW_OFFS = (0x4D2FFC0, 0x4D2FFCC)      # C30/C15 per-frame alloc rows (103 §1.2)
+E_TWIN_OFFS = (0x4D2F4B4, 0x4D2F4C8)     # stock twin literals (138 §5.1)
+E_FAMILY_SPAN = (0x4D2F000, 0x4D30200)   # rows + twins 所在族区
+ALLOC_SLACK = 0x200                      # NEW = OLD + 0x200（merged firmware.c:76-77）
+ALLOC_RECORD_OFF = 0x29E00               # OLD = PAYLOAD + 0x29E00（同上）
+ENVELOPE_LIMIT = 36 * 0x01082400         # 623,112,192 B — 原厂设计包络（102 §3：36×17.3MB）
+
+
+def alloc_family(eg):
+    """E 容量族的全部真源：两表行、族区内被声明写的字面量、blob 内立即数族（MOV/CMP/SUB 形态）。"""
+    rows = [struct.unpack_from('<I', eg, a)[0] for a in E_ROW_OFFS]
+    twins = [struct.unpack_from('<I', eg, a)[0] for a in E_TWIN_OFFS]
+    row0 = rows[0]
+    lo, hi = row0 - 0x100000, row0 + 0x1000
+    imm = []
+    blob_off, blob_len = 0x800000, 0x88000            # 代码 blob 区（覆盖当前 35,229B + 余量）
+    blob = eg[blob_off:blob_off + min(blob_len, len(eg) - blob_off)]
+    n = len(blob) // 4 * 4
+    for i in range(0, n, 4):
+        w = struct.unpack_from('<I', blob, i)[0]
+        cands = []
+        if (w & 0xFF800000) in (0x52800000, 0xD2800000):          # movz
+            cands.append(((w >> 5) & 0xFFFF) << (16 * ((w >> 21) & 3)))
+        if (w & 0xFF800000) in (0x71000000, 0xF1000000, 0x51000000, 0xD1000000):  # cmp/sub imm
+            cands.append((((w >> 10) & 0xFFF) << (12 * ((w >> 22) & 1))))
+        if i + 8 <= n:
+            w2 = struct.unpack_from('<I', blob, i + 4)[0]
+            if ((w & 0xFF800000) in (0x52800000, 0xD2800000)
+                    and (w2 & 0xFF800000) in (0x72800000, 0xF2800000)
+                    and (w & 0x1F) == (w2 & 0x1F)):
+                cands.append(((w >> 5) & 0xFFFF) | (((w2 >> 5) & 0xFFFF) << (16 * ((w2 >> 21) & 3))))
+        for v in cands:
+            if v and lo <= v <= hi:
+                imm.append((blob_off + i, v))
+    return dict(rows=rows, twins=twins, row0=row0, immediates=sorted(set(imm)))
+
+
+def multi_source_gate(eg, profiles, stock_eg):
+    """G3.9: 一值多源须同改。规则（merged firmware.c:76-77 语义）：
+    R1 两表行相等；R2 blob 立即数族 ⊆ {NEW=row0, OLD=row0-0x200, PAYLOAD=row0-0x200-0x29E00}；
+    R3 族区孪生字面量：保持 stock 值（未动）或改为族值（同改），二者之外=分叉。"""
+    fam = alloc_family(eg)
+    row0 = fam['row0']
+    allowed = {row0, row0 - ALLOC_SLACK, row0 - ALLOC_SLACK - ALLOC_RECORD_OFF}
+    bad = []
+    if fam['rows'][0] != fam['rows'][1]:
+        bad.append('表行分叉 %#x vs %#x（多源未同改）' % (fam['rows'][0], fam['rows'][1]))
+    stray = [(hex(a), hex(v)) for a, v in fam['immediates'] if v not in allowed]
+    if stray:
+        bad.append('blob 立即数族越界 %s（允许 %s）' % (stray[:3], sorted(hex(x) for x in allowed)))
+    for off, v in zip(E_TWIN_OFFS, fam['twins']):
+        stock_v = struct.unpack_from('<I', stock_eg, off)[0] if stock_eg else None
+        if v != row0 and v != stock_v:
+            bad.append('孪生字面量 @%#x=%#x 既非族值 %#x 也非 stock %#x（多源分叉）'
+                       % (off, v, row0, stock_v))
+    for f, prof in (profiles or {}).items():
+        for row in prof.get('patches', []):
+            a, n = int(row['offset'], 16), row['bytes']
+            if a < E_FAMILY_SPAN[1] and E_FAMILY_SPAN[0] < a + n and (a, n) not in (
+                    (E_ROW_OFFS[0], 4), (E_ROW_OFFS[1], 4)):
+                bad.append('声明窗 %s@%#x 覆盖族区但非表行（须证明归属并同值）' % (f, a))
+    return (not bad), ('; '.join(bad) or
+                       'rows=%s twins=%s blob-imm=%s 一致（NEW/OLD/PAYLOAD 族 %s）'
+                       % ([hex(x) for x in fam['rows']], [hex(x) for x in fam['twins']],
+                          [(hex(a), hex(v)) for a, v in fam['immediates'][:4]],
+                          sorted(hex(x) for x in allowed)))
+
+
+# --- G3.10 stub-level interpreter (executes the shipped stub words) ----------
+_STUB_MEM = {}
+
+
+def _decode(word):
+    """Supported subset of the guard stub; returns (op, args) or None."""
+    if word == 0xD503201F:
+        return ('nop', ())
+    if word == 0xD65F03C0:
+        return ('ret', ())
+    if (word & 0xFFFFFC1F) == 0xD61F0000:                       # br xn
+        return ('br', ((word >> 5) & 0x1F,))
+    if word == 0x2A1F03E0:
+        return ('mov_wzr_w0', ())
+    if (word & 0xFF800000) in (0x52800000, 0xD2800000):         # movz
+        return ('movz', ((word & 0x1F), (word >> 5) & 0xFFFF, (word >> 21) & 3))
+    if (word & 0xFF800000) in (0x72800000, 0xF2800000):         # movk
+        return ('movk', ((word & 0x1F), (word >> 5) & 0xFFFF, (word >> 21) & 3))
+    if (word & 0xFFC00000) in (0xF9400000, 0xB9400000):         # ldr rt,[rn,#imm]
+        return ('ldr', ((word & 0x1F), (word >> 5) & 0x1F, ((word >> 10) & 0xFFF) * 4,
+                        (word >> 31) & 1))
+    if (word & 0xFF800000) == 0xCB000000:                       # sub xd,xn,xm[,lsl#imm6]
+        return ('sub', ((word & 0x1F), (word >> 5) & 0x1F, (word >> 16) & 0x1F))
+    if (word & 0xFF800000) == 0x8B000000:                       # add xd,xn,xm[,lsl#imm6]
+        return ('add', ((word & 0x1F), (word >> 5) & 0x1F, (word >> 16) & 0x1F, (word >> 10) & 0x3F))
+    if (word & 0xFF800000) in (0x91000000, 0xD1000000):         # add/sub xd,xn,#imm
+        return ('addimm' if (word >> 30) & 1 == 0 else 'subimm',
+                ((word & 0x1F), (word >> 5) & 0x1F, ((word >> 10) & 0xFFF) << (12 * ((word >> 22) & 1))))
+    if (word & 0xFF800000) in (0x71000000, 0xF1000000):         # subs wzr/xzr,#imm = cmp imm
+        return ('cmpimm', ((word >> 5) & 0x1F, ((word >> 10) & 0xFFF) << (12 * ((word >> 22) & 1)),
+                           (word >> 31) & 1))
+    if (word & 0xFFE0FC1F) == 0xEB00001F:                       # cmp xn,xm (subs wzr)
+        return ('cmpreg', ((word >> 5) & 0x1F, (word >> 16) & 0x1F))
+    if (word & 0xFF000010) == 0x54000000:                       # b.cond
+        return ('bcond', ((word & 0xF), (word >> 5) & 0x7FFFF))
+    return None
+
+
+def _run_stub(words, base_slot, image_base, header_ptr, total, item_ptr, size_regs):
+    """Execute the stub with the given environment; returns 'APPLY' | 'SKIP' | 'FAIL:…'."""
+    reg = {9: 0, 10: 0, 16: 0, 25: header_ptr, 3: item_ptr, 23: item_ptr, 0: 0x1234}
+    reg.update(size_regs)
+    mem = dict(_STUB_MEM)
+    mem[base_slot] = image_base
+    mem[header_ptr + 0x10] = total
+    flags = dict(c=1, z=0)
+    pc = 0
+    for _ in range(64):
+        if pc >= len(words):
+            return 'FAIL: ran off stub'
+        d = _decode(words[pc])
+        if d is None:
+            return 'FAIL: unknown word %#x @%d' % (words[pc], pc)
+        op, a = d
+        if op == 'nop':
+            pc += 1
+        elif op == 'ret':
+            return 'SKIP'
+        elif op == 'br':
+            return 'APPLY'                      # br x16 = the stub's apply target
+        elif op == 'mov_wzr_w0':
+            reg[0] = 0
+            pc += 1
+        elif op == 'movz':
+            reg[a[0]] = (a[1] << (16 * a[2])) & 0xFFFFFFFFFFFFFFFF
+            pc += 1
+        elif op == 'movk':
+            shift = 16 * a[2]
+            reg[a[0]] = (reg.get(a[0], 0) & ~(0xFFFF << shift)) | (a[1] << shift)
+            pc += 1
+        elif op == 'ldr':
+            rt, rn, imm, _sf = a
+            reg[rt] = mem.get(reg.get(rn, 0) + imm, 0)
+            pc += 1
+        elif op == 'sub':
+            reg[a[0]] = (reg.get(a[1], 0) - reg.get(a[2], 0)) & 0xFFFFFFFFFFFFFFFF
+            pc += 1
+        elif op == 'add':
+            reg[a[0]] = (reg.get(a[1], 0) + (reg.get(a[2], 0) << a[3])) & 0xFFFFFFFFFFFFFFFF
+            pc += 1
+        elif op == 'addimm':
+            reg[a[0]] = (reg.get(a[1], 0) + a[2]) & 0xFFFFFFFFFFFFFFFF
+            pc += 1
+        elif op == 'subimm':
+            reg[a[0]] = (reg.get(a[1], 0) - a[2]) & 0xFFFFFFFFFFFFFFFF
+            pc += 1
+        elif op == 'cmpimm':
+            rn, imm, _sf = a
+            v = reg.get(rn, 0) & 0xFFFFFFFF
+            flags['z'] = int(v == imm)
+            flags['c'] = int(v >= imm)                     # unsigned no-borrow
+            pc += 1
+        elif op == 'cmpreg':
+            v, w = reg.get(a[0], 0), reg.get(a[1], 0)
+            flags['z'] = int(v == w)
+            flags['c'] = int(v >= w)
+            pc += 1
+        elif op == 'bcond':
+            cond, off = a
+            take = {0: flags['z'], 1: not flags['z'], 2: flags['c'], 3: not flags['c'],
+                    8: (flags['c'] and not flags['z']), 9: (not flags['c'] or flags['z'])}.get(cond)
+            if take is None:
+                return 'FAIL: cond %d unsupported' % cond
+            pc = pc + off if take else pc + 1
+        else:
+            return 'FAIL: op %s' % op
+    return 'FAIL: loop'
+
+
+# per-family operand shape (100_BUILD_LOG: blob=x3+size reg; 标量族 4B/step×idx+4)
+_STUB_FAM = {
+    'precapture_ncset_guard': ('size', {2: 'bytes'}),
+    'precapture_ncset_guard_s28': ('idx', {28: 'idx4'}),
+    'precapture_ncset_guard_s24': ('idx', {24: 'idx4'}),
+}
+
+
+def stub_behavior_check(eg, entries):
+    """G3.10: run the *shipped* stub words over behaviour vectors — the model under test
+    is the bytes in the candidate, not a Python re-implementation of the design."""
+    vectors = [
+        # label, item-end offset (file-image relative), total header length, expected
+        ('in-range', 0x120, 0x1000, 'APPLY'),
+        ('over-long', 0x1010, 0x1000, 'SKIP'),
+        ('all-before-image', -0xFE0, 0x1000, 'SKIP'),
+        ('header-too-small', 0x120, 0x40, 'SKIP'),
+        ('header-too-large', 0x120, 0x300000, 'SKIP'),
+        # Fix-1 钳制 = 文件内终点边界（100_BUILD_LOG 残留①：起始跨界按原值应用，与 stock 同类）
+        ('straddle-start', 0x20, 0x1000, 'APPLY'),
+    ]
+    bad, det = [], []
+    for name in GUARD_BODY:
+        va = entries.get(name)
+        if va is None:
+            bad.append('%s 无入口' % name)
+            continue
+        words = guard_words(eg, va, n=24)
+        fam, regspec = _STUB_FAM[name]
+        for label, end_delta, total, want in vectors:
+            image_base = 0xA10000000
+            size_regs = {}
+            for r, kind in regspec.items():
+                size_regs[r] = (end_delta if kind == 'bytes' else (end_delta - 4) >> 2) \
+                    & 0xFFFFFFFFFFFFFFFF
+            got = _run_stub(words, FILE_BASE_SLOT, image_base, 0xA0480DC70, total,
+                            image_base + (0 if fam == 'idx' else 0), size_regs)
+            if got != want:
+                bad.append('%s/%s: %s（期望 %s）' % (name, label, got, want))
+        det.append('%s: %d 向量解释执行' % (name, len(vectors)))
+    return (not bad), ('; '.join(bad[:6]) or '; '.join(det))
+
+
 # ---------------------------------------------------------------- package-level evaluation
 # Used by G1/G2/G3 and by the mutation battery; everything in memory.
 
@@ -409,22 +859,26 @@ def evaluate_package(stock, cand, profiles, features=None, expect_identity=EXPEC
                 anchor_bad.append('%s 缺失（recipe 文件没了）' % rel)
             elif hashlib.sha256(p.read_bytes()).hexdigest() != want:
                 anchor_bad.append('%s 现行字节≠构建时记录（recipe 漂移，产物不可复核）' % rel)
-    g3.add('G3.4', '产物↔recipe 源码指纹锁（manifest source_hashes 对现行工具链复核）', not anchor_bad,
-           '; '.join(anchor_bad[:6]) if anchor_bad else
-           'manifest source_hashes ×%d 与现行工具链全一致' % len(src or {}))
-    legacy_bad = []
+    legacy_bad, legacy_note, legacy_missing = [], '', False
     legacy = anchors.get('legacy_artifacts', {})
     if LEGACY_DIR is None:
-        g3.add('G3.5', '旧世代产物哈希锚（本地归档，未随仓库分发）', True,
-               'SKIPPED：未提供 NIJIN_LEGACY_DIR，%d 个旧世代锚未核' % len(legacy), skipped=True)
+        legacy_missing = True
+        legacy_note = 'SKIPPED：未提供 NIJIN_LEGACY_DIR，%d 个旧世代锚未核；' % len(legacy)
     else:
         for name, want in legacy.items():
             path = LEGACY_DIR / name
             if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != want:
                 legacy_bad.append('legacy anchor 丢失/漂移: %s' % name)
-        g3.add('G3.5', '旧世代产物哈希锚（本地归档，未随仓库分发）', not legacy_bad,
-               '; '.join(legacy_bad[:6]) if legacy_bad else
-               'legacy 锚 %d 个在位；单 feature 构建锚由组合矩阵落锚/复核' % len(legacy))
+        legacy_note = 'legacy 锚 %d 个在位；' % len(legacy)
+    # G3.4 = 回退安全三合一（138 口径）：源码指纹锁 + 旧世代哈希锚 + 单 feature 构建锚。
+    # 旧世代锚属本地归档：未提供目录时本检查记 SKIPPED（绝不记 PASS），但已核部分若已坏则照判 FAIL。
+    g3.add('G3.4', '回退安全（产物↔recipe 源码指纹锁 + 旧世代产物哈希锚 + 单 feature 构建锚）',
+           not anchor_bad and not legacy_bad,
+           '; '.join((anchor_bad + legacy_bad)[:6]) if (anchor_bad or legacy_bad) else
+           'manifest source_hashes ×%d 与现行工具链全一致；%s单 feature 构建锚由组合矩阵落锚/复核'
+           % (len(src or {}), legacy_note),
+           skipped=bool(legacy_missing and not anchor_bad and not legacy_bad))
+    guard_gates(g3, stock_eg, cand_eg, profiles, features, decoded)
     return out
 
 
@@ -453,7 +907,7 @@ def run_verify_py(stock_path, cand_path, features):
     return g
 
 
-def run_tests_gate(stock_path, out_dir):
+def run_tests_gate(stock_path, out_dir, cand_path=None):
     g = GateRun('G5', '测试门（上游测试栈 + 113 口径）')
     out_dir.mkdir(parents=True, exist_ok=True)
     v = subprocess.run([sys.executable, '-B', str(MERGED / 'tests' / 'validate.py'),
@@ -499,13 +953,56 @@ def run_tests_gate(stock_path, out_dir):
               'rc=%d %s' % (pt.returncode, (lines[-1] if lines else (pt.stderr or '')[-160:])[:160]))
     else:
         g.add('G5.4', 'tests/test_menuh.py', False, 'menuh 测试缺失')
+    guard_test = MERGED / 'tests' / 'test_ncset_guard.py'
+    if guard_test.exists():
+        gt = subprocess.run([sys.executable, '-B', str(guard_test)],
+                            capture_output=True, text=True, cwd=str(MERGED))
+        lines = [l for l in (gt.stdout or '').strip().splitlines() if l.strip()]
+        g.add('G5.5', 'tests/test_ncset_guard.py（c2 Fix1/④ 逐项单测+变异：六循环族/短文件/伪造条目/头长钳/跨区负控）',
+              gt.returncode == 0 and bool(lines) and lines[-1].startswith('TESTS PASS'),
+              'rc=%d %s' % (gt.returncode, (lines[-1] if lines else (gt.stderr or '')[-160:])[:160]))
+    else:
+        g.add('G5.5', 'tests/test_ncset_guard.py', False, 'guard 逐项测试缺失')
+    threegate = MERGED / 'tests' / 'test_threegate.py'
+    if threegate.exists():
+        cmd = [sys.executable, '-B', str(threegate)]
+        if cand_path is not None:
+            # absolute: the sub-test runs with cwd=MERGED, a caller-relative path would not resolve
+            cmd += ['--kit', str(Path(cand_path).resolve())]
+        tt = subprocess.run(cmd, capture_output=True, text=True, cwd=str(MERGED))
+        lines = [l for l in (tt.stdout or '').strip().splitlines() if l.strip()]
+        g.add('G5.7', 'tests/test_threegate.py（143 三态门：STP 自愈 + 失守可观测；19 向量 × base/shipped 双构建行为回归）',
+              tt.returncode == 0 and bool(lines) and lines[-1].startswith('TESTS PASS'),
+              'rc=%d %s' % (tt.returncode, (lines[-1] if lines else (tt.stderr or '')[-160:])[:160]))
+    else:
+        g.add('G5.7', 'tests/test_threegate.py', False, '三态门行为回归测试缺失')
+    # G5.6 需要本地回归脚本（work/ncset_regression.py，不随仓库分发）与候选包；
+    # 缺任一项都记 SKIPPED（绝不记 PASS），给了就必须真跑。
+    regression = MERGED.parent / 'work' / 'ncset_regression.py'
+    if cand_path is None or not regression.exists():
+        g.add('G5.6', 'work/ncset_regression.py R1–R3（真机样本 + 三真源/T4 边界核查）', True,
+              'SKIPPED：缺候选包或本地回归脚本（%s）' % regression, skipped=True)
+    else:
+        try:
+            eg = pc.eg_of(pc.Codec(Path(cand_path).read_bytes()).body)
+            eg_file = out_dir / 'cand.eg'
+            eg_file.write_bytes(eg)
+            run = subprocess.run([sys.executable, '-B', str(regression),
+                                  '--eg', str(eg_file)], capture_output=True, text=True)
+            lines = [l for l in (run.stdout or '').strip().splitlines() if l.strip()]
+            ok = run.returncode == 0 and any(l == 'REGRESSION PASS' for l in lines)
+            detail = '; '.join(l for l in lines if l.startswith('R'))
+        except Exception as exc:                      # noqa: BLE001 - a broken regression is a red gate
+            ok, detail = False, 'ncset_regression 无法执行: %s' % exc
+        g.add('G5.6', 'work/ncset_regression.py R1–R3（真机样本 + 三真源/T4 边界核查）', ok,
+              (detail or 'no output')[:300])
     return g
 
 
 # ---------------------------------------------------------------- G4 / G6 / G7
 
-def run_cfg_gate(cfg_files, ring_cap):
-    g = GateRun('G4', 'CFG 门（magic/flags/frames/CRC32/正交性）')
+def run_cfg_gate(cfg_files, ring_cap, per_frame=None):
+    g = GateRun('G4', 'CFG 门（magic/flags/frames/CRC32/正交性/包络）')
     facts = []
     bad = {'G4.1': [], 'G4.2': [], 'G4.3': [], 'G4.4': []}
     for path in cfg_files:
@@ -532,6 +1029,26 @@ def run_cfg_gate(cfg_files, ring_cap):
     except cc.CfgError as exc:
         ok5, d5 = False, str(exc)
     g.add('G4.5', '两文件正交性（Z8PRE ⟂ Z8OG）', ok5, d5)
+    # ---- G4.6: 内存包络断言（138 §4.2）：RING_CAP×单帧 ≤ 包络，且各档 frames×单帧 ≤ 包络
+    if per_frame:
+        over = []
+        if ring_cap * per_frame > ENVELOPE_LIMIT:
+            over.append('ring_cap %d × %#x = %d B > 包络 %d B'
+                        % (ring_cap, per_frame, ring_cap * per_frame, ENVELOPE_LIMIT))
+        for f in facts:
+            if f.get('kind') == 'Z8PRE':
+                need = f['frames'] * per_frame
+                if need > ENVELOPE_LIMIT:
+                    over.append('%s frames %d × %#x = %d B > 包络 %d B'
+                                % (f['file'], f['frames'], per_frame, need, ENVELOPE_LIMIT))
+        g.add('G4.6', '内存包络断言（RING_CAP×单帧 与 各档 frames×单帧 ≤ %d B=36×17.3MB 原厂设计包络；'
+                      '862MB 级整环失败配置拒）' % ENVELOPE_LIMIT, not over,
+              '; '.join(over) or 'OK: ring_cap %d×%#x=%d B；各档 %s'
+              % (ring_cap, per_frame, ring_cap * per_frame,
+                 ', '.join('%s=%d' % (f['file'], f['frames']) for f in facts if f.get('kind') == 'Z8PRE')))
+    else:
+        g.add('G4.6', '内存包络断言（调用方未提供单帧尺寸，无法断言）', True,
+              'SKIPPED：per_frame 缺失（单帧尺寸取自 G3.9 族值）', skipped=True)
     return g, facts
 
 

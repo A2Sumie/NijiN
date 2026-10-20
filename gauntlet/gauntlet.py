@@ -104,8 +104,13 @@ def stage_gates(ctx, args, results, log=print):
     runs.extend(ev[g].as_dict() for g in ('G1', 'G2', 'G3'))
     # G4 CFG
     ring_cap = int(ctx['profiles']['precapture']['merged']['ring_cap'], 16)
+    # 单帧尺寸取自 G3.9 的容量族值；无候选包则无从取，G4.6 记 SKIPPED
+    try:
+        per_frame = G.alloc_family(ctx['cand'].eg)['rows'][0] if ctx.get('cand') else None
+    except Exception:                                  # noqa: BLE001 - undecodable candidate: G4.6 skips
+        per_frame = None
     cfg_files = sorted(ctx['kit'].glob('*.CFG'))
-    g4, _ = G.run_cfg_gate(cfg_files, ring_cap)
+    g4, _ = G.run_cfg_gate(cfg_files, ring_cap, per_frame=per_frame)
     runs.append(g4.as_dict())
     # G5 tests
     if args.skip_tests:
@@ -114,7 +119,7 @@ def stage_gates(ctx, args, results, log=print):
         runs.append(g5.as_dict())
     else:
         log('G5: 运行上游测试栈（validate + validate_features，数分钟）…')
-        runs.append(G.run_tests_gate(ctx['stock_path'], ctx['out'] / 'tests').as_dict())
+        runs.append(G.run_tests_gate(ctx['stock_path'], ctx['out'] / 'tests', ctx['kit_bin']).as_dict())
     # G6 hygiene
     g6 = G.run_hygiene_gate(ctx['kit'], ctx['manifest'], features=ctx['features'],
                             cand_eg=ctx['cand'].eg if ctx['cand'] else None)
