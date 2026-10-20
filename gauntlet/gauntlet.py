@@ -38,8 +38,11 @@ def build_ctx(args):
     stock_path = Path(args.stock)
     baseline_path = None if (args.no_baseline or not args.baseline) else Path(args.baseline)
     bins = sorted(kit.glob('*.bin'))
+    identity = getattr(args, 'identity', None) or '03.11.p0'
+    G.rebase(identity[:5])          # anchor the gate addresses to the base under test first
     ctx = dict(kit=kit, stock_path=stock_path, baseline_path=baseline_path,
-               profiles=G.load_profiles(), out=Path(args.out))
+               profiles=G.load_profiles(), out=Path(args.out),
+               identity=identity, tag=identity[6:], version=identity[:5])
     ctx['stock'] = G.Artifact('stock', path=stock_path)
     if baseline_path and baseline_path.exists():
         ctx['baseline'] = G.Artifact('baseline', path=baseline_path)

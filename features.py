@@ -3,9 +3,10 @@ import binascii
 import re
 from z8prores.package import require, sha
 from z8prores.patcher import public_words, compatibility as prores_compatibility
+from z8prores import base as basemod
 
 FEATURES = ('prores', 'precapture', 'opengate', 'menuh')
-LOADER = 0x1024D8C
+LOADER = 0x1024D8C      # recipe offset, translated at use
 
 
 def selected_features(features):
@@ -19,14 +20,17 @@ def selected_features(features):
 def identity(eg):
     require(len(eg) == 81807711 and binascii.crc_hqx(eg, 0) == 0, 'Invalid EG length or CRC')
     text = eg[0x14eaa90:0x14eaa98]
-    require(re.fullmatch(rb'[0-9]{2}\.[0-9]{2}\.[a-z]\d', text), 'Unsupported runtime identity')
-    require(eg[-11:-3] == text and eg[0xeb29fc:0xeb2a08] == public_words(text[:5].decode()),
+    require(re.fullmatch(rb'[0-9]{2}\.[0-9]{2}\.(?:[a-z]\d|[0-9]{2})', text),  # LOCAL DEVIATION: 03.12 stock tag is numeric
+            'Unsupported runtime identity')
+    code_at = basemod.at(0xeb29fc)
+    require(eg[-11:-3] == text and eg[code_at:code_at + 12] == public_words(text[:5].decode()),
             'Public, runtime and trailer versions disagree')
     return text.decode()
 
 
 def compatibility(eg, features):
     features = selected_features(features)
+    basemod.CURRENT['base'] = basemod.identity_of(eg)   # recipe offsets translate from here on
     old_identity = identity(eg)
     profiles = {}
     if 'prores' in features:
@@ -56,7 +60,7 @@ def build(eg, version, tag, features, compiler='clang'):
     def add(at, raw, purpose, feature):
         for start, e in edits.items():
             if at < start+len(e['new']) and start < at+len(raw):
-                require(at == start == LOADER and len(raw) == len(e['new']) == 8,
+                require(at == start == basemod.at(LOADER) and len(raw) == len(e['new']) == 8,
                         'Selected features contain overlapping patch windows')  # LOCAL DEVIATION: loader end may be raised by several features
         edits[at] = dict(offset=at, new=raw, purpose=purpose, feature=feature)
 
@@ -66,7 +70,7 @@ def build(eg, version, tag, features, compiler='clang'):
         generated = {e['offset']: e for e in image.edits}
         require(len(generated) == len(profiles['prores']['patches']), 'Unexpected ProRes edit count')
         for row in profiles['prores']['patches']:
-            at = int(row['offset'], 16)
+            at = int(row['offset'], 16)   # base-absolute
             e = generated[at]
             require(len(e['new']) == row['bytes'] and sha(e['old']) == row['old_sha256'] and
                     sha(e['new']) == row['new_sha256'], 'ProRes differs from the reviewed recipe')
@@ -94,7 +98,7 @@ def build(eg, version, tag, features, compiler='clang'):
             add(e['offset'], e['new'], e['purpose'], 'menuh')
         details['menuh'] = 'P2-A DS-table relocation + h group shell (menuh)'
     text = f'{version}.{tag}'.encode()
-    for at, raw, purpose in [(0xeb29fc, public_words(version), 'public version instructions'),
+    for at, raw, purpose in [(basemod.at(0xeb29fc), public_words(version), 'public version instructions'),
                              (0x14eaa90, text, 'runtime identity'), (len(eg)-11, text, 'trailer identity')]:
         add(at, raw, purpose, 'identity')
     out = bytearray(eg)

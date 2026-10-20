@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from z8prores.package import RESOURCES, require, sha
+from z8prores.base import at, va, profile_path
 from z8precapture.linker import link
 
 HERE = Path(__file__).resolve().parent
@@ -20,7 +21,7 @@ NOP = struct.pack('<I', 0xd503201f)
 
 
 def compatibility(eg):
-    profile = json.loads((RESOURCES / 'opengate.json').read_text())
+    profile = json.loads(profile_path('opengate.json').read_text())
     require(len(eg) == profile['payload_bytes'], 'Unsupported EG length')
     for r in profile['ranges']:
         a, b = int(r['start'], 16), int(r['end'], 16)
@@ -32,7 +33,7 @@ def compatibility(eg):
 
 
 def compile_code(compiler='clang'):
-    profile = json.loads((RESOURCES / 'opengate.json').read_text())
+    profile = json.loads((RESOURCES / 'opengate.json').read_text())   # recipe lock is base-independent
     for name, expected in profile['source_sha256'].items():
         require(sha((HERE / name).read_bytes()) == expected, 'OpenGate source changed: ' + name)
     with tempfile.TemporaryDirectory(prefix='z8-opengate-compile-') as folder:
@@ -65,13 +66,13 @@ def edits(code, entries):
     pad_cases = {0xb9af64: 'og_pad_83k', 0xb9af88: 'og_pad_dx',
                  0xb9af9c: 'og_pad_41k', 0xb9afb0: 'og_pad_23x'}
     out = {}
-    for at, name in size_cases.items():
-        out[at] = branch(0x40160000 + at, entries[name]) + NOP * 2
-    for at, name in pad_cases.items():
-        out[at] = branch(0x40160000 + at, entries[name]) + NOP * 3
-    out[0xbbe650] = branch(0x40d1e650, entries['og_rate_row'])   # madd x8,x9,x8,x10 -> og_rate_row
-    out[CAVE_AT] = code
-    return [dict(offset=at, new=raw, purpose=purpose(at)) for at, raw in sorted(out.items())]
+    for at0, name in size_cases.items():
+        out[at(at0)] = branch(va(at0), entries[name]) + NOP * 2
+    for at0, name in pad_cases.items():
+        out[at(at0)] = branch(va(at0), entries[name]) + NOP * 3
+    out[at(0xbbe650)] = branch(va(0xbbe650), entries['og_rate_row'])   # madd -> og_rate_row
+    out[at(CAVE_AT)] = code
+    return [dict(offset=o, new=raw, purpose=purpose(o)) for o, raw in sorted(out.items())]
 
 
 def purpose(at):
@@ -90,7 +91,7 @@ def purpose(at):
 
 def build_edits(compiler='clang'):
     """Compile the pinned sources and return the reviewed patch windows."""
-    profile = json.loads((RESOURCES / 'opengate.json').read_text())
+    profile = json.loads(profile_path('opengate.json').read_text())
     code, _ = compile_code(compiler)
     rows = edits(code, profile['entries'])
     have = {int(r['offset'], 16): r for r in profile['patches']}

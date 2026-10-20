@@ -10,10 +10,21 @@ from pathlib import Path
 import re
 import struct
 
+from .authkey import auth_append
+
 RESOURCES = Path(__file__).resolve().parents[1] / 'resources'
 PACKAGE_BYTES = 99051117
-OUTER_FIELD = bytes.fromhex('5866cd124269c27e621da226')
-AUTH_APPEND = bytes.fromhex('6c12037e6fcec19a')
+AUTH_APPEND = auth_append()   # local configuration, not source
+# Outer header field and the Linux module are per public base; everything else is shared.
+OUTER_FIELDS = {
+    '03.11': bytes.fromhex('5866cd124269c27e621da226'),
+    '03.12': bytes.fromhex('196c6c7571a444b0b829e868'),
+}
+OUTER_FIELD = OUTER_FIELDS['03.11']
+LI_MODULES = {
+    '03.11': ('li2070_0311b0.bi', '804a55508cd6b323336fbba14034810e4b22fcc5fd1030d3a7dc08d62767cc55'),
+    '03.12': ('li2070_031200.bi', '1cbb7be91dae818d352c038fda844399c0afa606c613ccd3ed336a06bf60ba63'),
+}
 MODULES = (
     ('ex2070_030000.bi', 208, 524290, '4b7ea2ea40360717ceffd3d8db6fe48f5fae9d5c13b69632dc750bdc41b571c2'),
     ('_tpj01_0210.bin', 524498, 57346, '689f80feb0d271d73ac719e0c5872cfc0dac643097e528b6a1b156d4c55efe1a'),
@@ -21,6 +32,7 @@ MODULES = (
     ('vr2070_010100.bi', 82389555, 838664, '30e363077655f9936894fdc00104263eac4a33892e621199f84bf8f4cecea3bb'),
     ('li2070_0311b0.bi', 83228219, 15822850, '804a55508cd6b323336fbba14034810e4b22fcc5fd1030d3a7dc08d62767cc55'),
 )
+EG_NAME = re.compile(r'eg2070_\d{4}(?:[a-z]\d|\d{2})\.bi')   # LOCAL DEVIATION: 03.12 stock tag is numeric
 
 
 def sha(data):
@@ -69,7 +81,11 @@ def transform(body, tables):
 class Package:
     def __init__(self, raw):
         require(len(raw) == PACKAGE_BYTES, 'Unsupported package length; expected Z8 3.11 layout')
-        require(raw[20:32] == OUTER_FIELD, 'Unsupported outer package context')
+        self.base = next((k for k, v in OUTER_FIELDS.items() if raw[20:32] == v), None)
+        require(self.base, 'Unsupported outer package context')
+        self.outer = raw[20:32]
+        modules = list(MODULES)
+        modules[4] = (LI_MODULES[self.base][0], modules[4][1], modules[4][2], LI_MODULES[self.base][1])
         self.tables = recover_tables(raw[32:])
         self.body = transform(raw[32:], self.tables)
         body = self.body
@@ -79,30 +95,30 @@ class Package:
         require(binascii.crc_hqx(body[:-14], 0) == 0, 'Package body CRC mismatch')
         require(hashlib.sha1(body + AUTH_APPEND).digest() == raw[:20], 'Package SHA1 mismatch')
         self.modules = []
-        for i, (expected_name, start, size, expected_sha) in enumerate(MODULES):
+        for i, (expected_name, start, size, expected_sha) in enumerate(modules):
             name_bytes, a, n, r0, r1 = struct.unpack_from('>16s4I', body, 48 + i * 32)
             name = name_bytes.rstrip(b'\0').decode('ascii')
             require(name_bytes == name.encode().ljust(16, b'\0'), 'Noncanonical module name')
             require((a, n, r0, r1) == (start, size, 0, 0), f'Module {i} layout mismatch')
             if i == 2:
-                require(re.fullmatch(r'eg2070_\d{4}[a-z]\d\.bi', name), 'Unsupported EG module identity')
+                require(EG_NAME.fullmatch(name), 'Unsupported EG module identity')
             else:
                 require(name == expected_name, f'Unsupported module {i}')
             data = body[a:a + n]
             require(binascii.crc_hqx(data, 0) == 0, f'{name}: module CRC mismatch')
-            require(expected_sha is None or sha(data) == expected_sha, f'{name}: not a supported 3.11 module')
+            require(expected_sha is None or sha(data) == expected_sha, f'{name}: not a supported module for this base')
             self.modules.append(dict(name=name, start=a, bytes=n, sha256=sha(data)))
         self.eg = body[581844:581844 + 81807711]
         self.sha256 = sha(raw)
 
     def replace_eg(self, eg, name):
         require(len(eg) == 81807711 and binascii.crc_hqx(eg, 0) == 0, 'Invalid replacement EG')
-        require(re.fullmatch(r'eg2070_\d{4}[a-z]\d\.bi', name), 'Invalid output EG name')
+        require(EG_NAME.fullmatch(name), 'Invalid output EG name')
         body = bytearray(self.body)
         body[112:128] = name.encode().ljust(16, b'\0')
         body[581844:581844 + len(eg)] = eg
         body[-16:-14] = binascii.crc_hqx(body[:-16], 0).to_bytes(2, 'big')
-        packet = hashlib.sha1(body + AUTH_APPEND).digest() + OUTER_FIELD + transform(body, self.tables)
+        packet = hashlib.sha1(body + AUTH_APPEND).digest() + self.outer + transform(body, self.tables)
         checked = Package(packet)
         require(checked.eg == eg, 'Replacement did not round-trip')
         for i in [0, 1, 3, 4]:

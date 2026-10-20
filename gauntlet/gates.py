@@ -43,7 +43,25 @@ BASELINE_DEFAULT = Path(os.environ['NIJIN_BASELINE']) if os.environ.get('NIJIN_B
 LEGACY_DIR = Path(os.environ['NIJIN_LEGACY_DIR']) if os.environ.get('NIJIN_LEGACY_DIR') else None
 ANCHORS = HERE / 'anchors.json'
 
-STOCK_SHA256 = 'd67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96'
+sys.path.insert(0, str(MERGED))
+from z8prores.base import at as _at, CURRENT as _curbase          # noqa: E402
+
+
+def A(off):
+    """Recipe offset -> offset in the base under test (identity when base == 03.11)."""
+    return _at(off)
+
+
+def V(va):
+    """Recipe virtual address -> virtual address in the base under test."""
+    return 0x40160000 + _at(va - 0x40160000)
+
+
+STOCK_SHA256_BY_BASE = {
+    '03.11': 'd67413c2ede6b9ce8887175f20700bd9fbad2a973a4820968c45503d15d80d96',
+    '03.12': 'd662dd9dd5da937cb418162c238065e918dcefafd47b47537c3f934d39e83037',
+}
+STOCK_SHA256 = STOCK_SHA256_BY_BASE['03.11']
 BASELINE_V5_SHA256 = '79fa7b3274ec19f100d9361c836a3cfc6128be4090da755e167018c4b2e5da79'
 EXPECTED_IDENTITY = '03.11.p0'
 FORBIDDEN_IDENTITY = re.compile(r'04\.01')
@@ -52,8 +70,18 @@ IDENTITY_RE = re.compile(r'[0-9]{2}\.[0-9]{2}\.[a-z]\d')
 FEATURES = ('prores', 'precapture', 'opengate', 'menuh')
 PROFILE_FILES = {'prores': 'resources/profile.json', 'precapture': 'resources/precapture.json',
                  'opengate': 'resources/opengate.json', 'menuh': 'resources/menuh.json'}
-ENTRY_HOOK = {'prores': 0xeb62ec, 'precapture': 0xe0fe90, 'opengate': 0x573120, 'menuh': 0xeb5598}
-LOADER = 0x1024d8c
+def rebase(base_name='03.11'):
+    """Anchor the address constants to the base under test; call before evaluating."""
+    global ENTRY_HOOK, LOADER, APPLY_BLOB, APPLY_SCALAR, PUBLIC_WORDS_AT
+    _curbase['base'] = base_name
+    ENTRY_HOOK = {k: A(v) for k, v in {'prores': 0xeb62ec, 'precapture': 0xe0fe90,
+                                      'opengate': 0x573120, 'menuh': 0xeb5598}.items()}
+    LOADER = A(0x1024d8c)
+    APPLY_BLOB, APPLY_SCALAR = V(0x410E1AA8), V(0x410E1790)
+    PUBLIC_WORDS_AT = A(0xEB29FC)
+
+
+rebase()
 # 共享 text-loader 窗（111 §6.5）：组合构建取各 feature 要求的最大者；单调上调
 LOADER_REQ = {'prores': 0x4094F000, 'precapture': 0x40970000, 'menuh': 0x4098F000}
 LOADER_STOCK = 0x408BF8F0
@@ -148,7 +176,10 @@ class GateRun:
 # ---------------------------------------------------------------- shared helpers
 
 def load_profiles():
-    return {f: json.loads((MERGED / p).read_text()) for f, p in PROFILE_FILES.items()}
+    from z8prores.base import profile_path as _pp
+    names = {'prores': 'profile.json', 'precapture': 'precapture.json',
+             'opengate': 'opengate.json', 'menuh': 'menuh.json'}
+    return {f: json.loads(_pp(n).read_text()) for f, n in names.items()}
 
 
 def merge_spans(spans):
@@ -208,7 +239,7 @@ def expected_at(offset, rows, features):
 
 
 def public_words_ok(buf, version5):
-    w0, w1, w2 = struct.unpack_from('<3I', buf, PUBLIC_WORDS_AT)
+    w0, w1, w2 = struct.unpack_from('<3I', buf, A(0xEB29FC))
     if (w0 & ~0x1FFFE0, w1 & ~0x1FFFE0, w2 & ~0x1FFFE0) != (0x52800008, 0x72A00008, 0x52800009):
         return False
     value = struct.pack('<I', ((w0 >> 5) & 65535) | (((w1 >> 5) & 65535) << 16)) + struct.pack('<H', (w2 >> 5) & 65535)
@@ -224,7 +255,7 @@ def eg_module_name(identity):
 # G3.7 写区间点名归属门 (Fix 3) / G3.8 计数三真源一致门 (Fix 2)
 
 VA_BASE = 0x40160000
-APPLY_BLOB, APPLY_SCALAR = 0x410E1AA8, 0x410E1790
+
 FILE_BASE_SLOT = 0xA0480DC70        # *(u64*) = file-image buffer base (126 §2 anchor table)
 # ownership-unresolved regions: a recipe may never write here (c2-fix-plan Fix 3)
 REFUSED_REGIONS = [(0x4CBC9B8, 0x4CBC9C0,
@@ -421,9 +452,9 @@ def guard_gates(g3, stock_eg, cand_eg, profiles, features, decoded):
 
     # ---- G3.8: the settings count has three sources and they must agree (Fix 2)
     if decoded:
-        rom = struct.unpack_from('<4I', cand_eg, 0x44182FE0 - VA_BASE)
-        r2_imm = movz_imm(struct.unpack_from('<I', cand_eg, 0x410E0F68 - VA_BASE)[0], 0)
-        save_imm = movz_imm(struct.unpack_from('<I', cand_eg, 0x410E03D4 - VA_BASE)[0], 6)
+        rom = struct.unpack_from('<4I', cand_eg, V(0x44182FE0) - VA_BASE)
+        r2_imm = movz_imm(struct.unpack_from('<I', cand_eg, V(0x410E0F68) - VA_BASE)[0], 0)
+        save_imm = movz_imm(struct.unpack_from('<I', cand_eg, V(0x410E03D4) - VA_BASE)[0], 6)
         ok = rom[3] == r2_imm == save_imm and r2_imm is not None
         g3.add('G3.8', '计数三真源一致门（Fix 2：ROM 变体表 == R2 硬编码 == 保存侧立即数）',
                ok, 'ROM=%s R2=%s save=%s' % (rom, r2_imm, save_imm))
@@ -1055,7 +1086,19 @@ def run_cfg_gate(cfg_files, ring_cap, per_frame=None):
 def run_hygiene_gate(kit, manifest, features=None, cand_eg=None):
     g = GateRun('G6', 'flash_kit 卫生门（唯一固件/shasum/残留/manifest 一致）')
     bins = sorted(p.name for p in kit.glob('*.bin'))
-    g.add('G6.1', '唯一固件文件（恰好一个 .bin）', len(bins) == 1, 'bins=%s' % bins)
+    # 154 防砖纪律：刷机面只允许"没有固件"（隔离态）或"恰是清单内的已验证件"。
+    listed = {}
+    for sums in ('SHA256SUMS_ALL.txt', 'SHA256SUMS.txt'):
+        f = kit / sums
+        if f.exists():
+            for line in f.read_text().splitlines():
+                parts = line.split()
+                if len(parts) >= 2:
+                    listed[parts[-1]] = parts[0]
+    stray = [n for n in bins if listed.get(n) != hashlib.sha256((kit / n).read_bytes()).hexdigest()]
+    ok_bins = len(bins) <= 1 and not stray
+    g.add('G6.1', '固件面干净（≤1 个 .bin 且必在清单内、sha 相符；0 个=隔离态）', ok_bins,
+          'bins=%s stray=%s' % (bins, stray))
     def resolve(name, want_sha):
         """Exact file, or a unique same-sha alias (kit renames the build's Z8PRE.CFG
         to tier names; content integrity is what matters, alias is annotated)."""

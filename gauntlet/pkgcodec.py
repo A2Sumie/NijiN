@@ -20,8 +20,32 @@ import hashlib
 import struct
 
 PACKAGE_BYTES = 99051117
-OUTER_FIELD = bytes.fromhex('5866cd124269c27e621da226')
-K8 = bytes.fromhex('6c12037e6fcec19a')
+OUTER_FIELD = bytes.fromhex('5866cd124269c27e621da226')          # 03.11 base
+OUTER_FIELDS = (OUTER_FIELD, bytes.fromhex('196c6c7571a444b0b829e868'))  # + 03.12 base
+def _k8():
+    """Package authentication constant from local configuration; never a literal here.
+
+    $Z8_AUTH_APPEND (hex) -> $Z8_AUTH_CONFIG (json path) -> auth_append.local.json
+    or secrets/auth_append.local.json walking up from this file (see z8auth.py setup).
+    """
+    import json as _j, os as _o
+    from pathlib import Path as _P
+    raw = _o.environ.get('Z8_AUTH_APPEND')
+    if raw:
+        return bytes.fromhex(raw.strip())
+    named = _o.environ.get('Z8_AUTH_CONFIG')
+    cands = [_P(named)] if named else []
+    here = _P(__file__).resolve()
+    for parent in (here.parent, *here.parents):
+        cands += [parent / 'auth_append.local.json', parent / 'secrets' / 'auth_append.local.json']
+    for c in cands:
+        if c.is_file():
+            return bytes.fromhex(_j.loads(c.read_text())['auth_append'])
+    raise ValueError('authentication constant is not configured: bring your own key — '
+                     'python3 z8auth.py setup --package /path/to/your/official.bin')
+
+
+K8 = _k8()   # local configuration, not source
 EG_START, EG_LEN = 581844, 81807711
 EG_END = EG_START + EG_LEN                     # 82389555
 BODY_BYTES = PACKAGE_BYTES - 32                # 99051085
@@ -34,7 +58,7 @@ MODULES = (
     ('_tpj01_0210.bin', 524498, 57346),
     (None, EG_START, EG_LEN),
     ('vr2070_010100.bi', 82389555, 838664),
-    ('li2070_0311b0.bi', 83228219, 15822850),
+    (('li2070_0311b0.bi', 'li2070_031200.bi'), 83228219, 15822850),   # per base
 )
 
 IDENTITY_AT = 0x14eaa90                        # 8B runtime identity inside EG
@@ -83,7 +107,8 @@ class Codec:
 
     def __init__(self, raw):
         _need(len(raw) == PACKAGE_BYTES, 'wrong package length: %d' % len(raw))
-        _need(raw[20:32] == OUTER_FIELD, 'wrong outer package context')
+        _need(raw[20:32] in OUTER_FIELDS, 'wrong outer package context')
+        self.outer = raw[20:32]
         self.raw = raw
         self.tables = recover_tables(raw[32:])
         self.ks = _keystream(*self.tables, BODY_BYTES)
@@ -112,7 +137,7 @@ class Codec:
             z = min(base + step, n)
             x = int.from_bytes(body[32 + base:32 + z], 'little') ^ int.from_bytes(self.ks[32 + base:32 + z], 'little')
             cipher[32 + base:32 + z] = x.to_bytes(z - base, 'little')
-        return hashlib.sha1(body + K8).digest() + OUTER_FIELD + bytes(cipher)
+        return hashlib.sha1(body + K8).digest() + self.outer + bytes(cipher)
 
 
 def decode(raw):
@@ -179,7 +204,7 @@ def audit(raw, body=None):
     if not rec['length_ok']:
         rec['error'] = 'length %d != %d' % (len(raw), PACKAGE_BYTES)
         return rec
-    rec['context_ok'] = raw[20:32] == OUTER_FIELD
+    rec['context_ok'] = raw[20:32] in OUTER_FIELDS
     if body is None:
         try:
             body = decode(raw)
@@ -199,7 +224,8 @@ def audit(raw, body=None):
         name = name_bytes.rstrip(b'\0')
         if name_bytes != name.ljust(16, b'\0') or (a, n, r0, r1) != (start, size, 0, 0):
             dir_ok = False
-        if want_name is not None and name != want_name.encode():
+        want_names = (want_name,) if isinstance(want_name, str) else want_name
+        if want_names is not None and name not in [w.encode() for w in (want_names or ())]:
             dir_ok = False
         module = body[a:a + n] if (a, n) == (start, size) else b''
         if binascii.crc_hqx(module, 0) != 0:

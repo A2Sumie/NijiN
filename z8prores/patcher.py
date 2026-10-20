@@ -4,6 +4,7 @@ import json
 import re
 import struct
 from .package import RESOURCES, require, sha
+from .base import at as _at, profile_path
 
 VERSION_AT = 0x14EAA90
 CODE_VERSION_AT = 0xEB29FC
@@ -18,14 +19,14 @@ def public_words(version):
 
 
 def compatibility(eg):
-    profile = json.loads((RESOURCES / 'profile.json').read_text())
+    profile = json.loads(profile_path('profile.json').read_text())
     require(len(eg) == profile['payload_bytes'], 'Unsupported EG length')
     require(binascii.crc_hqx(eg, 0) == 0, 'Input EG CRC mismatch')
     ident = eg[VERSION_AT:VERSION_AT + 8]
-    require(re.fullmatch(rb'[0-9]{2}\.[0-9]{2}\.[a-z]\d', ident), 'Unsupported runtime identity')
+    require(re.fullmatch(rb'[0-9]{2}\.[0-9]{2}\.(?:[a-z]\d|[0-9]{2})', ident), 'Unsupported runtime identity')  # LOCAL DEVIATION: 03.12 stock carries a numeric tag
     require(eg[-11:-3] == ident, 'Runtime and trailer versions disagree')
     version = ident[:5].decode()
-    require(eg[CODE_VERSION_AT:CODE_VERSION_AT + 12] == public_words(version), 'Public and internal versions disagree')
+    require(eg[_at(CODE_VERSION_AT):_at(CODE_VERSION_AT) + 12] == public_words(version), 'Public and internal versions disagree')
     for r in profile['ranges']:
         a, b = int(r['start'], 16), int(r['end'], 16)
         require(sha(eg[a:b]) == r['sha256'], 'Incompatible region: ' + r['purpose'] +

@@ -16,6 +16,16 @@ import tempfile
 import zlib
 from pathlib import Path
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from z8prores.base import at as _at          # noqa: E402
+
+
+def _A(addr):
+    """Recipe EG address -> address in the base under test."""
+    return EG + _at(addr - EG)
+
+
 import cfgcheck as cc
 import gates as G
 import pkgcodec as pc
@@ -160,17 +170,17 @@ def build_pkg_mutant(codec, base_body, spec, stock_eg=None):
         return raw, None
     if stage == 'guard_defect':
         # v10's defective bound: replace the stub's same-base normalization with add x9,x25,x9
-        at = spec['at']
+        at = _A(spec['at'])
         body[at + spec['defect_off']:at + spec['defect_off'] + 4] = struct.pack('<I', 0x8B090329)
     elif stage == 'pre':
         if spec['op'] == 'flip':
-            _flip(body, spec['at'])
+            _flip(body, _A(spec['at']))
         elif spec['op'] == 'set':
-            _set(body, spec['at'], spec['value'])
+            _set(body, _A(spec['at']), spec['value'])
         elif spec['op'] == 'stock':
-            _set(body, spec['at'], stock_eg[spec['at'] - EG:spec['at'] - EG + spec['bytes']])
+            _set(body, _A(spec['at']), stock_eg[_A(spec['at']) - EG:_A(spec['at']) - EG + spec['bytes']])
         elif spec['op'] == 'plus4':
-            at = spec['at']
+            at = _A(spec['at'])
             body[at:at + 4] = (int.from_bytes(body[at:at + 4], 'big') + 1).to_bytes(4, 'big')
     elif stage == 'revert_windows':
         for at, n, old in spec['patches']:
@@ -185,13 +195,13 @@ def build_pkg_mutant(codec, base_body, spec, stock_eg=None):
         body = bytearray(pc.repair_chain(bytes(body)))
     if stage == 'post':
         if spec['op'] == 'flip':
-            _flip(body, spec['at'])
+            _flip(body, _A(spec['at']))
         elif spec['op'] == 'set':
-            _set(body, spec['at'], spec['value'])
+            _set(body, _A(spec['at']), spec['value'])
     raw = codec.encode(bytes(body))
     if stage == 'raw':
         raw = bytearray(raw)
-        _flip(raw, spec['at'])
+        _flip(raw, _A(spec['at']))
         raw = bytes(raw)
     return raw, bytes(body)
 
@@ -273,7 +283,7 @@ def run_battery(ctx, out_dir, anchors, log=print, skip_build=False):
         spec = dict(spec)
         if spec['stage'] == 'guard_defect':
             stub_va = entries[spec.pop('entry')]
-            spec['at'] = EG + (stub_va - 0x40160000)
+            spec['at'] = EG + _at(stub_va - 0x40160000)
             spec['defect_off'] = 4 * len(G.GUARD_PROLOGUE)   # first body word = the normalization
         raw, body = build_pkg_mutant(base.codec, base.body, spec, stock_eg=stock_eg)
         mutant = G.Artifact(spec['id'], raw=raw, body=body, codec=base.codec)
@@ -287,7 +297,7 @@ def run_battery(ctx, out_dir, anchors, log=print, skip_build=False):
         if spec.get('kind') == 'envelope':
             continue                                    # CFG 族，下方单独跑（带 recipe ring_cap）
         if spec['stage'] == 'alloc_row':
-            at = spec['at']
+            at = _A(spec['at'])
             val = (struct.unpack_from('<I', base.eg, at)[0] + spec['delta']) & 0xFFFFFFFF
             spec = dict(spec, stage='pre', at=EG + at, op='set', value=struct.pack('<I', val))
         elif spec['stage'] == 'guard_words':

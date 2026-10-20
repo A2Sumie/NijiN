@@ -411,9 +411,12 @@ static int read_cfg(char drive,u8 *out) {
     for(u32 i=0x20;i<0x3c;i++) if(out[i]) return CFG_REJECT;
     if(get32(out+0x3c)!=crc32(out,60)) return CFG_REJECT;
     if(pre>g_cap(grade)) { pre=g_cap(grade); set32(out+0x14,pre); }   /* v9: clamp inside the grade cap */
-    grade_dispatch(grade);
+    /* V13/p2: grade_dispatch moved to the governing side (see precapture_tdec_release). A config
+     * that the gate later refuses must not reprogram the stock capacity values: a feature that is
+     * off has to leave the camera's own ring sizing alone. */
     return CFG_VALID;
 }
+static u32 grade_of(const u8 *c) { u32 g=(get32(c+0x1c)>>8)&0xffu; return g?g:G_HES; }
 /* 143 §2.1: the stop gate is a session latch with a preserved evidence file, not a permanent scar.
  *   A1 session latch (this block's GO_LATCH byte, set by every stop_file, cleared by the loader at
  *      boot) -> stop for the rest of the session;
@@ -473,6 +476,11 @@ __attribute__((used)) void precapture_tdec_release(u64 r) {
         u32 drive=0,why=0,code=GC_NA;
         if(ra==CFG_REJECT || rb==CFG_REJECT)                        /* ③: a refused config is now visible */
             STORE32(GATE_BLOCK+GO_CFGREJ,LOAD32(GATE_BLOCK+GO_CFGREJ)+1);
+        if(a!=b) {
+            u32 gw=0;
+            if(!stopped(a?'A':'B',&gw)) grade_dispatch(grade_of(a?ca:cb));  /* V13/p2: the governing card
+                programs the ring for the next capture, and only while the feature is actually on */
+        }
         if(a!=b && t-get64(q+0x50)<FRESH_US) {
             drive=a?'A':'B'; const u8 *c=a?ca:cb;
             u32 flags=get32(c+0x10),pre=get32(c+0x14),budget=get32(c+0x18);

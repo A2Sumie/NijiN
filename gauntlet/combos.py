@@ -135,7 +135,7 @@ def run_combo_matrix(ctx, out_dir, anchors, log=print):
             rows.append(dict(combo=name, status='FAIL', detail='gauntlet 竞然拒了合法组合: %s' % exc))
             continue
         build_dir = out_dir / ('build_' + name.replace('+', '_'))
-        run, product = build_via_patch(stock_path, features, build_dir)
+        run, product = build_via_patch(stock_path, features, build_dir, version=ctx.get('version', '03.11'), tag=ctx.get('tag', 'p0'))
         if run.returncode != 0:
             rows.append(dict(combo=name, status='FAIL', detail='构建失败: ' + (run.stderr or run.stdout)[-300:]))
             continue
@@ -169,7 +169,7 @@ def run_combo_matrix(ctx, out_dir, anchors, log=print):
     repro = dict(combo='%s (rebuild)' % combo_name(repro_features), status='FAIL', detail='未执行')
     if kit_bin:
         build_dir = out_dir / 'build_repro'
-        run, product = build_via_patch(stock_path, repro_features, build_dir)
+        run, product = build_via_patch(stock_path, repro_features, build_dir, version=ctx.get('version', '03.11'), tag=ctx.get('tag', 'p0'))
         if run.returncode == 0:
             got = hashlib.sha256(product.read_bytes()).hexdigest()
             want = hashlib.sha256(kit_bin[0].read_bytes()).hexdigest()
@@ -193,7 +193,7 @@ def run_combo_matrix(ctx, out_dir, anchors, log=print):
                    detail='gauntlet 门拒：%s' % why if refused else '门未拒：%s' % why)
         if features:
             build_dir = out_dir / ('illegal_' + name.replace('+', '_'))
-            run, product = build_via_patch(stock_path, list(features), build_dir)
+            run, product = build_via_patch(stock_path, list(features), build_dir, version=ctx.get('version', '03.11'), tag=ctx.get('tag', 'p0'))
             builder = 'builder 拒绝' if run.returncode != 0 else 'builder 未拒（110 §E.6-1 enforce 未落）'
             if run.returncode == 0:
                 cand = G.Artifact('illegal:' + name, path=product)

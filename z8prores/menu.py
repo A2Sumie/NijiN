@@ -4,6 +4,7 @@ No filesystem reads, device access, test-default overrides or package output her
 import struct
 import re
 from . import layout as fw
+from .base import at as _at
 from .a64 import Block
 from capstone import Cs, CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN
 BASE = fw.BASE
@@ -33,7 +34,7 @@ NRAW_OK = 0x4056C964
 # ---- new material in the text segment's zero gap 75f8f0..aa0000 --------------------------------
 GAP = (0x75F8F0, 0xAA0000)
 CODE_AT, GUI_AT, TEXT_AT, TABLES_AT = 0x75F900, 0x760000, 0x764000, 0x780000
-LOADER_END_SITE, LOADER_END = 0x1024D8C, 0x408BF8F0   # mov x8,#0xf8f0 ; movk x8,#0x408b,lsl#16
+LOADER_END_SITE, LOADER_END = 0x1024D8C, 0x408BF8F0   # recipe offset; use _at() below   # mov x8,#0xf8f0 ; movk x8,#0x408b,lsl#16
 SECTION_VA, SECTION_ROOM = 0x40200000, 0xA00000       # RAM room the loader maps for this section
 ID_DUMMY = STRINGS                                   # keeps the end of the last stock string
 ID_LABEL = STRINGS + 1                               # "Video quality (ProRes)"
@@ -323,11 +324,12 @@ def loader(img):
     end = va((used + 0xFFF) & ~0xFFF)
     if not LOADER_END < end <= SECTION_VA + SECTION_ROOM or end > va(GAP[1]):
         raise ValueError('new material does not fit the section room')
+    site = _at(LOADER_END_SITE)
     old = struct.pack('<II', 0xD2800008 | (LOADER_END & 0xFFFF) << 5, 0xF2A00008 | (LOADER_END >> 16) << 5)
     new = struct.pack('<II', 0xD2800008 | (end & 0xFFFF) << 5, 0xF2A00008 | (end >> 16) << 5)
-    img.put(LOADER_END_SITE, new, f'text loader: copy section {SECTION_VA:#x} up to {end:#x} instead of {LOADER_END:#x}',
+    img.put(site, new, f'text loader: copy section {SECTION_VA:#x} up to {end:#x} instead of {LOADER_END:#x}',
             expect=old)
-    return dict(site=hex(va(LOADER_END_SITE)), old_end=hex(LOADER_END), new_end=hex(end),
+    return dict(site=hex(va(site)), old_end=hex(LOADER_END), new_end=hex(end),
                 copied_bytes=hex(end - SECTION_VA), room=hex(SECTION_ROOM))
 
 

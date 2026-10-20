@@ -55,21 +55,26 @@ __attribute__((noinline)) static int og_cfg_ok(const u8 *raw) {
     return get32(raw + 0x3c) == crc32(raw, 60);
 }
 __attribute__((noinline)) static int og_read_flag(void) {
+    int valid = 0, on = 0;
     for (u32 drive = 0; drive < 2; drive++) {
         char path[16] = "A:\\Z8OG.CFG";
         u8 raw[64] __attribute__((aligned(64)));
         u32 count = 0;
-        int fd, rc, cl, on = 0;
+        int fd, rc, cl;
         path[0] = (char)('A' + drive);
         fd = OPEN(path, 0, 0x20);
         if (fd < 0) continue;
         zero(raw, 64);
         rc = READ(fd, raw, 64, &count);
         cl = CLOSE(fd);
-        if (rc == 0 && cl == 0 && count == 64 && og_cfg_ok(raw)) on = (get32(raw + 0x10) & 1u) != 0;
-        if (on) return 1;
+        if (rc == 0 && cl == 0 && count == 64 && og_cfg_ok(raw)) {
+            valid++;
+            if (get32(raw + 0x10) & 1u) on++;
+        }
     }
-    return 0;
+    /* V13/p2: a single valid card decides. Two valid cards must agree, and a disagreement falls
+     * back to the stock geometry ("off"): an ambiguous card pair must not silently pick a side. */
+    return valid > 0 && on == valid;
 }
 
 /* packed (H<<16)|W -> OpenGate 3:2 twin, or the input unchanged when the option is off. */

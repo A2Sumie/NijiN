@@ -29,7 +29,7 @@ A release asset contains only the following items:
 
 ## Drill record (2026-10-19)
 
-The flow above was rehearsed end to end without publishing anything. With the reviewed compiler (`Apple clang 21.0.0 (clang-2100.3.34.2)`) both code objects compiled from the sources in this repository matched the recipe pins byte for byte (then-current objects: `precapture` 35,053 bytes `fb53a549…`, `opengate` 4,040 bytes `36e56939…`; object history: V11.1 brought 35,229 bytes `8fb68da6…`, **V12 brings 36,189 bytes `fa21fb78…`** — the current pin in `resources/`). `tools/redline_scan.py --release` passed the staging directory and refused, as it must, a one-byte tampering of an object, a smuggled `.bin`, and a manifest with the source hashes stripped. No release has been published.
+The flow above was rehearsed end to end without publishing anything. With the reviewed compiler (`Apple clang 21.0.0 (clang-2100.3.34.2)`) both code objects compiled from the sources in this repository matched the recipe pins byte for byte (current objects: `precapture` 36,237 bytes `63d3acd2…`, `opengate` 4,056 bytes `f2cf11c4…` — the pins in `resources/`; object history by size: `precapture` 35,053 → 35,229 (V11.1) → 36,189 (V12) → 36,237 (V13) bytes). `tools/redline_scan.py --release` passed the staging directory and refused, as it must, a one-byte tampering of an object, a smuggled `.bin`, and a manifest with the source hashes stripped. No release has been published.
 
 Flashing anything built from these objects is at your own risk: read [risks.md](risks.md) first.
 
@@ -62,6 +62,6 @@ Release 发布包用于提供预编译好的代码目标文件，方便没有 Cl
 
 ### 演练记录（2026-10-19）
 
-整套流程已完整演练过（未发布任何 release）。用审定过的编译器（`Apple clang 21.0.0 (clang-2100.3.34.2)`）从本仓源码编译出的两个代码对象与配方钉死值逐字节一致（当时对象：`precapture` 35,053 字节 `fb53a549…`、`opengate` 4,040 字节 `36e56939…`；对象沿革：V11.1 换 35,229 字节 `8fb68da6…`，**V12 换 36,189 字节 `fa21fb78…`**（现钉死在 `resources/`））。`tools/redline_scan.py --release` 通过了暂存目录，并如预期拒绝了单字节篡改、夹带 `.bin`、以及抹掉源码哈希的清单。
+整套流程已完整演练过（未发布任何 release）。用审定过的编译器（`Apple clang 21.0.0 (clang-2100.3.34.2)`）从本仓源码编译出的两个代码对象与配方钉死值逐字节一致（当前对象：`precapture` 36,237 字节 `63d3acd2…`、`opengate` 4,056 字节 `f2cf11c4…`（钉死在 `resources/`）；对象沿革（按大小）：`precapture` 35,053 → 35,229（V11.1）→ 36,189（V12）→ 36,237（V13）字节）。`tools/redline_scan.py --release` 通过了暂存目录，并如预期拒绝了单字节篡改、夹带 `.bin`、以及抹掉源码哈希的清单。
 
 刷写这些对象构建出的固件风险自担：先读 [risks.md](risks.md)。

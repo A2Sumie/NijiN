@@ -74,6 +74,16 @@ For full implementation details and verification scope, see [docs/features.md](d
 
 See [docs/versions.md](docs/versions.md) for version history and [docs/unfreeze-criteria.md](docs/unfreeze-criteria.md) for the checklist required to lift the release freeze.
 
+### Bring your own key
+
+The package authentication constant is a per-model key. This tree ships the method, not the key: nothing is built in, nothing is distributed. Bring your own, from your own official update package — one command:
+
+```sh
+python3 z8auth.py setup --package /path/to/your/Z_8_0311.bin
+```
+
+It derives the key from your package, proves it against your package's own header digest (`SHA1(body‖K8)`), and writes `secrets/auth_append.local.json` (mode 0600, never overwritten). `--also /path/to/another.bin` cross-checks a second package of the same camera. `--k8 <hex>` takes your own value, accepted only if it verifies. A build without a key stops and prints this command. The key never appears in logs, in the tree, or in a release.
+
 ### Quick Start
 
 1. Download the official Nikon Z8 firmware 3.11 (`Z_8_0311.bin`) from the [Nikon Download Center](https://downloadcenter.nikonimglib.com/en/download/fw/606.html).
@@ -185,6 +195,16 @@ NijiN 以用户自备的官方 Nikon Z8 C 3.11 固件包（`Z_8_0311.bin`，99,0
 | **V11 `bricking-edge`** | `bricking-edge`（分支与标签） | 故障排查与热修线：移除 V10 中 3 处嫌疑改动、4 个补丁窗口回退到上一构建。以 `03.11.p1` 包发布（`p0` = 历史冒烟／事故代）。详见 [docs/bricking-edge.md](docs/bricking-edge.md)。 | **⛔ V11.1 = 不安全（已知缺陷，调查中）——勿刷，请勿刷写。** 仅做过离线构建与字节级比对，2026-10-19 只以 toolkit 试验品身份放出；从未上机；V10 开机循环定谳前保持冻结。详见 [docs/risks.md](docs/risks.md#known-unsafe-v111-2026-10-19)。 |
 
 版本演进历史见 [docs/versions.md](docs/versions.md)，解除冻结所需的验收标准见 [docs/unfreeze-criteria.md](docs/unfreeze-criteria.md)。
+
+### 密钥自备
+
+包认证常量是按机型的密钥。本树只带方法、不带密钥：没有内置值，也不随包分发。密钥用你自己的官方固件包现场推导，一条命令：
+
+```sh
+python3 z8auth.py setup --package /你的/Z_8_0311.bin
+```
+
+工具从你的包推导密钥，用包自身的头摘要（`SHA1(body‖K8)`）校验，写入 `secrets/auth_append.local.json`（0600，拒绝覆盖）。`--also /另一个包` 做同机型互证；`--k8 <hex>` 直接给自备值，校验不过即拒收。构建缺密钥会停下并提示这条命令。密钥不进日志、不进源码、不进 Release。
 
 ### 快速开始
 

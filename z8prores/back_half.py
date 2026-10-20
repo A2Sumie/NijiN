@@ -24,6 +24,7 @@ Used by menu.build_main; offline only.
 import struct
 
 from .a64 import Block
+from .base import at as _at
 
 BASE = 0x40160000
 TYPE_SITE, TYPE_CHECK, TYPE_RESUME = 0xBBEB88, 0xBBEB90, 0x40D1EB8C
@@ -56,6 +57,11 @@ def va(offset):
     return BASE + offset
 
 
+def _va(address):
+    """A stock code address in the base under construction (recipe address in)."""
+    return BASE + _at(address - BASE)
+
+
 def rate_tables(img):
     stock = img.old[RATE_TABLE:RATE_TABLE + 0x18 * RATE_ROWS]
     out = []
@@ -77,7 +83,7 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
     for site, word in STOCK.items():
         if img.u32(site) != word:
             raise ValueError(f'stock word at {site:#x} differs')
-    if bank and (img.u32(BANK_SITE) != BANK_STOCK or value_ram != 0xA03D5C029):
+    if bank and (img.u32(_at(BANK_SITE)) != BANK_STOCK or value_ram != 0xA03D5C029):
         raise ValueError('bank hook: stock word or value byte differs')
     code_at = (code_at + 3) & ~3
     blk = Block(va(code_at))
@@ -90,14 +96,14 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
     # type: w8 = stored value, then back to the stock `str w9,[x20,#0x10]`
     blk.label('type')
     value(8)
-    blk.b(TYPE_RESUME)
+    blk.b(_va(TYPE_RESUME))
     # rate: x10 = table for the stored value, w8 = row size, then the stock row copy (w9 = row index)
     blk.label('rate')
     value(10)
     blk.adr(8, 'rate_pointers')
     blk.ldr_x_idx8(10, 8, 10)
     blk.mov_w(8, 0x18)
-    blk.b(RATE_RESUME)
+    blk.b(_va(RATE_RESUME))
     # label: x0 = sample description just copied from the apch template, w1 = its size (both kept)
     blk.label('label')
     value(9)
@@ -115,7 +121,7 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
     blk.subs_wi(13, 13, 1)
     blk.b_cond('ne', 'label_copy')
     blk.label('label_done')
-    blk.b(LABEL_NEXT)
+    blk.b(_va(LABEL_NEXT))
     # parser: w0 = FourCC; accept apch, apcn, apco, apcs (differences 0, 6, 7, 11 -> mask 0x8c1)
     blk.label('parser')
     blk.mov_w(8, 0x6368)
@@ -130,9 +136,9 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
     blk.ldrb_idx(10, 10, 9)
     blk.mov_x64(11, stash_ram)
     blk.strb_w(10, 11)
-    blk.b(PARSER_ACCEPT)
+    blk.b(_va(PARSER_ACCEPT))
     blk.label('parser_reject')
-    blk.b(PARSER_REJECT)
+    blk.b(_va(PARSER_REJECT))
     # shoot: x9 = matched {key, name} entry of the stock table; x1 = name for the text widget
     blk.label('shoot')
     blk.ldr_x(1, 9, 8)                                # the replaced stock instruction
@@ -144,7 +150,7 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
     blk.adr(11, 'display')
     blk.add_x(1, 11, 10, lsl=4)
     blk.label('shoot_done')
-    blk.b(SHOOT_RESUME)
+    blk.b(_va(SHOOT_RESUME))
     # play: fill the stock buffer with the name of the remembered grade, then the stock widget call
     blk.label('play')
     blk.mov_x64(10, stash_ram)
@@ -158,7 +164,7 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
     blk.str_w(12, 31, PLAY_BUFFER + 8)
     blk.ldrh_w(12, 10, 12)
     blk.strh_w(12, 31, PLAY_BUFFER + 12)
-    blk.b(PLAY_RESUME)
+    blk.b(_va(PLAY_RESUME))
     if bank:
         # bank: one-byte item copy; w20 = item id (low 16 bits count), x8 = source, x10 = target item
         blk.label('bank')
@@ -168,12 +174,12 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
         blk.movk_w16(11, BANK_ITEM)
         blk.cmp_w(9, 11)
         blk.b_cond('eq', 'bank_pair')
-        blk.b(BANK_RESUME)                                # any other one-byte item: the stock copy
+        blk.b(_va(BANK_RESUME))                                # any other one-byte item: the stock copy
         blk.label('bank_pair')
         blk.ldrh_w(9, 8)                                  # WbMovieSameStill and the stored choice
         blk.strh_w(9, 10)
         blk.ldrb_w(8, 8)                                  # value reported to the caller, as in the stock path
-        blk.b(BANK_DONE)
+        blk.b(_va(BANK_DONE))
     # data, 8-byte aligned
     while blk.here % 8:
         blk.nop()
@@ -199,24 +205,24 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
 
     def branch(site, target):
         return struct.pack('<I', 0x14000000 | (((target - va(site)) >> 2) & 0x3FFFFFF))
-    img.put(TYPE_SITE, branch(TYPE_SITE, blk.labels['type']), 'record service: type from the stored choice',
+    img.put(_at(TYPE_SITE), branch(_at(TYPE_SITE), blk.labels['type']), 'record service: type from the stored choice',
             expect=struct.pack('<I', STOCK[TYPE_SITE]))
-    img.put(TYPE_CHECK, struct.pack('<I', 0x7100111F), 'record service: accept types 0..3 (cmp w8,#4)',
+    img.put(_at(TYPE_CHECK), struct.pack('<I', 0x7100111F), 'record service: accept types 0..3 (cmp w8,#4)',
             expect=struct.pack('<I', STOCK[TYPE_CHECK]))
-    img.put(RATE_SITE, branch(RATE_SITE, blk.labels['rate']), 'bit-rate lookup: table by the stored choice',
+    img.put(_at(RATE_SITE), branch(_at(RATE_SITE), blk.labels['rate']), 'bit-rate lookup: table by the stored choice',
             expect=struct.pack('<I', STOCK[RATE_SITE]))
-    img.put(LABEL_SITE, struct.pack('<I', 0x94000000 | (((blk.labels['label'] - va(LABEL_SITE)) >> 2) & 0x3FFFFFF)),
+    img.put(_at(LABEL_SITE), struct.pack('<I', 0x94000000 | (((blk.labels['label'] - va(_at(LABEL_SITE))) >> 2) & 0x3FFFFFF)),
             'sample-description writer: FourCC and encoder name by the stored choice',
             expect=struct.pack('<I', STOCK[LABEL_SITE]))
-    img.put(PARSER_SITE, branch(PARSER_SITE, blk.labels['parser']),
+    img.put(_at(PARSER_SITE), branch(_at(PARSER_SITE), blk.labels['parser']),
             'playback: accept apch, apcn, apcs, apco and remember the grade',
             expect=struct.pack('<I', STOCK[PARSER_SITE]))
-    img.put(SHOOT_SITE, branch(SHOOT_SITE, blk.labels['shoot']), 'shooting display: CODEC name by the stored choice',
+    img.put(_at(SHOOT_SITE), branch(_at(SHOOT_SITE), blk.labels['shoot']), 'shooting display: CODEC name by the stored choice',
             expect=struct.pack('<I', STOCK[SHOOT_SITE]))
-    img.put(PLAY_SITE, branch(PLAY_SITE, blk.labels['play']), 'playback information: name by the remembered grade',
+    img.put(_at(PLAY_SITE), branch(_at(PLAY_SITE), blk.labels['play']), 'playback information: name by the remembered grade',
             expect=struct.pack('<I', STOCK[PLAY_SITE]))
     if bank:
-        img.put(BANK_SITE, branch(BANK_SITE, blk.labels['bank']),
+        img.put(_at(BANK_SITE), branch(_at(BANK_SITE), blk.labels['bank']),
                 'menu bank copy: item 120Bh carries the stored choice (two bytes)', expect=struct.pack('<I', BANK_STOCK))
     rows = []
     for i, name in enumerate(('HQ (stock table)', '422', 'LT', 'Proxy')):
@@ -227,6 +233,6 @@ def apply(img, cs, value_ram, stash_ram, code_at, limit, bank=False):
                 sites={hex(va(s)): hex(w) for s, w in STOCK.items()},
                 fourcc=['apc' + chr(c) for c in FOURCC_LAST], names=[n.decode() for n in NAMES],
                 display_names=[n.decode() for n in DISPLAY], stash=hex(stash_ram),
-                **({'bank': dict(site=hex(va(BANK_SITE)), stock_word=hex(BANK_STOCK), item=hex(BANK_ITEM),
-                                 resume=hex(BANK_RESUME), done=hex(BANK_DONE), bytes_copied=2)} if bank else {}),
+                **({'bank': dict(site=hex(va(_at(BANK_SITE))), stock_word=hex(BANK_STOCK), item=hex(BANK_ITEM),
+                                 resume=hex(_va(BANK_RESUME)), done=hex(_va(BANK_DONE)), bytes_copied=2)} if bank else {}),
                 rate_scale=[f'{n}/{d}' for n, d in RATE_SCALE], rate_tables=rows)

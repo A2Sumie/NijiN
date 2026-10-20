@@ -19,6 +19,8 @@ from pathlib import Path
 
 from z8prores.package import RESOURCES, require, sha
 
+from z8prores.base import at as _at, profile_path
+
 HERE = Path(__file__).resolve().parent
 BASE = 0x40160000
 PAYLOAD = 81807709                    # eg 模块去尾 CRC16 后长度
@@ -27,7 +29,7 @@ PAYLOAD = 81807709                    # eg 模块去尾 CRC16 后长度
 META_SRC, META_REC, META_N = 0x3EAA5C0, 0x18, 0x114B
 GRP_SRC, GRP_REC, GRP_N = 0x3EC44C8, 0x30, 0x7C
 LISTA_SRC, LISTA_N = 0x4CA9888, 465
-LISTA_COUNTS = (0xF7D27C, 0xF7D300, 0xF7DB0C)
+LISTA_COUNTS = (0xF7D27C, 0xF7D300, 0xF7DB0C)   # recipe offsets, translated at use
 ROWS_SRC, ROW_SZ = 0x3939258, 44
 EVPTR_SRC = 0x39393E4
 PAGE_REC = 0x4BC3390
@@ -145,7 +147,8 @@ def edits(eg):
     require(len(sites) == 7, f'listA chains: expected 7, got {len(sites)}')  # MenuBank 3 + 其它消费 4，全部重指向
     for s in sites:
         out += _chain_edit(eg, s, BASE + LISTA_AT, 'bank list base chain')
-    for s in LISTA_COUNTS:
+    for s0 in LISTA_COUNTS:
+        s = _at(s0)
         w = _w(eg, s)
         require((w >> 5) & 0xFFFF == 0x1D1, f'stock count at {s:#x}')
         out.append((s, struct.pack('<I', w), struct.pack('<I', (w & ~(0xFFFF << 5)) | (0x1D2 << 5)),
@@ -191,9 +194,10 @@ def edits(eg):
         out.append((at, struct.pack('<I', w), struct.pack('<I', new), desc))
 
     # ---- 6. LOADER 覆盖（多特性共享 8B 窗，单调上调）----
-    words = _chain_edit(eg, LOADER_SITE, LOADER_END_VA, 'loader end')
-    require([w[0] for w in words] == [LOADER_SITE, LOADER_SITE + 4], 'loader chain shape')
-    out.append((LOADER_SITE, words[0][1] + words[1][1], words[0][2] + words[1][2],
+    loader_site = _at(LOADER_SITE)
+    words = _chain_edit(eg, loader_site, LOADER_END_VA, 'loader end')
+    require([w[0] for w in words] == [loader_site, loader_site + 4], 'loader chain shape')
+    out.append((loader_site, words[0][1] + words[1][1], words[0][2] + words[1][2],
                 f'loader end -> {LOADER_END_VA:#x}'))
     out.sort(key=lambda e: e[0])
     for i in range(1, len(out)):
@@ -202,7 +206,7 @@ def edits(eg):
 
 
 def compatibility(eg):
-    p = RESOURCES / 'menuh.json'
+    p = profile_path('menuh.json')
     if not p.exists():
         return {'menuh': 'recipe not locked yet'}
     profile = json.loads(p.read_text())
@@ -234,7 +238,7 @@ def lock(eg):
             row['loader_input_sha256'] = sorted({sha(w) for w in lo_words})
         patches.append(row)
     profile = {'id': 'z8-c311-menuh-v1', 'payload_bytes': PAYLOAD,
-                   'note': 'DS-table relocation + custom-settings menu group shell (visible, enterable, no items yet)',
+                   'note': 'P2-A DS-table relocation + h group shell; see 120_BANK_P2_POC / 119 §2',
                    'ranges': ranges, 'patches': patches}
     (RESOURCES / 'menuh.json').write_text(json.dumps(profile, indent=1, ensure_ascii=False))
     return profile

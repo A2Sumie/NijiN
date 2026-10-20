@@ -27,7 +27,7 @@ Follow the tag naming conventions in [versions.md](versions.md). Always use anno
 ```sh
 cd /path/to/NijiN
 TAG=toolkit-$(date +%Y%m%d)
-git tag -a "$TAG" -m "NijiN toolkit $(date +%F): objects fa21fb78…/36e56939… match the pinned recipes; four checks and release reconciliation green"
+git tag -a "$TAG" -m "NijiN toolkit $(date +%F): objects 63d3acd2…/f2cf11c4… match the pinned recipes; four checks and release reconciliation green"
 git push origin "refs/tags/$TAG"
 
 gh release create "$TAG" --verify-tag \
@@ -87,7 +87,7 @@ gh release create "$TAG" --verify-tag \
 ```sh
 cd /path/to/NijiN
 TAG=toolkit-$(date +%Y%m%d)
-git tag -a "$TAG" -m "NijiN toolkit $(date +%F): objects fa21fb78…/36e56939… match the pinned recipes; four checks and release reconciliation green"
+git tag -a "$TAG" -m "NijiN toolkit $(date +%F): objects 63d3acd2…/f2cf11c4… match the pinned recipes; four checks and release reconciliation green"
 git push origin "refs/tags/$TAG"
 
 gh release create "$TAG" --verify-tag \
